@@ -1,0 +1,454 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/puzzle/puzzle_level.gd" id="1_level"]
+[ext_resource type="Script" uid="uid://decaxrq438krk" path="res://scripts/board.gd" id="2_board"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="3_solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/inventory.gd" id="4_inventory"]
+[ext_resource type="Script" path="res://scripts/puzzle/pressure_plate.gd" id="5_plate"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="6_gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="7_chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/rock.gd" id="8_rock"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="9_exit"]
+[ext_resource type="Script" path="res://scripts/puzzle/slime.gd" id="10_slime"]
+[ext_resource type="Texture2D" uid="uid://dhhffus51f0j7" path="res://assets/brackeys_platformer_assets/sprites/slime_green.png" id="11_slime_green"]
+[ext_resource type="Texture2D" uid="uid://ddpp2uphq2wt3" path="res://assets/brackeys_platformer_assets/sprites/slime_purple.png" id="12_slime_purple"]
+[ext_resource type="Script" path="res://scripts/puzzle/puzzle_knight.gd" id="13_knight"]
+[ext_resource type="Texture2D" uid="uid://fm1lbymsju6c" path="res://assets/brackeys_platformer_assets/sprites/knight.png" id="14_knight_tex"]
+[ext_resource type="Script" path="res://scripts/platformer/potion_thrower.gd" id="15_thrower"]
+[ext_resource type="Script" path="res://scripts/puzzle/potion_hud.gd" id="16_hud"]
+[ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf" id="17_font"]
+
+[sub_resource type="WorldBoundaryShape2D" id="Shape_top"]
+normal = Vector2(0, 1)
+
+[sub_resource type="WorldBoundaryShape2D" id="Shape_left"]
+normal = Vector2(1, 0)
+
+[sub_resource type="WorldBoundaryShape2D" id="Shape_right"]
+normal = Vector2(-1, 0)
+
+[sub_resource type="RectangleShape2D" id="Shape_knight"]
+size = Vector2(10, 16)
+
+[sub_resource type="RectangleShape2D" id="Shape_slime_body"]
+size = Vector2(12, 10)
+
+[sub_resource type="RectangleShape2D" id="Shape_slime_hurt"]
+size = Vector2(10, 8)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_cancel"]
+bg_color = Color(0.8, 0.2, 0.25, 0.35)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.4, 0.45, 0.9)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_slot"]
+bg_color = Color(0.1, 0.09, 0.14, 0.85)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.32, 0.45, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_slot_hover"]
+bg_color = Color(0.18, 0.16, 0.25, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.55, 0.5, 0.65, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_slot_selected"]
+bg_color = Color(0.22, 0.19, 0.3, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.85, 0.55, 1)
+
+[sub_resource type="Theme" id="Theme_hud"]
+default_font = ExtResource("17_font")
+default_font_size = 8
+Button/styles/hover = SubResource("StyleBox_slot_hover")
+Button/styles/hover_pressed = SubResource("StyleBox_slot_selected")
+Button/styles/normal = SubResource("StyleBox_slot")
+Button/styles/pressed = SubResource("StyleBox_slot_selected")
+
+[node name="PuzzleLevel01" type="Node2D" node_paths=PackedStringArray("player", "exit", "thrower", "hud")]
+script = ExtResource("1_level")
+player = NodePath("Knight")
+exit = NodePath("Level/Exit")
+thrower = NodePath("PotionThrower")
+hud = NodePath("HUD/Hud")
+
+[node name="Backdrop" type="Node2D" parent="."]
+script = ExtResource("2_board")
+columns = 44
+
+[node name="Inventory" type="Node" parent="."]
+script = ExtResource("4_inventory")
+start_knockback = 1
+start_freeze = 1
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("3_solid")
+points = PackedVector2Array(0, 0, 1056, 0, 1056, 24, 0, 24)
+
+[node name="ChestLedge" type="StaticBody2D" parent="Level"]
+position = Vector2(300, 150)
+script = ExtResource("3_solid")
+points = PackedVector2Array(0, 0, 60, 0, 60, 12, 0, 12)
+
+[node name="Tunnel1" type="StaticBody2D" parent="Level"]
+position = Vector2(600, 0)
+script = ExtResource("3_solid")
+points = PackedVector2Array(0, 0, 144, 0, 144, 168, 0, 168)
+
+[node name="Tunnel2" type="StaticBody2D" parent="Level"]
+position = Vector2(816, 0)
+script = ExtResource("3_solid")
+points = PackedVector2Array(0, 0, 180, 0, 180, 168, 0, 168)
+
+[node name="Edges" type="StaticBody2D" parent="Level"]
+
+[node name="Top" type="CollisionShape2D" parent="Level/Edges"]
+shape = SubResource("Shape_top")
+
+[node name="Left" type="CollisionShape2D" parent="Level/Edges"]
+shape = SubResource("Shape_left")
+
+[node name="Right" type="CollisionShape2D" parent="Level/Edges"]
+position = Vector2(1056, 0)
+shape = SubResource("Shape_right")
+
+[node name="Plate1" type="Area2D" parent="Level"]
+position = Vector2(120, 192)
+script = ExtResource("5_plate")
+
+[node name="Gate1" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(222, 0)
+script = ExtResource("6_gate")
+plates = [NodePath("../Plate1")]
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(330, 150)
+script = ExtResource("7_chest")
+
+[node name="Plate2" type="Area2D" parent="Level"]
+position = Vector2(440, 192)
+script = ExtResource("5_plate")
+
+[node name="Rock" type="CharacterBody2D" parent="Level"]
+position = Vector2(440, 192)
+collision_layer = 8
+collision_mask = 9
+script = ExtResource("8_rock")
+
+[node name="Gate2" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(490, 0)
+script = ExtResource("6_gate")
+plates = [NodePath("../Plate2")]
+open_when_pressed = false
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(1030, 192)
+script = ExtResource("9_exit")
+
+[node name="Hints" type="Node2D" parent="Level"]
+modulate = Color(1, 1, 1, 0.55)
+
+[node name="Room1" type="Label" parent="Level/Hints"]
+offset_left = 12.0
+offset_top = 34.0
+offset_right = 212.0
+offset_bottom = 54.0
+theme_override_fonts/font = ExtResource("17_font")
+theme_override_font_sizes/font_size = 8
+text = "1. FREEZE THE SLIME WHILE
+IT STANDS ON THE PLATE"
+
+[node name="Room2" type="Label" parent="Level/Hints"]
+offset_left = 244.0
+offset_top = 34.0
+offset_right = 484.0
+offset_bottom = 64.0
+theme_override_fonts/font = ExtResource("17_font")
+theme_override_font_sizes/font_size = 8
+text = "2. KNOCK THE ROCK OFF THE
+RED PLATE. CHESTS HOLD
+INGREDIENTS."
+
+[node name="Room3" type="Label" parent="Level/Hints"]
+offset_left = 512.0
+offset_top = 34.0
+offset_right = 772.0
+offset_bottom = 54.0
+theme_override_fonts/font = ExtResource("17_font")
+theme_override_font_sizes/font_size = 8
+text = "3. BURN IT. SOME ENEMIES DROP
+INGREDIENTS WHEN THEY DIE"
+
+[node name="Room4" type="Label" parent="Level/Hints"]
+offset_left = 790.0
+offset_top = 34.0
+offset_right = 1050.0
+offset_bottom = 54.0
+theme_override_fonts/font = ExtResource("17_font")
+theme_override_font_sizes/font_size = 8
+text = "4. TURN INVISIBLE TO SNEAK
+PAST. THROW IT AT YOUR FEET"
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Slime1" type="CharacterBody2D" parent="Enemies"]
+position = Vector2(150, 192)
+collision_layer = 4
+collision_mask = 9
+script = ExtResource("10_slime")
+patrol_distance = 60.0
+
+[node name="Sprite" type="Sprite2D" parent="Enemies/Slime1"]
+texture = ExtResource("11_slime_green")
+offset = Vector2(0, -12)
+hframes = 4
+vframes = 3
+
+[node name="Body" type="CollisionShape2D" parent="Enemies/Slime1"]
+position = Vector2(0, -5)
+shape = SubResource("Shape_slime_body")
+
+[node name="Hurtbox" type="Area2D" parent="Enemies/Slime1"]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Shape" type="CollisionShape2D" parent="Enemies/Slime1/Hurtbox"]
+position = Vector2(0, -5)
+shape = SubResource("Shape_slime_hurt")
+
+[node name="Slime2" type="CharacterBody2D" parent="Enemies"]
+position = Vector2(672, 192)
+collision_layer = 4
+collision_mask = 9
+script = ExtResource("10_slime")
+patrol_distance = 100.0
+start_direction = -1
+drop = &"ghost_wisp"
+
+[node name="Sprite" type="Sprite2D" parent="Enemies/Slime2"]
+texture = ExtResource("12_slime_purple")
+offset = Vector2(0, -12)
+hframes = 4
+vframes = 3
+
+[node name="Body" type="CollisionShape2D" parent="Enemies/Slime2"]
+position = Vector2(0, -5)
+shape = SubResource("Shape_slime_body")
+
+[node name="Hurtbox" type="Area2D" parent="Enemies/Slime2"]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Shape" type="CollisionShape2D" parent="Enemies/Slime2/Hurtbox"]
+position = Vector2(0, -5)
+shape = SubResource("Shape_slime_hurt")
+
+[node name="Slime3" type="CharacterBody2D" parent="Enemies"]
+position = Vector2(860, 192)
+collision_layer = 4
+collision_mask = 9
+script = ExtResource("10_slime")
+speed = 35.0
+patrol_distance = 40.0
+start_direction = -1
+
+[node name="Sprite" type="Sprite2D" parent="Enemies/Slime3"]
+texture = ExtResource("11_slime_green")
+offset = Vector2(0, -12)
+hframes = 4
+vframes = 3
+
+[node name="Body" type="CollisionShape2D" parent="Enemies/Slime3"]
+position = Vector2(0, -5)
+shape = SubResource("Shape_slime_body")
+
+[node name="Hurtbox" type="Area2D" parent="Enemies/Slime3"]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Shape" type="CollisionShape2D" parent="Enemies/Slime3/Hurtbox"]
+position = Vector2(0, -5)
+shape = SubResource("Shape_slime_hurt")
+
+[node name="Slime4" type="CharacterBody2D" parent="Enemies"]
+position = Vector2(950, 192)
+collision_layer = 4
+collision_mask = 9
+script = ExtResource("10_slime")
+patrol_distance = 40.0
+
+[node name="Sprite" type="Sprite2D" parent="Enemies/Slime4"]
+texture = ExtResource("11_slime_green")
+offset = Vector2(0, -12)
+hframes = 4
+vframes = 3
+
+[node name="Body" type="CollisionShape2D" parent="Enemies/Slime4"]
+position = Vector2(0, -5)
+shape = SubResource("Shape_slime_body")
+
+[node name="Hurtbox" type="Area2D" parent="Enemies/Slime4"]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Shape" type="CollisionShape2D" parent="Enemies/Slime4/Hurtbox"]
+position = Vector2(0, -5)
+shape = SubResource("Shape_slime_hurt")
+
+[node name="Knight" type="CharacterBody2D" parent="."]
+position = Vector2(24, 192)
+collision_layer = 2
+collision_mask = 9
+floor_constant_speed = true
+script = ExtResource("13_knight")
+
+[node name="Sprite" type="Sprite2D" parent="Knight"]
+texture = ExtResource("14_knight_tex")
+offset = Vector2(0, -12)
+hframes = 8
+vframes = 8
+
+[node name="Body" type="CollisionShape2D" parent="Knight"]
+position = Vector2(0, -8)
+shape = SubResource("Shape_knight")
+
+[node name="Camera" type="Camera2D" parent="Knight"]
+limit_left = 0
+limit_top = 0
+limit_right = 1056
+limit_bottom = 216
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+
+[node name="PotionThrower" type="Node2D" parent="." node_paths=PackedStringArray("thrower", "cancel_zone", "inventory")]
+script = ExtResource("15_thrower")
+thrower = NodePath("../Knight")
+cancel_zone = NodePath("../HUD/Hud/CancelZone")
+inventory = NodePath("../Inventory")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Hud" type="Control" parent="HUD" node_paths=PackedStringArray("inventory")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = SubResource("Theme_hud")
+script = ExtResource("16_hud")
+inventory = NodePath("../../Inventory")
+
+[node name="Slots" type="HBoxContainer" parent="HUD/Hud"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 132.0
+offset_bottom = 24.0
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Messages" type="VBoxContainer" parent="HUD/Hud"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -120.0
+offset_top = 64.0
+offset_right = 120.0
+offset_bottom = 100.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Banner" type="Label" parent="HUD/Hud"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -30.0
+offset_right = 150.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "STAGE CLEAR"
+horizontal_alignment = 1
+
+[node name="BannerSub" type="Label" parent="HUD/Hud"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -6.0
+offset_right = 150.0
+offset_bottom = 4.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 4
+text = "R: PLAY AGAIN   ESC: MENU"
+horizontal_alignment = 1
+
+[node name="Controls" type="Label" parent="HUD/Hud"]
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = -21.0
+offset_right = 380.0
+offset_bottom = -2.0
+grow_vertical = 0
+text = "MOVE: A D   JUMP: W   POTION: 1-4 OR CLICK
+THROW: DRAG, LET GO   RESTART: R   MENU: ESC"
+
+[node name="CancelZone" type="Panel" parent="HUD/Hud"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -40.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = 40.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_cancel")
+
+[node name="X" type="Label" parent="HUD/Hud/CancelZone"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.75, 0.78, 1)
+theme_override_font_sizes/font_size = 16
+text = "X"
+horizontal_alignment = 1
+vertical_alignment = 1
