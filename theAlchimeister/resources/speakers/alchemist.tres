@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DialogueSpeaker" format=3]
+
+[ext_resource type="Script" path="res://scripts/puzzle/dialogue_speaker.gd" id="1_speaker"]
+[ext_resource type="Texture2D" uid="uid://dlo7wu1w1q05i" path="res://assets/alchemist_talk.png" id="2_portrait"]
+
+[resource]
+script = ExtResource("1_speaker")
+id = "ALCHEMIST"
+name_color = Color(1, 0.5, 0.45, 1)
+portrait = ExtResource("2_portrait")
+portrait_scale = 1.5
+portrait_center = Vector2(64, 90)
+always_on_stage = true

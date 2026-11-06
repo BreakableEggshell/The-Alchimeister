@@ -1,61 +1,61 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://je1fbrw8c271"]
 
 [ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="1_base"]
-[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="2_solid"]
-[ext_resource type="Script" path="res://scripts/puzzle/pressure_plate.gd" id="3_plate"]
-[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="4_gate"]
-[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="5_chest"]
-[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="6_exit"]
+[ext_resource type="Script" uid="uid://cfh27oc1qjylx" path="res://scripts/platformer/solid.gd" id="2_solid"]
+[ext_resource type="Script" uid="uid://cclunytj84ice" path="res://scripts/puzzle/pressure_plate.gd" id="3_plate"]
+[ext_resource type="Script" uid="uid://cgrfg4ilymow" path="res://scripts/puzzle/gate.gd" id="4_gate"]
+[ext_resource type="Script" uid="uid://bkeayd0brkddq" path="res://scripts/puzzle/chest.gd" id="5_chest"]
+[ext_resource type="Script" uid="uid://ddxyoskuyx8fl" path="res://scripts/puzzle/exit_door.gd" id="6_exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="7_slime"]
-[ext_resource type="Script" path="res://scripts/puzzle/throw_hint.gd" id="8_hint"]
+[ext_resource type="Script" uid="uid://bfk1ff0h8ik6e" path="res://scripts/puzzle/throw_hint.gd" id="8_hint"]
 
-[node name="Tutorial2" instance=ExtResource("1_base")]
+[node name="Tutorial2" unique_id=759354436 instance=ExtResource("1_base")]
 stage_id = "1-2"
-stage_size = Vector2(384, 216)
 potions_needed_until_x = 278.0
 
-[node name="Level" type="Node2D" parent="."]
+[node name="Level" type="Node2D" parent="." index="5" unique_id=1724762320]
 
-[node name="Floor" type="StaticBody2D" parent="Level"]
+[node name="Floor" type="StaticBody2D" parent="Level" index="0" unique_id=478426208]
 position = Vector2(0, 192)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 384, 0, 384, 24, 0, 24)
 
-[node name="Overhang" type="StaticBody2D" parent="Level"]
+[node name="Overhang" type="StaticBody2D" parent="Level" index="1" unique_id=1421679315]
 position = Vector2(264, 0)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 48, 0, 48, 120, 0, 120)
 
-[node name="Chest" type="Area2D" parent="Level"]
+[node name="Chest" type="Area2D" parent="Level" index="2" unique_id=1863033841]
 position = Vector2(168, 192)
 script = ExtResource("5_chest")
 contents = "frost_shard"
 amount = 4
-open_lines = PackedStringArray("SHELDON: Just a bunch of junk. But looks like we can make something with this.", "SHELDON: Press [B] to see what you can make.")
+open_lines = PackedStringArray("SHELDON: This chest just has a bunch of junk. But looks like we can make something with this.", "SHELDON: Press [B] to see what you can make.")
 
-[node name="WallButton" type="Area2D" parent="Level"]
+[node name="WallButton" type="Area2D" parent="Level" index="3" unique_id=2050312468]
+z_index = 3
 position = Vector2(263, 65)
 rotation = -1.5708
 script = ExtResource("3_plate")
 width = 16.0
 
-[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+[node name="Gate" type="StaticBody2D" parent="Level" index="4" unique_id=205015946 node_paths=PackedStringArray("plates")]
 position = Vector2(264, 120)
 script = ExtResource("4_gate")
 size = Vector2(12, 72)
 plates = [NodePath("../WallButton")]
 
-[node name="ThrowHint" type="Node2D" parent="Level"]
+[node name="ThrowHint" type="Node2D" parent="Level" index="5" unique_id=524140518]
 position = Vector2(168, 120)
 script = ExtResource("8_hint")
 
-[node name="Exit" type="Area2D" parent="Level"]
+[node name="Exit" type="Area2D" parent="Level" index="6" unique_id=346118849]
 position = Vector2(348, 192)
 script = ExtResource("6_exit")
 
-[node name="Enemies" type="Node2D" parent="."]
+[node name="Enemies" type="Node2D" parent="." index="6" unique_id=1049016870]
 
-[node name="WallSlime" parent="Enemies" instance=ExtResource("7_slime")]
+[node name="WallSlime" parent="Enemies" index="0" unique_id=623640284 instance=ExtResource("7_slime")]
 position = Vector2(263.5, 65)
 speed = 50.0
 patrol_distance = 26.0
