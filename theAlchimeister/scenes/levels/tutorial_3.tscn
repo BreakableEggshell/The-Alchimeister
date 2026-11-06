@@ -10,7 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="8_slime"]
 [ext_resource type="Texture2D" uid="uid://ddpp2uphq2wt3" path="res://assets/brackeys_platformer_assets/sprites/slime_purple.png" id="9_purple"]
 [ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="10_chest"]
-[ext_resource type="Script" path="res://scripts/puzzle/cleanse_portal.gd" id="11_portal"]
+[ext_resource type="Script" path="res://scripts/puzzle/cleansing_water.gd" id="11_water"]
 
 [node name="Tutorial3" instance=ExtResource("1_base")]
 script = ExtResource("2_stage")
@@ -33,11 +33,11 @@ amount = 2
 extra_contents = "ember"
 
 [node name="RedPlate" type="Area2D" parent="Level"]
-position = Vector2(160, 192)
+position = Vector2(120, 192)
 script = ExtResource("4_plate")
 
 [node name="Rock" type="CharacterBody2D" parent="Level"]
-position = Vector2(160, 192)
+position = Vector2(120, 192)
 collision_layer = 8
 collision_mask = 9
 script = ExtResource("6_rock")
@@ -45,6 +45,7 @@ script = ExtResource("6_rock")
 [node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
 position = Vector2(200, 0)
 script = ExtResource("5_gate")
+size = Vector2(12, 192)
 plates = [NodePath("../RedPlate")]
 open_when_pressed = false
 
@@ -58,9 +59,9 @@ position = Vector2(560, 0)
 script = ExtResource("3_solid")
 points = PackedVector2Array(0, 0, 200, 0, 200, 168, 0, 168)
 
-[node name="Portal" type="Area2D" parent="Level"]
+[node name="CleansingWater" type="Area2D" parent="Level"]
 position = Vector2(795, 192)
-script = ExtResource("11_portal")
+script = ExtResource("11_water")
 
 [node name="HallwayD" type="StaticBody2D" parent="Level"]
 position = Vector2(830, 0)

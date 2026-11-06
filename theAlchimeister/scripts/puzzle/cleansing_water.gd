@@ -1,7 +1,9 @@
 @tool
+class_name CleansingWater
 extends Area2D
-## A bubbling blue wall that washes off every potion effect from anything
-## standing in it (the player and monsters), e.g. ending translucency.
+## Cleansing water: a bubbling blue wall that washes off every potion effect
+## from anything standing in it, the player and monsters alike (ending
+## translucency, putting out fire, thawing ice, waking the stunned).
 ## Origin is the floor at its centre; it rises `height` pixels.
 
 @export var height := 192.0:
@@ -44,6 +46,16 @@ func _physics_process(_delta: float) -> void:
 	for body in get_overlapping_bodies():
 		if body.has_method("clear_potion_effects"):
 			body.clear_potion_effects()
+
+
+## A small cleansing water icon (for the notebook), centred on `at`.
+static func draw_icon(canvas: CanvasItem, at: Vector2) -> void:
+	var body := Rect2(at + Vector2(-4, -6), Vector2(8, 12))
+	canvas.draw_rect(body, Color(WATER, 0.8))
+	canvas.draw_line(body.position, body.position + Vector2(0, body.size.y), EDGE)
+	canvas.draw_line(body.position + Vector2(body.size.x, 0), body.end, EDGE)
+	canvas.draw_circle(at + Vector2(-1, 2), 1.0, BUBBLE)
+	canvas.draw_circle(at + Vector2(1.5, -2), 1.0, BUBBLE)
 
 
 func _process(delta: float) -> void:

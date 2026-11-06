@@ -24,9 +24,10 @@ func _ready() -> void:
 	add_child(shape)
 
 
-func apply_potion(kind: StringName, origin: Vector2) -> void:
+## `power` scales knockback with how hard the potion was thrown.
+func apply_potion(kind: StringName, origin: Vector2, power := 1.0) -> void:
 	if kind == PotionData.KNOCKBACK:
-		velocity = PotionData.knockback_velocity(global_position + Vector2(0, -size.y / 2.0), origin, knockback_strength)
+		velocity = PotionData.knockback_velocity(global_position + Vector2(0, -size.y / 2.0), origin, knockback_strength * power)
 
 
 func _physics_process(delta: float) -> void:

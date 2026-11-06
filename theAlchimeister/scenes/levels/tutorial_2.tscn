@@ -23,7 +23,7 @@ points = PackedVector2Array(0, 0, 384, 0, 384, 24, 0, 24)
 [node name="Overhang" type="StaticBody2D" parent="Level" index="1" unique_id=1421679315]
 position = Vector2(264, 0)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 48, 0, 48, 120, 0, 120)
+points = PackedVector2Array(0, 0, 48, 0, 48, 168, 0, 168)
 
 [node name="Chest" type="Area2D" parent="Level" index="2" unique_id=1863033841]
 position = Vector2(168, 192)
@@ -40,9 +40,9 @@ script = ExtResource("3_plate")
 width = 16.0
 
 [node name="Gate" type="StaticBody2D" parent="Level" index="4" unique_id=205015946 node_paths=PackedStringArray("plates")]
-position = Vector2(264, 120)
+position = Vector2(264, 168)
 script = ExtResource("4_gate")
-size = Vector2(12, 72)
+size = Vector2(12, 24)
 plates = [NodePath("../WallButton")]
 
 [node name="ThrowHint" type="Node2D" parent="Level" index="5" unique_id=524140518]

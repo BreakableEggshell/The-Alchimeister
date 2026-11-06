@@ -3,28 +3,32 @@ class_name Gate
 extends StaticBody2D
 ## A portcullis linked to pressure plates. Normally it opens while any linked
 ## plate is pressed; with open_when_pressed off it opens only while none are.
-## It only lets things through once fully raised, but blocks again the moment
-## it starts to close. Origin is the top-left corner.
+## It rises and drops at the same slow speed, and blocks exactly what it
+## shows: the bars that are down are solid, the gap under them is free. If
+## something is in the way as it drops, it waits above it.
+## Origin is the top-left corner. Keep doorways low (a wall above the gate),
+## so a closing gate shuts the gap before anyone can dash under it.
 ## A wire runs from each linked button through the floor or wall to the
 ## gate, lit in the button's colour (green while free, red while pressed).
 
-@export var size := Vector2(12, 192):
+@export var size := Vector2(12, 24):
 	set(value):
 		size = value
 		queue_redraw()
 @export var plates: Array[PressurePlate] = []
 @export var open_when_pressed := true
-## Seconds to rise fully. Slow enough that a half-raised gate doesn't look passable.
+## Seconds to rise or drop fully.
 @export var travel_time := 1.2
-## Seconds to drop fully. Quicker than rising, so a plate that's only pressed
-## briefly and repeatedly can't ratchet the gate open bit by bit.
-@export var close_time := 0.25
 
-var _is_open := false
+## What a dropping gate stops for instead of crushing.
+const BLOCKERS := PotionData.LAYER_PLAYER | PotionData.LAYER_ENEMIES | PotionData.LAYER_PROPS
+
 var _open_amount := 0.0
 var _shape: CollisionShape2D
-var _tween: Tween
 var _wires: Node2D
+## Plates learn what's on them during the first physics frames; until then
+## the gate stays shut.
+var _settle_frames := 2
 
 const WIRE_OUTLINE := Color(0.08, 0.07, 0.11)
 const WIRE_ALPHA := 0.9
@@ -41,37 +45,54 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	_shape = CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = size
-	_shape.shape = rect
-	_shape.position = size / 2.0
+	_shape.shape = RectangleShape2D.new()
 	add_child(_shape)
+	_fit_shape()
 	for plate in plates:
-		plate.toggled.connect(_update.unbind(1))
 		plate.toggled.connect(_wires.queue_redraw.unbind(1))
-	# Plates learn what's on them during the first physics frames. Gates start
-	# closed; if something already holds one open, it opens at normal speed.
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	_update()
 
 
-func _update() -> void:
-	var any_pressed := plates.any(func(plate: PressurePlate) -> bool: return plate.pressed)
-	var should_open := any_pressed == open_when_pressed
-	if should_open == _is_open:
+func _physics_process(delta: float) -> void:
+	if Engine.is_editor_hint():
 		return
-	_is_open = should_open
-	if _tween:
-		_tween.kill()
-	if not should_open:
-		_shape.set_deferred("disabled", false)
-	var target := 1.0 if should_open else 0.0
-	_tween = create_tween()
-	var full_time := travel_time if should_open else close_time
-	_tween.tween_method(_set_open_amount, _open_amount, target, full_time * absf(target - _open_amount))
-	if should_open:
-		_tween.tween_callback(_shape.set_deferred.bind("disabled", true))
+	if _settle_frames > 0:
+		_settle_frames -= 1
+		return
+	var any_pressed := plates.any(func(plate: PressurePlate) -> bool: return plate.pressed)
+	var target := 1.0 if any_pressed == open_when_pressed else 0.0
+	if _open_amount == target:
+		return
+	var next := move_toward(_open_amount, target, delta / travel_time)
+	# Dropping onto someone: hold here until they've moved.
+	if next < _open_amount and _blocked_at(next):
+		return
+	_set_open_amount(next)
+
+
+## How far down the bars reach at an open amount.
+func _bars_height(amount: float) -> float:
+	return size.y * (1.0 - amount)
+
+
+## Whether a body would be inside the bars at this open amount.
+func _blocked_at(amount: float) -> bool:
+	var height := _bars_height(amount)
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(size.x, height)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = rect
+	query.transform = global_transform * Transform2D(0.0, Vector2(size.x / 2.0, height / 2.0))
+	query.collision_mask = BLOCKERS
+	query.exclude = [get_rid()]
+	return not get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## The solid part is just the bars that are down.
+func _fit_shape() -> void:
+	var height := _bars_height(_open_amount)
+	(_shape.shape as RectangleShape2D).size = Vector2(size.x, maxf(height, 0.5))
+	_shape.position = Vector2(size.x / 2.0, height / 2.0)
+	_shape.disabled = height < 0.5
 
 
 func _process(_delta: float) -> void:
@@ -108,6 +129,7 @@ func _draw_wires() -> void:
 
 func _set_open_amount(amount: float) -> void:
 	_open_amount = amount
+	_fit_shape()
 	queue_redraw()
 
 

@@ -3,7 +3,8 @@ extends CharacterBody2D
 ## ledges and the edge of its patrol range; with `on_wall` it crawls up and
 ## down a wall instead. Touching it kills the player unless the slime is
 ## frozen, stunned or dead, or either of them is translucent.
-## Fire: burns, keeps patrolling, dies after a while and drops its items.
+## Fire: burns, patrols faster (FIRE_SPEED_BOOST), dies after a while and
+## drops its items. Slimes still carrying drops sparkle.
 ## Freeze: stops dead and becomes harmless for a while.
 ## Knockback: flung away, dazed (still and harmless) for a moment, and drops
 ## its items. Wall slimes ignore knockback.
@@ -17,6 +18,10 @@ extends CharacterBody2D
 
 const FRAME_COUNT := 4
 const STUNNED_ALPHA := 0.6
+const SPARKLE_COUNT := 4
+## Twinkles per second per sparkle.
+const SPARKLE_RATE := 0.9
+const SPARKLE_COLOR := Color(1.0, 0.95, 0.6)
 const TRANSLUCENT_ALPHA := 0.35
 ## Seconds before a translucency ends that it starts blinking.
 const WARN_TIME := 3.0
@@ -60,6 +65,7 @@ var _blink_phase := 0.0
 var _blink_on := true
 var _flames: CPUParticles2D
 var _potion_hitbox: Area2D
+var _sparkles: Node2D
 
 @onready var _sprite: Sprite2D = $Sprite
 @onready var _hurtbox: Area2D = $Hurtbox
@@ -75,11 +81,16 @@ func _ready() -> void:
 		motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	_flames = _make_flames()
 	add_child(_flames)
+	# In front of the sprite, so the twinkles show over the body.
+	_sparkles = Node2D.new()
+	_sparkles.draw.connect(_draw_sparkles)
+	add_child(_sparkles)
 	_potion_hitbox = _make_potion_hitbox()
 	add_child(_potion_hitbox)
 
 
-func apply_potion(kind: StringName, origin: Vector2) -> void:
+## `power` scales knockback with how hard the potion was thrown.
+func apply_potion(kind: StringName, origin: Vector2, power := 1.0) -> void:
 	if _dead:
 		return
 	match kind:
@@ -92,7 +103,7 @@ func apply_potion(kind: StringName, origin: Vector2) -> void:
 		PotionData.KNOCKBACK:
 			if on_wall:
 				return
-			velocity = PotionData.knockback_velocity(global_position + Vector2(0, -5), origin)
+			velocity = PotionData.knockback_velocity(global_position + Vector2(0, -5), origin, power)
 			_stun_left = PotionData.STUN_TIME
 			_drop_items()
 		PotionData.TRANSLUCENT:
@@ -105,7 +116,7 @@ func is_translucent() -> bool:
 	return _translucent_left > 0.0
 
 
-## Washes off every potion effect (the cleansing portal).
+## Washes off every potion effect (cleansing water).
 func clear_potion_effects() -> void:
 	_burn_left = 0.0
 	_freeze_left = 0.0
@@ -149,7 +160,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			if patrol_distance > 0.0 and (global_position.y - _start.y) * _direction >= patrol_distance:
 				_direction = -_direction
-			velocity = Vector2(0, _direction * speed)
+			velocity = Vector2(0, _direction * _speed_now())
 	else:
 		if not is_on_floor():
 			velocity.y += gravity * delta
@@ -158,10 +169,14 @@ func _physics_process(delta: float) -> void:
 		else:
 			if _should_turn():
 				_direction = -_direction
-			velocity.x = _direction * speed
+			velocity.x = _direction * _speed_now()
 	move_and_slide()
 	_hurt_overlapping_player()
 	_animate(delta)
+
+
+func _speed_now() -> float:
+	return speed * (PotionData.FIRE_SPEED_BOOST if is_burning() else 1.0)
 
 
 func _should_turn() -> bool:
@@ -205,6 +220,8 @@ func _animate(delta: float) -> void:
 		tint.a = TRANSLUCENT_ALPHA
 	_sprite.modulate = tint
 	_flames.emitting = is_burning()
+	_sparkles.visible = drop != &"" and not _dropped
+	_sparkles.queue_redraw()
 	queue_redraw()
 
 
@@ -246,6 +263,22 @@ func _draw() -> void:
 			var angle := _anim_clock * 5.0 + TAU * i / 3.0
 			var star := Vector2(cos(angle) * 7.0, -18.0 + sin(angle) * 2.5)
 			draw_rect(Rect2(star - Vector2(1, 1), Vector2(2, 2)), Color(1, 0.9, 0.3))
+
+
+## Little four-point twinkles popping in and out around a slime that still
+## carries drops.
+func _draw_sparkles() -> void:
+	for i in SPARKLE_COUNT:
+		# Each sparkle has its own spot and timing, and fades in and out.
+		var phase := fmod(_anim_clock * SPARKLE_RATE + i * 0.37, 1.0)
+		var glow := sin(phase * PI)
+		if glow < 0.15:
+			continue
+		var spot := Vector2(-11.0 + fmod(i * 7.3, 22.0), -3.0 - fmod(i * 5.1, 17.0))
+		var color := Color(SPARKLE_COLOR, glow)
+		var arm := 1.0 + glow * 1.5
+		_sparkles.draw_line(spot - Vector2(arm, 0), spot + Vector2(arm, 0), color)
+		_sparkles.draw_line(spot - Vector2(0, arm), spot + Vector2(0, arm), color)
 
 
 func _drop_items() -> void:

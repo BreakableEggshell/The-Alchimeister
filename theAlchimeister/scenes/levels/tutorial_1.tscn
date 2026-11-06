@@ -61,10 +61,15 @@ position = Vector2(440, 88)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 10, 0, 10, 8, 0, 8)
 
+[node name="Lintel" type="StaticBody2D" parent="Level"]
+position = Vector2(462, 0)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 28, 0, 28, 72, 0, 72)
+
 [node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(470, 0)
+position = Vector2(470, 72)
 script = ExtResource("4_gate")
-size = Vector2(12, 96)
+size = Vector2(12, 24)
 plates = [NodePath("../Plate")]
 
 [node name="Exit" type="Area2D" parent="Level"]

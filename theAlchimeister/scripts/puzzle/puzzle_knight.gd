@@ -2,10 +2,11 @@ extends "res://scripts/platformer/platformer_knight.gd"
 ## The platformer knight plus what the puzzle stages need: potion effects on
 ## the player, pushing crates, floating text above the head, and dying when
 ## caught.
-## Fire: burns, and dies after PotionData.BURN_TIME unless washed off.
+## Fire: burns, runs faster (FIRE_SPEED_BOOST), and dies after
+## PotionData.PLAYER_BURN_TIME unless washed off in cleansing water.
 ## Freeze: can't move, jump or throw for PotionData.PLAYER_FREEZE_TIME.
 ## Knockback: flung away. Translucent: monsters pass through. Death: dies.
-## Fire and freeze cancel each other; the cleansing portal clears them all.
+## Fire and freeze cancel each other; cleansing water clears them all.
 
 ## `cause` is one of GameOver's causes; it picks the game over message.
 signal died(cause: StringName)
@@ -25,19 +26,22 @@ var _float_label: Label
 var _float_tween: Tween
 var _chat_icon: Node2D
 var _ice: Node2D
+## max_speed before any fire boost.
+var _base_max_speed := -1.0
 
 
-func apply_potion(kind: StringName, origin: Vector2) -> void:
+## `power` scales knockback with how hard the potion was thrown.
+func apply_potion(kind: StringName, origin: Vector2, power := 1.0) -> void:
 	if _dead:
 		return
 	match kind:
 		PotionData.KNOCKBACK:
-			velocity = PotionData.knockback_velocity(global_position + Vector2(0, -8), origin)
+			velocity = PotionData.knockback_velocity(global_position + Vector2(0, -8), origin, power)
 		PotionData.TRANSLUCENT:
 			_translucent_left = PotionData.TRANSLUCENT_TIME
 		PotionData.FIRE:
 			_freeze_left = 0.0
-			_burn_left = PotionData.BURN_TIME
+			_burn_left = PotionData.PLAYER_BURN_TIME
 			float_text("[BURNING!]", PotionData.color_of(PotionData.FIRE))
 		PotionData.FREEZE:
 			_burn_left = 0.0
@@ -60,7 +64,7 @@ func is_frozen() -> bool:
 	return _freeze_left > 0.0
 
 
-## Washes off potion effects (the cleansing portal).
+## Washes off potion effects (cleansing water).
 func clear_potion_effects() -> void:
 	if is_translucent() or is_burning() or is_frozen():
 		_translucent_left = 0.0
@@ -140,6 +144,9 @@ func _physics_process(delta: float) -> void:
 			velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
 		move_and_slide()
 		return
+	if _base_max_speed < 0.0:
+		_base_max_speed = max_speed
+	max_speed = _base_max_speed * (PotionData.FIRE_SPEED_BOOST if is_burning() else 1.0)
 	if _talking:
 		velocity.x = 0.0
 		if not is_on_floor():

@@ -12,8 +12,10 @@ extends Control
 ## Ingredients move by dragging or tapping, one per table box. Recipes are
 ## shapeless, and a table holding several copies of a recipe brews that many
 ## potions. Any other mix brews a Death potion. Tap the result to brew.
-## The arrow at the bottom right turns to the next spread: a checklist of the
-## story's goals (flavour only for now), with an arrow back.
+## Arrows at the bottom corners turn the pages. Spread 2 lists what every
+## potion (and cleansing water) does, with a SPECIAL section for the Death
+## and secret potions (locked until discovered). Spread 3 is a checklist of
+## the story's goals (flavour only for now).
 
 signal opened
 signal closed
@@ -41,6 +43,12 @@ const CHECKLIST := ["Meet the Demon Lord", "Use ??? potion on the Demon Lord", "
 const CHECKLIST_TOP := 26.0
 const CHECKLIST_SPACING := 30.0
 const CHECKBOX := 7.0
+const LAST_PAGE := 2
+## The effects spread: first entry's top, and each entry's height.
+const EFFECTS_TOP := 22.0
+const EFFECT_HEIGHT := 27.0
+const CLEANSING_WATER := &"cleansing_water"
+const CLEANSING_WATER_TEXT := "WASHES OFF ANY EFFECT"
 ## Top of the recipe list on the right page.
 const RECIPES_TOP := 22.0
 const RECIPE_ROW_HEIGHT := 18.0
@@ -83,7 +91,7 @@ var _tip_layer: Control
 var _tip := {}
 ## A tapped tooltip stays until the next tap elsewhere.
 var _tip_pinned := false
-## 0: brewing and recipes. 1: the checklist.
+## 0: brewing and recipes. 1: what everything does. 2: the checklist.
 var _page := 0
 ## Everything on the brewing/recipes spread, hidden on the other one.
 var _crafting_nodes: Array[Control] = []
@@ -433,12 +441,12 @@ func _build_checklist() -> Control:
 
 
 func _set_page(page: int) -> void:
-	_page = clampi(page, 0, 1)
+	_page = clampi(page, 0, LAST_PAGE)
 	for node in _crafting_nodes:
 		node.visible = _page == 0
-	_checklist.visible = _page == 1
-	_next_page.visible = _page == 0
-	_previous_page.visible = _page == 1
+	_checklist.visible = _page == 2
+	_next_page.visible = _page < LAST_PAGE
+	_previous_page.visible = _page > 0
 	_tip_pinned = false
 	_set_tip({})
 	_book.queue_redraw()
@@ -528,6 +536,9 @@ func _draw_book() -> void:
 	_book.draw_rect(Rect2(RIGHT_PAGE, Vector2(4, PAGE_SIZE.y)), PAGE_COLOR.darkened(0.1))
 
 	if _page == 1:
+		_draw_effects(font)
+		return
+	if _page == 2:
 		_page_text(font, "CHECKLIST", LEFT_PAGE + Vector2(0, TITLE_BASELINE), INK)
 		return
 
@@ -541,6 +552,48 @@ func _draw_book() -> void:
 
 	# Right page: the title; the list draws itself (_draw_recipes).
 	_page_text(font, "RECIPES", RIGHT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+
+
+# --- Effects spread
+
+## Left page: the four everyday potions and cleansing water. Right page: the
+## SPECIAL ones, the Death potion and the secret potion, shown as a lock and
+## "???" until discovered.
+func _draw_effects(font: Font) -> void:
+	_page_text(font, "EFFECTS", LEFT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+	var y := LEFT_PAGE.y + EFFECTS_TOP
+	for kind in [PotionData.FIRE, PotionData.KNOCKBACK, PotionData.FREEZE, PotionData.TRANSLUCENT, CLEANSING_WATER]:
+		_draw_effect(font, kind, Vector2(LEFT_PAGE.x + 8, y))
+		y += EFFECT_HEIGHT
+	_page_text(font, "----- SPECIAL -----", RIGHT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+	y = RIGHT_PAGE.y + EFFECTS_TOP
+	for kind in [PotionData.DEATH, PotionData.SECRET]:
+		_draw_effect(font, kind, Vector2(RIGHT_PAGE.x + 12, y))
+		y += EFFECT_HEIGHT
+
+
+## One entry: icon | name, and the hover description underneath.
+func _draw_effect(font: Font, kind: StringName, at: Vector2) -> void:
+	var known := kind == CLEANSING_WATER or (kind != PotionData.SECRET and SaveGame.is_potion_known(kind))
+	var box := Rect2(at, Vector2(14, 14))
+	_book.draw_rect(box, IngredientSlot.FILL)
+	var icon_at := box.get_center() + Vector2(0, 1)
+	var name := "???"
+	var text := "???"
+	if kind == CLEANSING_WATER:
+		CleansingWater.draw_icon(_book, box.get_center())
+		name = "CLEANSING WATER"
+		text = CLEANSING_WATER_TEXT
+	elif known:
+		PotionData.draw_potion(_book, kind, icon_at)
+		name = PotionData.NAMES[kind]
+		text = PotionData.DESCRIPTIONS[kind]
+	else:
+		PotionData.draw_lock_icon(_book, icon_at, IngredientSlot.BORDER.lightened(0.4))
+	var ink := INK if known else Color(INK, 0.6)
+	_book.draw_line(at + Vector2(18, 2), at + Vector2(18, 12), Color(INK, 0.4))
+	_book.draw_string(font, at + Vector2(22, 11), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
+	_book.draw_string(font, at + Vector2(0, 22), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(ink, ink.a * 0.75))
 
 
 ## "[potion] x N" for each potion held, greyed out at 0.

@@ -141,6 +141,7 @@ func _release() -> void:
 			potion.free()
 			return
 	potion.velocity = launch
+	potion.power = PotionData.splash_power(launch.length() / max_launch_speed)
 	potion.gravity = potion_gravity
 	potion.exclude = [thrower.get_rid()]
 	get_parent().add_child(potion)

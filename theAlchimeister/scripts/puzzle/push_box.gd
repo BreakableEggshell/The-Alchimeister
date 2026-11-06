@@ -30,9 +30,10 @@ func push(speed_x: float) -> void:
 	_push_speed = speed_x
 
 
-func apply_potion(kind: StringName, origin: Vector2) -> void:
+## `power` scales knockback with how hard the potion was thrown.
+func apply_potion(kind: StringName, origin: Vector2, power := 1.0) -> void:
 	if kind == PotionData.KNOCKBACK:
-		velocity = PotionData.knockback_velocity(global_position + Vector2(0, -size.y / 2.0), origin, 0.8)
+		velocity = PotionData.knockback_velocity(global_position + Vector2(0, -size.y / 2.0), origin, 0.8 * power)
 
 
 func _physics_process(delta: float) -> void:

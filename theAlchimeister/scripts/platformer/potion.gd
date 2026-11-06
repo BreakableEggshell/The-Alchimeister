@@ -16,6 +16,9 @@ var hit_mask := PotionData.POTION_HIT_MASK
 ## Physics bodies the potion flies through (the thrower).
 var exclude: Array[RID] = []
 var spin_speed := 12.0
+## How hard the splash hits (PotionData.splash_power); a harder throw
+## knocks things further.
+var power := 1.0
 
 var _age := 0.0
 var _shattered := false
@@ -106,4 +109,4 @@ func _apply_splash() -> void:
 		var body: Object = hit.collider
 		if body and not touched.has(body) and body.has_method("apply_potion"):
 			touched[body] = true
-			body.apply_potion(kind, global_position)
+			body.apply_potion(kind, global_position, power)
