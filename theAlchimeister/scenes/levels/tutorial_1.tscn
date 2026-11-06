@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/puzzle/push_box.gd" id="5_crate"]
 [ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="6_exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="7_slime"]
+[ext_resource type="Script" path="res://scripts/puzzle/controls_hint.gd" id="8_controls"]
 
 [node name="Tutorial1" instance=ExtResource("1_base")]
 stage_id = "1-1"
@@ -26,6 +27,10 @@ points = PackedVector2Array(0, 0, 256, 0, 256, 24, 0, 24)
 position = Vector2(256, 96)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 304, 0, 304, 120, 0, 120)
+
+[node name="ControlsHint" type="Node2D" parent="Level"]
+position = Vector2(56, 96)
+script = ExtResource("8_controls")
 
 [node name="Plank1" type="StaticBody2D" parent="Level"]
 position = Vector2(72, 160)

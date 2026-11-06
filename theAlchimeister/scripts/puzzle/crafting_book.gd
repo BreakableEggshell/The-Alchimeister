@@ -572,7 +572,7 @@ func _draw_effects(font: Font) -> void:
 		y += EFFECT_HEIGHT
 
 
-## One entry: icon | name, and the hover description underneath.
+## One entry: icon and name, and the hover description underneath.
 func _draw_effect(font: Font, kind: StringName, at: Vector2) -> void:
 	var known := kind == CLEANSING_WATER or (kind != PotionData.SECRET and SaveGame.is_potion_known(kind))
 	var box := Rect2(at, Vector2(14, 14))
@@ -591,7 +591,6 @@ func _draw_effect(font: Font, kind: StringName, at: Vector2) -> void:
 	else:
 		PotionData.draw_lock_icon(_book, icon_at, IngredientSlot.BORDER.lightened(0.4))
 	var ink := INK if known else Color(INK, 0.6)
-	_book.draw_line(at + Vector2(18, 2), at + Vector2(18, 12), Color(INK, 0.4))
 	_book.draw_string(font, at + Vector2(22, 11), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
 	_book.draw_string(font, at + Vector2(0, 22), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(ink, ink.a * 0.75))
 
