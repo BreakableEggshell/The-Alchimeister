@@ -1,0 +1,260 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/puzzle/puzzle_level.gd" id="1_level"]
+[ext_resource type="Script" uid="uid://decaxrq438krk" path="res://scripts/board.gd" id="2_board"]
+[ext_resource type="Script" path="res://scripts/puzzle/inventory.gd" id="3_inventory"]
+[ext_resource type="Script" path="res://scripts/puzzle/puzzle_knight.gd" id="4_knight"]
+[ext_resource type="Texture2D" uid="uid://fm1lbymsju6c" path="res://assets/brackeys_platformer_assets/sprites/knight.png" id="5_knight_tex"]
+[ext_resource type="Script" path="res://scripts/platformer/potion_thrower.gd" id="6_thrower"]
+[ext_resource type="Script" path="res://scripts/puzzle/potion_hud.gd" id="7_hud"]
+[ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf" id="8_font"]
+[ext_resource type="PackedScene" path="res://scenes/ui/crafting_book.tscn" id="9_book"]
+[ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="10_dialogue"]
+
+[sub_resource type="RectangleShape2D" id="Shape_knight"]
+size = Vector2(10, 16)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_cancel"]
+bg_color = Color(0.8, 0.2, 0.25, 0.35)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.4, 0.45, 0.9)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_slot"]
+bg_color = Color(0.1, 0.09, 0.14, 0.85)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.32, 0.45, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_slot_hover"]
+bg_color = Color(0.18, 0.16, 0.25, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.55, 0.5, 0.65, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_slot_selected"]
+bg_color = Color(0.22, 0.19, 0.3, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.85, 0.55, 1)
+
+[sub_resource type="Theme" id="Theme_hud"]
+default_font = ExtResource("8_font")
+default_font_size = 8
+Button/styles/hover = SubResource("StyleBox_slot_hover")
+Button/styles/hover_pressed = SubResource("StyleBox_slot_selected")
+Button/styles/normal = SubResource("StyleBox_slot")
+Button/styles/pressed = SubResource("StyleBox_slot_selected")
+
+[node name="Stage" type="Node2D" node_paths=PackedStringArray("player", "thrower", "hud", "inventory", "backdrop")]
+script = ExtResource("1_level")
+player = NodePath("Knight")
+thrower = NodePath("PotionThrower")
+hud = NodePath("HUD/Hud")
+inventory = NodePath("Inventory")
+backdrop = NodePath("Backdrop")
+
+[node name="Backdrop" type="Node2D" parent="."]
+script = ExtResource("2_board")
+
+[node name="Inventory" type="Node" parent="."]
+script = ExtResource("3_inventory")
+
+[node name="Knight" type="CharacterBody2D" parent="."]
+z_index = 1
+position = Vector2(24, 192)
+collision_layer = 2
+collision_mask = 9
+floor_constant_speed = true
+script = ExtResource("4_knight")
+
+[node name="Sprite" type="Sprite2D" parent="Knight"]
+texture = ExtResource("5_knight_tex")
+offset = Vector2(0, -12)
+hframes = 8
+vframes = 8
+
+[node name="Body" type="CollisionShape2D" parent="Knight"]
+position = Vector2(0, -8)
+shape = SubResource("Shape_knight")
+
+[node name="Camera" type="Camera2D" parent="Knight"]
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+
+[node name="PotionThrower" type="Node2D" parent="." node_paths=PackedStringArray("thrower", "cancel_zone", "inventory")]
+z_index = 2
+script = ExtResource("6_thrower")
+thrower = NodePath("../Knight")
+cancel_zone = NodePath("../HUD/Hud/CancelZone")
+inventory = NodePath("../Inventory")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Hud" type="Control" parent="HUD" node_paths=PackedStringArray("inventory", "thrower", "book", "dialogue")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = SubResource("Theme_hud")
+script = ExtResource("7_hud")
+inventory = NodePath("../../Inventory")
+thrower = NodePath("../../PotionThrower")
+book = NodePath("CraftingBook")
+dialogue = NodePath("DialogueBox")
+
+[node name="CraftingBook" parent="HUD/Hud" node_paths=PackedStringArray("inventory") instance=ExtResource("9_book")]
+layout_mode = 1
+inventory = NodePath("../../../Inventory")
+
+[node name="Slots" type="HBoxContainer" parent="HUD/Hud"]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 132.0
+offset_bottom = 24.0
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Messages" type="VBoxContainer" parent="HUD/Hud"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -120.0
+offset_top = 64.0
+offset_right = 120.0
+offset_bottom = 100.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Banner" type="Label" parent="HUD/Hud"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -30.0
+offset_right = 150.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "STAGE CLEAR"
+horizontal_alignment = 1
+
+[node name="BannerSub" type="Label" parent="HUD/Hud"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -6.0
+offset_right = 150.0
+offset_bottom = 4.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 4
+horizontal_alignment = 1
+
+[node name="EndButtons" type="HBoxContainer" parent="HUD/Hud"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -90.0
+offset_top = 0.0
+offset_right = 90.0
+offset_bottom = 18.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="NextButton" type="Button" parent="HUD/Hud/EndButtons"]
+custom_minimum_size = Vector2(80, 18)
+layout_mode = 2
+text = "NEXT STAGE"
+
+[node name="LevelsButton" type="Button" parent="HUD/Hud/EndButtons"]
+custom_minimum_size = Vector2(60, 18)
+layout_mode = 2
+text = "LEVELS"
+
+[node name="Controls" type="Label" parent="HUD/Hud"]
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = -21.0
+offset_right = 380.0
+offset_bottom = -2.0
+grow_vertical = 0
+text = "MOVE: A D   JUMP: W   POTION: 1-4   BOOK: ESC
+THROW: DRAG, LET GO   OPEN: E   RESTART: R"
+
+[node name="CancelZone" type="Panel" parent="HUD/Hud"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -40.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = 40.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_cancel")
+
+[node name="X" type="Label" parent="HUD/Hud/CancelZone"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.75, 0.78, 1)
+theme_override_font_sizes/font_size = 16
+text = "X"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BookButton" type="Button" parent="HUD/Hud"]
+process_mode = 3
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -28.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = 24.0
+grow_horizontal = 0
+focus_mode = 0
+tooltip_text = "RECIPE BOOK (ESC)"
+
+[node name="DialogueBox" parent="HUD/Hud" instance=ExtResource("10_dialogue")]
+layout_mode = 1

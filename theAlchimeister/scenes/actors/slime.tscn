@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/puzzle/slime.gd" id="1_slime"]
+[ext_resource type="Texture2D" uid="uid://dhhffus51f0j7" path="res://assets/brackeys_platformer_assets/sprites/slime_green.png" id="2_tex"]
+
+[sub_resource type="RectangleShape2D" id="Shape_body"]
+size = Vector2(12, 10)
+
+[sub_resource type="RectangleShape2D" id="Shape_hurt"]
+size = Vector2(10, 8)
+
+[node name="Slime" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 9
+script = ExtResource("1_slime")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = ExtResource("2_tex")
+offset = Vector2(0, -12)
+hframes = 4
+vframes = 3
+
+[node name="Body" type="CollisionShape2D" parent="."]
+position = Vector2(0, -5)
+shape = SubResource("Shape_body")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="Shape" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(0, -5)
+shape = SubResource("Shape_hurt")

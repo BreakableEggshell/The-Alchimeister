@@ -1,0 +1,161 @@
+extends Node
+## Autoload "SaveGame": the level/stage structure, which stages are unlocked,
+## the stage the player was last in (for Continue), and settings. Everything
+## is saved to user://save.cfg as soon as it changes.
+
+const START_MENU := "res://scenes/menu/start_menu.tscn"
+const LEVEL_SELECT := "res://scenes/menu/level_select.tscn"
+## Seven levels. Only Level 1 (the tutorial) has stages so far; a level with
+## no stages is always locked.
+const LEVELS: Array[Dictionary] = [
+	{"title": "TUTORIAL", "stages": ["1-1", "1-2", "1-3"]},
+	{"title": "", "stages": []},
+	{"title": "", "stages": []},
+	{"title": "", "stages": []},
+	{"title": "", "stages": []},
+	{"title": "", "stages": []},
+	{"title": "", "stages": []},
+]
+const STAGE_SCENES := {
+	"1-1": "res://scenes/levels/tutorial_1.tscn",
+	"1-2": "res://scenes/levels/tutorial_2.tscn",
+	"1-3": "res://scenes/levels/tutorial_3.tscn",
+}
+const FIRST_STAGE := "1-1"
+
+var save_path := "user://save.cfg"
+var unlocked: Array[String] = [FIRST_STAGE]
+var last_stage := ""
+var music_volume := 0.8
+var sound_volume := 0.8
+var fullscreen := false
+
+
+func _ready() -> void:
+	for bus in ["Music", "SFX"]:
+		if AudioServer.get_bus_index(bus) < 0:
+			AudioServer.add_bus()
+			AudioServer.set_bus_name(AudioServer.bus_count - 1, bus)
+	load_save()
+
+
+func load_save() -> void:
+	_set_defaults()
+	var file := ConfigFile.new()
+	if file.load(save_path) == OK:
+		var saved: Array = file.get_value("progress", "unlocked", [FIRST_STAGE])
+		unlocked.assign(saved)
+		if not unlocked.has(FIRST_STAGE):
+			unlocked.append(FIRST_STAGE)
+		last_stage = file.get_value("progress", "last_stage", "")
+		music_volume = file.get_value("settings", "music_volume", music_volume)
+		sound_volume = file.get_value("settings", "sound_volume", sound_volume)
+		fullscreen = file.get_value("settings", "fullscreen", fullscreen)
+	apply_settings()
+
+
+func save() -> void:
+	var file := ConfigFile.new()
+	file.set_value("progress", "unlocked", unlocked)
+	file.set_value("progress", "last_stage", last_stage)
+	file.set_value("settings", "music_volume", music_volume)
+	file.set_value("settings", "sound_volume", sound_volume)
+	file.set_value("settings", "fullscreen", fullscreen)
+	file.save(save_path)
+
+
+## Wipes progress and settings.
+func reset_all() -> void:
+	_set_defaults()
+	save()
+	apply_settings()
+
+
+# --- Progress
+
+func is_unlocked(stage: String) -> bool:
+	return unlocked.has(stage)
+
+
+func unlock(stage: String) -> void:
+	if stage != "" and not unlocked.has(stage):
+		unlocked.append(stage)
+		save()
+
+
+func set_last_stage(stage: String) -> void:
+	if last_stage != stage:
+		last_stage = stage
+		save()
+
+
+func has_last_stage() -> bool:
+	return STAGE_SCENES.has(last_stage)
+
+
+## The stage after `stage` within its level, or "" if it's the level's last.
+func next_stage(stage: String) -> String:
+	for level in LEVELS:
+		var stages: Array = level.stages
+		var i := stages.find(stage)
+		if i >= 0 and i + 1 < stages.size():
+			return stages[i + 1]
+	return ""
+
+
+func is_level_unlocked(level_index: int) -> bool:
+	var stages: Array = LEVELS[level_index].stages
+	return not stages.is_empty() and is_unlocked(stages[0])
+
+
+func play_stage(stage: String) -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file(STAGE_SCENES[stage])
+
+
+func go_to(scene_path: String) -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file(scene_path)
+
+
+# --- Settings
+
+func set_music_volume(value: float) -> void:
+	music_volume = value
+	apply_settings()
+	save()
+
+
+func set_sound_volume(value: float) -> void:
+	sound_volume = value
+	apply_settings()
+	save()
+
+
+func set_fullscreen(value: bool) -> void:
+	fullscreen = value
+	apply_settings()
+	save()
+
+
+func apply_settings() -> void:
+	_set_bus_volume("Music", music_volume)
+	_set_bus_volume("SFX", sound_volume)
+	var mode := DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
+	if DisplayServer.get_name() != "headless" and DisplayServer.window_get_mode() != mode:
+		DisplayServer.window_set_mode(mode)
+
+
+func _set_bus_volume(bus: String, value: float) -> void:
+	var index := AudioServer.get_bus_index(bus)
+	if index >= 0:
+		AudioServer.set_bus_volume_db(index, linear_to_db(maxf(value, 0.0001)))
+		AudioServer.set_bus_mute(index, value <= 0.0)
+
+
+func _set_defaults() -> void:
+	unlocked.assign([FIRST_STAGE])
+	last_stage = ""
+	music_volume = 0.8
+	sound_volume = 0.8
+	fullscreen = false
