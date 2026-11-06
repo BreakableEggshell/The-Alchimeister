@@ -69,7 +69,7 @@ const TRANSLUCENT_TIME := 6.0
 ## FREEZE_TIME). A burning player dies after BURN_TIME, like monsters.
 const PLAYER_FREEZE_TIME := 2.0
 ## Seconds a monster is dazed (still and harmless) after a knockback hit.
-const STUN_TIME := 3.0
+const STUN_TIME := FREEZE_TIME
 const KNOCKBACK_SPEED := 230.0
 const KNOCKBACK_LIFT := 120.0
 
