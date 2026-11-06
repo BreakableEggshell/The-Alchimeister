@@ -129,9 +129,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_go_next()
 
 
-func _on_player_died() -> void:
+func _on_player_died(cause: StringName) -> void:
 	_stop_play()
-	hud.show_banner("CAUGHT!", "RESTARTING...", Color(1, 0.45, 0.45))
+	hud.set_potions_enabled(false)
+	var message := GameOver.message_of(cause)
+	var subtitle := "%s\nRESTARTING..." % message if message != "" else "RESTARTING..."
+	hud.show_banner(GameOver.title_of(cause), subtitle, GameOver.COLOR)
 	await get_tree().create_timer(restart_delay).timeout
 	restart()
 

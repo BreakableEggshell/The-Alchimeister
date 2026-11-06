@@ -48,10 +48,15 @@ func _ready() -> void:
 	thrower.aiming_changed.connect(func(aiming: bool) -> void:
 		_aiming = aiming
 		_update_visibility())
+	# The open book has its own buttons, so the potion slots and book icon
+	# step out of its way.
 	book.opened.connect(func() -> void:
 		thrower.cancel()
-		_messages.hide())
-	book.closed.connect(_messages.show)
+		_messages.hide()
+		_update_visibility())
+	book.closed.connect(func() -> void:
+		_messages.show()
+		_update_visibility())
 	book.log_requested.connect(dialogue.show_log)
 	dialogue.started.connect(func() -> void:
 		thrower.cancel()
@@ -188,9 +193,9 @@ func show_end_buttons(has_next: bool) -> void:
 
 func _update_visibility() -> void:
 	var talking: bool = dialogue.is_playing or dialogue.is_waiting
-	_slot_row.visible = _potions_enabled and not talking
+	_slot_row.visible = _potions_enabled and not talking and not book.is_open
 	_highlight.modulate.a = 0.0 if talking else 1.0
-	_book_button.visible = not (talking or _aiming or _stage_over)
+	_book_button.visible = not (talking or _aiming or _stage_over or book.is_open)
 	book.enabled = not (talking or _stage_over)
 
 

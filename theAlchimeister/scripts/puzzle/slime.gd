@@ -10,18 +10,21 @@ extends CharacterBody2D
 ## Translucent: the player can pass through it.
 ## Death: dies at once and drops its items, wall slimes too.
 ## A slime drops its items only once, on whichever happens first.
-## Stunned slimes are faded. A stun blinks for its whole length; a freeze or
-## translucency blinks for its last WARN_TIME seconds. The blinking starts
-## slow and speeds up until the effect wears off.
+## Stunned slimes are faded. A freeze or stun blinks slowly for its whole
+## length; a translucency blinks for its last WARN_TIME seconds. In the last
+## HURRY_TIME seconds the blinking speeds up. Only the slime itself blinks:
+## the ice and the dizzy stars stay put until the effect ends.
 
 const FRAME_COUNT := 4
 const STUNNED_ALPHA := 0.6
 const TRANSLUCENT_ALPHA := 0.35
-## Seconds before a freeze or translucency ends that it starts blinking.
+## Seconds before a translucency ends that it starts blinking.
 const WARN_TIME := 3.0
-## Blinks per second when the blinking starts, and just before the effect ends.
+## Seconds before any effect ends that the blinking speeds up.
+const HURRY_TIME := 1.5
+## Blinks per second, before and after HURRY_TIME.
 const BLINK_SLOW := 1.5
-const BLINK_FAST := 6.0
+const BLINK_FAST := 3.5
 
 ## Walking speed. 0 makes an unmoving monster.
 @export var speed := 30.0
@@ -179,7 +182,7 @@ func _hurt_overlapping_player() -> void:
 		return
 	for body in _hurtbox.get_overlapping_bodies():
 		if body.has_method("die") and not body.is_translucent():
-			body.die()
+			body.die(GameOver.CAUGHT)
 
 
 func _animate(delta: float) -> void:
@@ -189,7 +192,7 @@ func _animate(delta: float) -> void:
 	_sprite.flip_h = _direction < 0
 	_update_blink(delta)
 	var tint := Color.WHITE
-	if _shows(_freeze_left):
+	if _shows(_freeze_left, PotionData.FREEZE_TIME):
 		tint = Color(0.6, 0.85, 1.4)
 	elif is_burning():
 		tint = Color(1.5, 0.75, 0.45) if int(_anim_clock * 12.0) % 2 == 0 else Color(1.3, 0.5, 0.3)
@@ -205,23 +208,22 @@ func _animate(delta: float) -> void:
 	queue_redraw()
 
 
-## Advances the warning blink. Its speed follows whichever blinking effect
-## is closest to wearing off.
+## Advances the blink: slow, then fast once a blinking effect is in its last
+## HURRY_TIME seconds.
 func _update_blink(delta: float) -> void:
 	var blinking := false
-	# 0 when the blinking starts, 1 as the effect ends.
-	var urgency := 0.0
-	for effect in [[_freeze_left, WARN_TIME], [_stun_left, PotionData.STUN_TIME], [_translucent_left, WARN_TIME]]:
+	var hurry := false
+	for effect in [[_freeze_left, PotionData.FREEZE_TIME], [_stun_left, PotionData.STUN_TIME], [_translucent_left, WARN_TIME]]:
 		var left: float = effect[0]
 		var warn: float = effect[1]
 		if left > 0.0 and left <= warn:
 			blinking = true
-			urgency = maxf(urgency, 1.0 - left / warn)
+			hurry = hurry or left <= HURRY_TIME
 	if not blinking:
 		_blink_phase = 0.0
 		_blink_on = true
 		return
-	_blink_phase += delta * lerpf(BLINK_SLOW, BLINK_FAST, urgency)
+	_blink_phase += delta * (BLINK_FAST if hurry else BLINK_SLOW)
 	_blink_on = fmod(_blink_phase, 1.0) < 0.5
 
 
@@ -234,11 +236,11 @@ func _shows(left: float, warn := WARN_TIME) -> bool:
 func _draw() -> void:
 	if _dead:
 		return
-	if _shows(_freeze_left):
+	if is_frozen():
 		var ice := Rect2(-9, -14, 18, 14)
 		draw_rect(ice, Color(0.6, 0.9, 1.0, 0.3))
 		draw_rect(ice, Color(0.8, 0.95, 1.0, 0.8), false)
-	if _shows(_stun_left, PotionData.STUN_TIME):
+	if is_stunned():
 		# Dizzy stars circling above the head.
 		for i in 3:
 			var angle := _anim_clock * 5.0 + TAU * i / 3.0

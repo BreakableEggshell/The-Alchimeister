@@ -1,8 +1,9 @@
 extends Control
 ## The recipe book, which is also the game's pause menu. Opening it pauses
 ## the game (B, Esc or the book icon).
+## MENU / SETTINGS / LOG buttons sit just above the book's top-right corner.
 ## Left page: a 2x2 crafting table pointing at a result box, the potions you
-## hold, the ingredient storage, and MENU / SETTINGS / LOG buttons.
+## hold, and the ingredient storage.
 ## Right page: a scrolling list of every recipe. Hovering (or tapping) an
 ## ingredient shows its name; hovering (or tapping) the potion shows its
 ## description. A tapped tip stays until you tap somewhere else. Potions not
@@ -11,6 +12,8 @@ extends Control
 ## Ingredients move by dragging or tapping, one per table box. Recipes are
 ## shapeless, and a table holding several copies of a recipe brews that many
 ## potions. Any other mix brews a Death potion. Tap the result to brew.
+## The arrow at the bottom right turns to the next spread: a checklist of the
+## story's goals (flavour only for now), with an arrow back.
 
 signal opened
 signal closed
@@ -31,7 +34,13 @@ const RESULT_AT := Vector2(113, 28)
 const STATUS_Y := 76.0
 const COUNTS_Y := 88.0
 const STORAGE_AT := Vector2(16, 100)
-const BUTTONS_Y := 154.0
+## Gap between the top buttons and the book.
+const BUTTONS_GAP := 2.0
+const PAGE_ARROW_SIZE := Vector2(20, 12)
+const CHECKLIST := ["Meet the Demon Lord", "Use ??? potion on the Demon Lord", "Remove the curse"]
+const CHECKLIST_TOP := 26.0
+const CHECKLIST_SPACING := 30.0
+const CHECKBOX := 7.0
 ## Top of the recipe list on the right page.
 const RECIPES_TOP := 22.0
 const RECIPE_ROW_HEIGHT := 18.0
@@ -74,6 +83,13 @@ var _tip_layer: Control
 var _tip := {}
 ## A tapped tooltip stays until the next tap elsewhere.
 var _tip_pinned := false
+## 0: brewing and recipes. 1: the checklist.
+var _page := 0
+## Everything on the brewing/recipes spread, hidden on the other one.
+var _crafting_nodes: Array[Control] = []
+var _checklist: Control
+var _next_page: Button
+var _previous_page: Button
 
 
 func _ready() -> void:
@@ -126,6 +142,7 @@ func open() -> void:
 	is_open = true
 	show()
 	_settings.hide()
+	_set_page(0)
 	get_tree().paused = true
 	_refresh()
 	var viewport := get_viewport_rect().size
@@ -292,7 +309,8 @@ func _build() -> void:
 
 	_recipe_scroll = ScrollContainer.new()
 	_recipe_scroll.position = RIGHT_PAGE + Vector2(8, RECIPES_TOP)
-	_recipe_scroll.size = Vector2(PAGE_SIZE.x - 12, PAGE_SIZE.y - RECIPES_TOP - 4)
+	# Room at the bottom for the page arrow.
+	_recipe_scroll.size = Vector2(PAGE_SIZE.x - 12, PAGE_SIZE.y - RECIPES_TOP - PAGE_ARROW_SIZE.y - 6)
 	_recipe_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_recipe_scroll.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	var bar := _recipe_scroll.get_v_scroll_bar()
@@ -315,9 +333,18 @@ func _build() -> void:
 	_recipe_list.draw.connect(_draw_recipes)
 	_recipe_scroll.add_child(_recipe_list)
 
+	_crafting_nodes.append_array(_table_slots)
+	_crafting_nodes.append_array(_storage_slots)
+	_crafting_nodes.append(_result_slot)
+	_crafting_nodes.append(_recipe_scroll)
+
+	_next_page = _page_arrow(1, RIGHT_PAGE + PAGE_SIZE - PAGE_ARROW_SIZE - Vector2(6, 3))
+	_previous_page = _page_arrow(-1, LEFT_PAGE + Vector2(6, PAGE_SIZE.y - PAGE_ARROW_SIZE.y - 3))
+	_checklist = _build_checklist()
+
+	# Above the book, lined up with its right edge; they slide with it.
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 4)
-	buttons.position = LEFT_PAGE + Vector2(8, BUTTONS_Y)
 	_book.add_child(buttons)
 	var menu := _page_button("MENU", buttons)
 	menu.pressed.connect(SaveGame.go_to.bind(SaveGame.START_MENU))
@@ -325,6 +352,8 @@ func _build() -> void:
 	settings.pressed.connect(func() -> void: _settings.show())
 	var log_button := _page_button("LOG", buttons)
 	log_button.pressed.connect(log_requested.emit)
+	buttons.reset_size()
+	buttons.position = Vector2(BOOK_SIZE.x - buttons.size.x, -buttons.size.y - BUTTONS_GAP)
 
 	_settings = _build_settings()
 	_settings.visibility_changed.connect(func() -> void:
@@ -356,6 +385,63 @@ func _add_slot(role: IngredientSlot.Role, index: int, at: Vector2, side: float) 
 	slot.dropped.connect(_on_slot_dropped)
 	_book.add_child(slot)
 	return slot
+
+
+## A hand-drawn page-turn arrow; `direction` 1 points right, -1 left.
+func _page_arrow(direction: int, at: Vector2) -> Button:
+	var button := Button.new()
+	button.flat = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.tooltip_text = "NEXT PAGE" if direction > 0 else "PREVIOUS PAGE"
+	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	button.position = at
+	button.size = PAGE_ARROW_SIZE
+	button.pressed.connect(func() -> void: _set_page(_page + direction))
+	button.draw.connect(func() -> void:
+		var color := Color(0.75, 0.25, 0.2) if button.is_hovered() else INK
+		var y := button.size.y / 2.0
+		var tip := button.size.x - 2.0 if direction > 0 else 2.0
+		var tail := 2.0 if direction > 0 else button.size.x - 2.0
+		button.draw_line(Vector2(tail, y), Vector2(tip - 3.0 * direction, y), color, 2.0)
+		button.draw_colored_polygon(PackedVector2Array([Vector2(tip, y), Vector2(tip - 5.0 * direction, y - 4), Vector2(tip - 5.0 * direction, y + 4)]), color))
+	_book.add_child(button)
+	return button
+
+
+## The second spread: the story's goals as an unticked checklist on the left
+## page. Flavour only for now.
+func _build_checklist() -> Control:
+	var page := Control.new()
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.position = LEFT_PAGE
+	page.size = PAGE_SIZE
+	page.hide()
+	_book.add_child(page)
+	for i in CHECKLIST.size():
+		var y := CHECKLIST_TOP + i * CHECKLIST_SPACING
+		var label := _ink_label(CHECKLIST[i], Vector2(24, y), PAGE_SIZE.x - 34)
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		page.add_child(label)
+		# Sized once in the tree; before that it stretches to fit its text.
+		label.set_deferred("size", Vector2(PAGE_SIZE.x - 34, CHECKLIST_SPACING - 4))
+	page.draw.connect(func() -> void:
+		for i in CHECKLIST.size():
+			var box := Rect2(12, CHECKLIST_TOP + i * CHECKLIST_SPACING + 2, CHECKBOX, CHECKBOX)
+			page.draw_rect(box.grow(-0.5), INK, false, 1.0))
+	return page
+
+
+func _set_page(page: int) -> void:
+	_page = clampi(page, 0, 1)
+	for node in _crafting_nodes:
+		node.visible = _page == 0
+	_checklist.visible = _page == 1
+	_next_page.visible = _page == 0
+	_previous_page.visible = _page == 1
+	_tip_pinned = false
+	_set_tip({})
+	_book.queue_redraw()
 
 
 func _page_button(text: String, parent: Control) -> Button:
@@ -440,6 +526,10 @@ func _draw_book() -> void:
 	# Shading where the pages meet the spine.
 	_book.draw_rect(Rect2(LEFT_PAGE + Vector2(PAGE_SIZE.x - 4, 0), Vector2(4, PAGE_SIZE.y)), PAGE_COLOR.darkened(0.1))
 	_book.draw_rect(Rect2(RIGHT_PAGE, Vector2(4, PAGE_SIZE.y)), PAGE_COLOR.darkened(0.1))
+
+	if _page == 1:
+		_page_text(font, "CHECKLIST", LEFT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+		return
 
 	# Left page: crafting.
 	_page_text(font, "BREWING", LEFT_PAGE + Vector2(0, 12), INK)
@@ -545,7 +635,7 @@ func _draw_recipes() -> void:
 ## The recipe part at a viewport position (from an input event), as
 ## {row, part}, or empty.
 func _recipe_part_at(viewport_position: Vector2) -> Dictionary:
-	if _settings.visible:
+	if _settings.visible or _page != 0:
 		return {}
 	var in_view := _recipe_scroll.get_global_transform_with_canvas().affine_inverse() * viewport_position
 	if not Rect2(Vector2.ZERO, _recipe_scroll.size).has_point(in_view):

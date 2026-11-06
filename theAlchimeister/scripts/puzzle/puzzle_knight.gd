@@ -7,7 +7,8 @@ extends "res://scripts/platformer/platformer_knight.gd"
 ## Knockback: flung away. Translucent: monsters pass through. Death: dies.
 ## Fire and freeze cancel each other; the cleansing portal clears them all.
 
-signal died
+## `cause` is one of GameOver's causes; it picks the game over message.
+signal died(cause: StringName)
 
 const FONT := preload("res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf")
 
@@ -23,6 +24,7 @@ var _talking := false
 var _float_label: Label
 var _float_tween: Tween
 var _chat_icon: Node2D
+var _ice: Node2D
 
 
 func apply_potion(kind: StringName, origin: Vector2) -> void:
@@ -43,7 +45,7 @@ func apply_potion(kind: StringName, origin: Vector2) -> void:
 			velocity.x = 0.0
 			float_text("[FROZEN]", PotionData.color_of(PotionData.FREEZE))
 		PotionData.DEATH:
-			die()
+			die(GameOver.DEATH_POTION)
 
 
 func is_translucent() -> bool:
@@ -67,7 +69,7 @@ func clear_potion_effects() -> void:
 		float_text("[EFFECTS CLEARED]", Color(0.55, 0.85, 1.0))
 
 
-func die() -> void:
+func die(cause: StringName = GameOver.CAUGHT) -> void:
 	if _dead:
 		return
 	_dead = true
@@ -76,7 +78,7 @@ func die() -> void:
 	set_physics_process(false)
 	_sprite.modulate = Color(1.0, 0.35, 0.35)
 	_sprite.frame = 58  # Death row of the sheet.
-	died.emit()
+	died.emit(cause)
 
 
 ## Shows `text` just above the head; it drifts up and fades out.
@@ -128,7 +130,7 @@ func _physics_process(delta: float) -> void:
 		_burn_left -= delta
 		if _burn_left <= 0.0:
 			_burn_left = 0.0
-			die()
+			die(GameOver.BURNED)
 			return
 	if is_frozen():
 		# Stuck in place: no running or jumping, but still falls.
@@ -169,6 +171,15 @@ func _process(delta: float) -> void:
 		_flames = _make_flames()
 		add_child(_flames)
 	_flames.emitting = is_burning()
+	if not _ice:
+		# An ice cube in front of the knight while frozen, like frozen monsters.
+		_ice = Node2D.new()
+		_ice.draw.connect(func() -> void:
+			var cube := Rect2(-8, -22, 16, 22)
+			_ice.draw_rect(cube, Color(0.6, 0.9, 1.0, 0.3))
+			_ice.draw_rect(cube, Color(0.8, 0.95, 1.0, 0.8), false))
+		add_child(_ice)
+	_ice.visible = is_frozen()
 	var tint := Color.WHITE
 	if is_frozen():
 		tint = Color(0.6, 0.85, 1.0)

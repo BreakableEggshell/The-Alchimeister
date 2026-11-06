@@ -5,7 +5,8 @@ extends Control
 ## out the line. Characters are DialogueSpeaker resources in `speakers`;
 ## lines are "SPEAKER: text". Playing a conversation pauses the game. A tap/click,
 ## Enter, Space or E finishes the current line, then moves to the next.
-## Top-right while playing: fast-forward (asks "SKIP DIALOGUE?") and log.
+## Top-right while playing: fast-forward (asks "SKIP DIALOGUE?", also on Esc)
+## and log (also on L), with their keys shown underneath.
 ## The log (chat history for this stage, skipped lines included) can also be
 ## opened from elsewhere with show_log().
 ## Mid-gameplay conversations go through interrupt(): the game pauses, a speech
@@ -17,6 +18,7 @@ signal finished
 const CHARS_PER_SECOND := 50.0
 ## Seconds the speech bubble shows before a mid-gameplay conversation starts.
 const BUBBLE_TIME := 0.6
+const KEY_COLOR := Color(1, 1, 1, 0.75)
 const BG := Color(0.1, 0.09, 0.14, 0.95)
 const BORDER := Color(0.95, 0.85, 0.55)
 const BOX_WIDTH := 240.0
@@ -168,7 +170,7 @@ func show_log() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _log.visible:
-		if event.is_action_pressed("ui_cancel"):
+		if event.is_action_pressed("ui_cancel") or (is_playing and _is_log_key(event)):
 			_log.hide()
 			get_viewport().set_input_as_handled()
 		return
@@ -182,9 +184,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
 		advance()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_cancel") or event.is_action_pressed("toggle_book"):
+	elif event.is_action_pressed("ui_cancel"):
+		_confirm.show()
+		get_viewport().set_input_as_handled()
+	elif _is_log_key(event):
+		show_log()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_book"):
 		# Swallow these so the book can't open mid-conversation.
 		get_viewport().set_input_as_handled()
+
+
+func _is_log_key(event: InputEvent) -> bool:
+	return event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_L
 
 
 func _show_line(shift_time := SHIFT_TIME) -> void:
@@ -380,9 +392,9 @@ func _build() -> void:
 	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_child(_text)
 
-	_skip_button = _icon_button(_draw_skip_icon, "SKIP", 4.0)
+	_skip_button = _icon_button(_draw_skip_icon, "SKIP", 4.0, "ESC")
 	_skip_button.pressed.connect(func() -> void: _confirm.show())
-	_log_button = _icon_button(_draw_log_icon, "LOG", 32.0)
+	_log_button = _icon_button(_draw_log_icon, "LOG", 32.0, "L")
 	_log_button.pressed.connect(show_log)
 
 	_confirm = _modal(Vector2(168, 56))
@@ -442,8 +454,9 @@ func _modal(panel_size: Vector2) -> Control:
 	return modal
 
 
-## A 24x20 button in the top-right corner, `from_right` pixels in from the edge.
-func _icon_button(draw_icon: Callable, tip: String, from_right: float) -> Button:
+## A 24x20 button in the top-right corner, `from_right` pixels in from the
+## edge, with its keyboard key written underneath.
+func _icon_button(draw_icon: Callable, tip: String, from_right: float, key: String) -> Button:
 	var button := Button.new()
 	button.focus_mode = Control.FOCUS_NONE
 	button.tooltip_text = tip
@@ -454,6 +467,8 @@ func _icon_button(draw_icon: Callable, tip: String, from_right: float) -> Button
 	button.offset_top = 4.0
 	button.offset_bottom = 24.0
 	button.draw.connect(draw_icon.bind(button))
+	button.draw.connect(func() -> void:
+		button.draw_string(button.get_theme_font("font"), Vector2(0, button.size.y + 9), key, HORIZONTAL_ALIGNMENT_CENTER, button.size.x, 8, KEY_COLOR))
 	add_child(button)
 	return button
 
