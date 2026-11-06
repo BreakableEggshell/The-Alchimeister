@@ -1,0 +1,104 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/puzzle/level_2_2.gd" id="2_stage"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="3_solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/pressure_plate.gd" id="4_plate"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="5_gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/rock.gd" id="6_rock"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="7_exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="8_slime"]
+[ext_resource type="Texture2D" uid="uid://ddpp2uphq2wt3" path="res://assets/brackeys_platformer_assets/sprites/slime_purple.png" id="9_purple"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="10_chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/cleansing_water.gd" id="11_water"]
+
+[node name="Level2_2" instance=ExtResource("1_base")]
+script = ExtResource("2_stage")
+stage_id = "2-2"
+stage_size = Vector2(1080, 216)
+potions_needed_until_x = 960.0
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("3_solid")
+points = PackedVector2Array(0, 0, 1080, 0, 1080, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(70, 192)
+script = ExtResource("10_chest")
+contents = "gust_feather"
+amount = 2
+extra_contents = "ember"
+
+[node name="RedPlate" type="Area2D" parent="Level"]
+position = Vector2(120, 192)
+script = ExtResource("4_plate")
+
+[node name="Rock" type="CharacterBody2D" parent="Level"]
+position = Vector2(120, 192)
+collision_layer = 8
+collision_mask = 9
+script = ExtResource("6_rock")
+
+[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(200, 0)
+script = ExtResource("5_gate")
+size = Vector2(12, 192)
+plates = [NodePath("../RedPlate")]
+open_when_pressed = false
+
+[node name="HallwayB" type="StaticBody2D" parent="Level"]
+position = Vector2(300, 0)
+script = ExtResource("3_solid")
+points = PackedVector2Array(0, 0, 120, 0, 120, 168, 0, 168)
+
+[node name="HallwayC" type="StaticBody2D" parent="Level"]
+position = Vector2(560, 0)
+script = ExtResource("3_solid")
+points = PackedVector2Array(0, 0, 200, 0, 200, 168, 0, 168)
+
+[node name="CleansingWater" type="Area2D" parent="Level"]
+position = Vector2(795, 192)
+script = ExtResource("11_water")
+
+[node name="HallwayD" type="StaticBody2D" parent="Level"]
+position = Vector2(830, 0)
+script = ExtResource("3_solid")
+points = PackedVector2Array(0, 0, 130, 0, 130, 168, 0, 168)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(1040, 192)
+script = ExtResource("7_exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Blocker" parent="Enemies" instance=ExtResource("8_slime")]
+position = Vector2(360, 192)
+speed = 0.0
+drop = &"ghost_wisp"
+drop_count = 2
+
+[node name="Sprite" parent="Enemies/Blocker"]
+texture = ExtResource("9_purple")
+
+[node name="Guard1" parent="Enemies" instance=ExtResource("8_slime")]
+position = Vector2(600, 192)
+speed = 0.0
+
+[node name="Guard2" parent="Enemies" instance=ExtResource("8_slime")]
+position = Vector2(660, 192)
+speed = 0.0
+
+[node name="Guard3" parent="Enemies" instance=ExtResource("8_slime")]
+position = Vector2(720, 192)
+speed = 0.0
+
+[node name="Guard4" parent="Enemies" instance=ExtResource("8_slime")]
+position = Vector2(868, 192)
+speed = 0.0
+
+[node name="Guard5" parent="Enemies" instance=ExtResource("8_slime")]
+position = Vector2(924, 192)
+speed = 0.0

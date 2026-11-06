@@ -184,8 +184,10 @@ func show_banner(title: String, subtitle: String, color: Color) -> void:
 	_banner_sub.visible = subtitle != ""
 
 
-## Shows the end-of-stage buttons. NEXT STAGE only when there is one.
-func show_end_buttons(has_next: bool) -> void:
+## Shows the end-of-stage buttons. The next button (labelled `next_label`)
+## only when there is somewhere to go.
+func show_end_buttons(has_next: bool, next_label := "NEXT STAGE") -> void:
+	_next_button.text = next_label
 	_next_button.visible = has_next
 	_end_buttons.show()
 	(_next_button if has_next else _levels_button).grab_focus()

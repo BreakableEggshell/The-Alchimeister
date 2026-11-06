@@ -6,11 +6,11 @@ extends Node
 
 const START_MENU := "res://scenes/menu/start_menu.tscn"
 const LEVEL_SELECT := "res://scenes/menu/level_select.tscn"
-## Seven levels. Only Level 1 (the tutorial) has stages so far; a level with
-## no stages is always locked.
+## Seven levels. Levels 1 and 2 have stages so far; a level with no stages
+## is always locked.
 const LEVELS: Array[Dictionary] = [
 	{"title": "TUTORIAL", "stages": ["1-1", "1-2", "1-3"]},
-	{"title": "", "stages": []},
+	{"title": "I'M AFFECTED TOO", "stages": ["2-1", "2-2"]},
 	{"title": "", "stages": []},
 	{"title": "", "stages": []},
 	{"title": "", "stages": []},
@@ -21,6 +21,8 @@ const STAGE_SCENES := {
 	"1-1": "res://scenes/levels/tutorial_1.tscn",
 	"1-2": "res://scenes/levels/tutorial_2.tscn",
 	"1-3": "res://scenes/levels/tutorial_3.tscn",
+	"2-1": "res://scenes/levels/level_2_1.tscn",
+	"2-2": "res://scenes/levels/level_2_2.tscn",
 }
 const FIRST_STAGE := "1-1"
 
@@ -117,14 +119,34 @@ func has_last_stage() -> bool:
 	return STAGE_SCENES.has(last_stage)
 
 
-## The stage after `stage` within its level, or "" if it's the level's last.
+## The stage after `stage`: the next one in its level, or the first stage of
+## the next level that has any. "" after the very last stage.
 func next_stage(stage: String) -> String:
-	for level in LEVELS:
-		var stages: Array = level.stages
-		var i := stages.find(stage)
-		if i >= 0 and i + 1 < stages.size():
-			return stages[i + 1]
+	var level := level_of(stage)
+	if level < 0:
+		return ""
+	var stages: Array = LEVELS[level].stages
+	var i := stages.find(stage)
+	if i + 1 < stages.size():
+		return stages[i + 1]
+	for later in range(level + 1, LEVELS.size()):
+		if not LEVELS[later].stages.is_empty():
+			return LEVELS[later].stages[0]
 	return ""
+
+
+## Index into LEVELS of the level holding `stage`, or -1.
+func level_of(stage: String) -> int:
+	for i in LEVELS.size():
+		if LEVELS[i].stages.has(stage):
+			return i
+	return -1
+
+
+## Whether `stage` is the last one in its level.
+func is_last_in_level(stage: String) -> bool:
+	var level := level_of(stage)
+	return level >= 0 and LEVELS[level].stages.back() == stage
 
 
 func is_level_unlocked(level_index: int) -> bool:

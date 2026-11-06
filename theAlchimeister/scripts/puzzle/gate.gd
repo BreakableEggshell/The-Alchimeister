@@ -2,7 +2,8 @@
 class_name Gate
 extends StaticBody2D
 ## A portcullis linked to pressure plates. Normally it opens while any linked
-## plate is pressed; with open_when_pressed off it opens only while none are.
+## plate is pressed (every one, with needs_all); with open_when_pressed off
+## it opens only while none are.
 ## It rises and drops at the same slow speed, and blocks exactly what it
 ## shows: the bars that are down are solid, the gap under them is free. If
 ## something is in the way as it drops, it waits above it.
@@ -17,6 +18,8 @@ extends StaticBody2D
 		queue_redraw()
 @export var plates: Array[PressurePlate] = []
 @export var open_when_pressed := true
+## Open only while every linked plate is pressed, not just any one.
+@export var needs_all := false
 ## Seconds to rise or drop fully.
 @export var travel_time := 1.2
 
@@ -32,8 +35,10 @@ var _settle_frames := 2
 
 const WIRE_OUTLINE := Color(0.08, 0.07, 0.11)
 const WIRE_ALPHA := 0.9
-## How deep into the floor or wall the wires run.
+## How deep into the floor or wall the wires run; each further button's wire
+## runs a little deeper, so wires sharing a path stay apart.
 const WIRE_DEPTH := 6.0
+const WIRE_SPACING := 4.0
 
 
 func _ready() -> void:
@@ -58,8 +63,9 @@ func _physics_process(delta: float) -> void:
 	if _settle_frames > 0:
 		_settle_frames -= 1
 		return
-	var any_pressed := plates.any(func(plate: PressurePlate) -> bool: return plate.pressed)
-	var target := 1.0 if any_pressed == open_when_pressed else 0.0
+	var is_pressed := func(plate: PressurePlate) -> bool: return plate.pressed
+	var active := plates.all(is_pressed) if needs_all else plates.any(is_pressed)
+	var target := 1.0 if active == open_when_pressed else 0.0
 	if _open_amount == target:
 		return
 	var next := move_toward(_open_amount, target, delta / travel_time)
@@ -105,12 +111,13 @@ func _process(_delta: float) -> void:
 ## inside it, then out into the middle of the gate's nearest edge.
 func _draw_wires() -> void:
 	var gate_rect := Rect2(Vector2.ZERO, size)
-	for plate in plates:
+	for i in plates.size():
+		var plate := plates[i]
 		if not is_instance_valid(plate):
 			continue
 		var up := Vector2.UP.rotated(plate.global_rotation)
 		var surface := to_local(plate.global_position)
-		var buried := to_local(plate.global_position - up * WIRE_DEPTH)
+		var buried := to_local(plate.global_position - up * (WIRE_DEPTH + i * WIRE_SPACING))
 		if gate_rect.has_point(buried):
 			continue
 		# The middle of whichever gate edge faces the wire.

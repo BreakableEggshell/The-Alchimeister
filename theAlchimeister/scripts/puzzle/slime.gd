@@ -5,7 +5,7 @@ extends CharacterBody2D
 ## frozen, stunned or dead, or either of them is translucent.
 ## Fire: burns, patrols faster (FIRE_SPEED_BOOST), dies after a while and
 ## drops its items. Slimes still carrying drops sparkle.
-## Freeze: stops dead and becomes harmless for a while.
+## Freeze: stops dead, becomes harmless for a while, and drops its items.
 ## Knockback: flung away, dazed (still and harmless) for a moment, and drops
 ## its items. Wall slimes ignore knockback.
 ## Translucent: the player can pass through it.
@@ -100,6 +100,7 @@ func apply_potion(kind: StringName, origin: Vector2, power := 1.0) -> void:
 		PotionData.FREEZE:
 			_burn_left = 0.0
 			_freeze_left = PotionData.FREEZE_TIME
+			_drop_items()
 		PotionData.KNOCKBACK:
 			if on_wall:
 				return

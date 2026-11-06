@@ -1,5 +1,5 @@
 extends "res://scripts/puzzle/puzzle_level.gd"
-## Tutorial 1-3: knockback, then three guards you can only sneak past by
+## Stage 2-2 (was tutorial 1-3): knockback, then three guards you can only sneak past by
 ## throwing a translucent potion at your own feet. Cleansing water then
 ## washes the effect off before two more guards, so the second potion has to
 ## go on yourself too. Sheldon drops hints:

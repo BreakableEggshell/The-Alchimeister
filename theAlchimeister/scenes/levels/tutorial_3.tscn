@@ -1,104 +1,144 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="1_base"]
-[ext_resource type="Script" path="res://scripts/puzzle/tutorial_3.gd" id="2_stage"]
-[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="3_solid"]
-[ext_resource type="Script" path="res://scripts/puzzle/pressure_plate.gd" id="4_plate"]
-[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="5_gate"]
-[ext_resource type="Script" path="res://scripts/puzzle/rock.gd" id="6_rock"]
-[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="7_exit"]
-[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="8_slime"]
-[ext_resource type="Texture2D" uid="uid://ddpp2uphq2wt3" path="res://assets/brackeys_platformer_assets/sprites/slime_purple.png" id="9_purple"]
-[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="10_chest"]
-[ext_resource type="Script" path="res://scripts/puzzle/cleansing_water.gd" id="11_water"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="2_solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="3_chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/dialogue_trigger.gd" id="4_trigger"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="5_exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="6_slime"]
 
 [node name="Tutorial3" instance=ExtResource("1_base")]
-script = ExtResource("2_stage")
 stage_id = "1-3"
-stage_size = Vector2(1080, 216)
-potions_needed_until_x = 960.0
+stage_size = Vector2(800, 328)
+potions_needed_until_x = 712.0
 
 [node name="Level" type="Node2D" parent="."]
 
-[node name="Floor" type="StaticBody2D" parent="Level"]
+[node name="StartFloor" type="StaticBody2D" parent="Level"]
 position = Vector2(0, 192)
-script = ExtResource("3_solid")
-points = PackedVector2Array(0, 0, 1080, 0, 1080, 24, 0, 24)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 140, 0, 140, 136, 0, 136)
+
+[node name="Plank1" type="StaticBody2D" parent="Level"]
+position = Vector2(48, 160)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 6, 0, 6)
+one_way = true
+
+[node name="Plank2" type="StaticBody2D" parent="Level"]
+position = Vector2(96, 128)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 44, 0, 44, 6, 0, 6)
+one_way = true
+
+[node name="Wall" type="StaticBody2D" parent="Level"]
+position = Vector2(140, 128)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 120, 0, 120, 200, 0, 200)
+
+[node name="Ledge" type="StaticBody2D" parent="Level"]
+position = Vector2(260, 128)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 160, 0, 160, 8, 0, 8)
+
+[node name="SlimesBelow" type="Area2D" parent="Level"]
+position = Vector2(264, 96)
+script = ExtResource("4_trigger")
+size = Vector2(150, 32)
+lines = PackedStringArray("SHELDON: Wow, that one slime below us is shining! They might drop something after you knock them out or... kill them...", "SHELDON: Haha, we can always get their loot peacefully. Just freeze, or knock them back.", "SHELDON: No need for violence, right? They're monsters, but so am I.", "SHELDON: If only we had the ingredients.")
+
+[node name="LowerFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(260, 192)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 260, 0, 260, 136, 0, 136)
 
 [node name="Chest" type="Area2D" parent="Level"]
-position = Vector2(70, 192)
-script = ExtResource("10_chest")
-contents = "gust_feather"
-amount = 2
-extra_contents = "ember"
+position = Vector2(470, 192)
+script = ExtResource("3_chest")
+extra_contents = "gust_feather"
+third_contents = "frost_shard"
 
-[node name="RedPlate" type="Area2D" parent="Level"]
-position = Vector2(120, 192)
-script = ExtResource("4_plate")
+[node name="Stair1" type="StaticBody2D" parent="Level"]
+position = Vector2(520, 208)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 120, 0, 120)
 
-[node name="Rock" type="CharacterBody2D" parent="Level"]
-position = Vector2(120, 192)
-collision_layer = 8
-collision_mask = 9
-script = ExtResource("6_rock")
+[node name="Stair2" type="StaticBody2D" parent="Level"]
+position = Vector2(568, 224)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 104, 0, 104)
 
-[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(200, 0)
-script = ExtResource("5_gate")
-size = Vector2(12, 192)
-plates = [NodePath("../RedPlate")]
-open_when_pressed = false
+[node name="Stair3" type="StaticBody2D" parent="Level"]
+position = Vector2(616, 240)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 88, 0, 88)
 
-[node name="HallwayB" type="StaticBody2D" parent="Level"]
-position = Vector2(300, 0)
-script = ExtResource("3_solid")
-points = PackedVector2Array(0, 0, 120, 0, 120, 168, 0, 168)
+[node name="Stair4" type="StaticBody2D" parent="Level"]
+position = Vector2(664, 256)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 72, 0, 72)
 
-[node name="HallwayC" type="StaticBody2D" parent="Level"]
-position = Vector2(560, 0)
-script = ExtResource("3_solid")
-points = PackedVector2Array(0, 0, 200, 0, 200, 168, 0, 168)
+[node name="StairCeiling1" type="StaticBody2D" parent="Level"]
+position = Vector2(534, 0)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 184, 0, 184)
 
-[node name="CleansingWater" type="Area2D" parent="Level"]
-position = Vector2(795, 192)
-script = ExtResource("11_water")
+[node name="StairCeiling2" type="StaticBody2D" parent="Level"]
+position = Vector2(582, 0)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 200, 0, 200)
 
-[node name="HallwayD" type="StaticBody2D" parent="Level"]
-position = Vector2(830, 0)
-script = ExtResource("3_solid")
-points = PackedVector2Array(0, 0, 130, 0, 130, 168, 0, 168)
+[node name="StairCeiling3" type="StaticBody2D" parent="Level"]
+position = Vector2(630, 0)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 216, 0, 216)
+
+[node name="StairCeiling4" type="StaticBody2D" parent="Level"]
+position = Vector2(678, 0)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 232, 0, 232)
+
+[node name="ExitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(712, 304)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 88, 0, 88, 24, 0, 24)
 
 [node name="Exit" type="Area2D" parent="Level"]
-position = Vector2(1040, 192)
-script = ExtResource("7_exit")
+position = Vector2(770, 304)
+script = ExtResource("5_exit")
 
 [node name="Enemies" type="Node2D" parent="."]
 
-[node name="Blocker" parent="Enemies" instance=ExtResource("8_slime")]
-position = Vector2(360, 192)
-speed = 0.0
+[node name="ShiningSlime" parent="Enemies" instance=ExtResource("6_slime")]
+position = Vector2(290, 192)
+speed = 25.0
+patrol_distance = 18.0
 drop = &"ghost_wisp"
 drop_count = 2
 
-[node name="Sprite" parent="Enemies/Blocker"]
-texture = ExtResource("9_purple")
+[node name="Guard1" parent="Enemies" instance=ExtResource("6_slime")]
+position = Vector2(340, 192)
+patrol_distance = 18.0
+start_direction = -1
 
-[node name="Guard1" parent="Enemies" instance=ExtResource("8_slime")]
-position = Vector2(600, 192)
-speed = 0.0
+[node name="Guard2" parent="Enemies" instance=ExtResource("6_slime")]
+position = Vector2(385, 192)
+patrol_distance = 18.0
 
-[node name="Guard2" parent="Enemies" instance=ExtResource("8_slime")]
-position = Vector2(660, 192)
-speed = 0.0
+[node name="StairSlime1" parent="Enemies" instance=ExtResource("6_slime")]
+position = Vector2(544, 208)
+speed = 25.0
 
-[node name="Guard3" parent="Enemies" instance=ExtResource("8_slime")]
-position = Vector2(720, 192)
-speed = 0.0
+[node name="StairSlime2" parent="Enemies" instance=ExtResource("6_slime")]
+position = Vector2(592, 224)
+speed = 25.0
+start_direction = -1
 
-[node name="Guard4" parent="Enemies" instance=ExtResource("8_slime")]
-position = Vector2(868, 192)
-speed = 0.0
+[node name="StairSlime3" parent="Enemies" instance=ExtResource("6_slime")]
+position = Vector2(640, 240)
+speed = 25.0
 
-[node name="Guard5" parent="Enemies" instance=ExtResource("8_slime")]
-position = Vector2(924, 192)
-speed = 0.0
+[node name="StairSlime4" parent="Enemies" instance=ExtResource("6_slime")]
+position = Vector2(688, 256)
+speed = 25.0
+start_direction = -1

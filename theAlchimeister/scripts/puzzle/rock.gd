@@ -24,6 +24,11 @@ func _ready() -> void:
 	add_child(shape)
 
 
+## Heavy enough to press a HeavyButton.
+func is_heavy() -> bool:
+	return true
+
+
 ## `power` scales knockback with how hard the potion was thrown.
 func apply_potion(kind: StringName, origin: Vector2, power := 1.0) -> void:
 	if kind == PotionData.KNOCKBACK:

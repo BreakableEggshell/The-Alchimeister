@@ -146,11 +146,13 @@ func _on_exit_reached() -> void:
 	_restarts.erase(stage_id)
 	var next := SaveGame.next_stage(stage_id)
 	SaveGame.unlock(next)
-	if next != "":
-		hud.show_banner("STAGE CLEAR", "", Color(0.95, 0.85, 0.55))
+	var level_done := SaveGame.is_last_in_level(stage_id)
+	if level_done:
+		var title: String = SaveGame.LEVELS[SaveGame.level_of(stage_id)].title
+		hud.show_banner("%s COMPLETE" % (title if title != "" else "LEVEL"), "", Color(0.95, 0.85, 0.55))
 	else:
-		hud.show_banner("TUTORIAL COMPLETE", "", Color(0.95, 0.85, 0.55))
-	hud.show_end_buttons(next != "")
+		hud.show_banner("STAGE CLEAR", "", Color(0.95, 0.85, 0.55))
+	hud.show_end_buttons(next != "", "NEXT LEVEL" if level_done else "NEXT STAGE")
 
 
 func _go_next() -> void:

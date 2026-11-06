@@ -3,7 +3,7 @@ extends Control
 ## padlock and can't be picked. Picking a level opens its stage panel, where
 ## each unlocked stage can be played.
 
-const CARD_SIZE := Vector2(76, 52)
+const CARD_SIZE := Vector2(84, 52)
 const GOLD := Color(0.95, 0.85, 0.55)
 
 var _stage_panel: Control
@@ -104,10 +104,28 @@ func _level_card(index: int) -> Button:
 		var color := Color.WHITE if unlocked else Color(1, 1, 1, 0.35)
 		card.draw_string(font, Vector2(0, 16), "LEVEL %d" % (index + 1), HORIZONTAL_ALIGNMENT_CENTER, CARD_SIZE.x, 8, color)
 		if unlocked:
-			card.draw_string(font, Vector2(0, 32), SaveGame.LEVELS[index].title, HORIZONTAL_ALIGNMENT_CENTER, CARD_SIZE.x, 8, GOLD)
+			var lines := _wrap(font, SaveGame.LEVELS[index].title, CARD_SIZE.x - 4.0)
+			for i in lines.size():
+				card.draw_string(font, Vector2(0, 30 + i * 10), lines[i], HORIZONTAL_ALIGNMENT_CENTER, CARD_SIZE.x, 8, GOLD)
 		else:
 			PotionData.draw_lock_icon(card, Vector2(CARD_SIZE.x / 2.0, 34), Color(1, 1, 1, 0.45)))
 	return card
+
+
+## Splits `text` into lines no wider than `max_width` at size 8, by words.
+func _wrap(font: Font, text: String, max_width: float) -> PackedStringArray:
+	var lines := PackedStringArray()
+	var line := ""
+	for word in text.split(" ", false):
+		var attempt := word if line == "" else line + " " + word
+		if line != "" and font.get_string_size(attempt, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x > max_width:
+			lines.append(line)
+			line = word
+		else:
+			line = attempt
+	if line != "":
+		lines.append(line)
+	return lines
 
 
 func _stage_button(stage: String) -> Button:
