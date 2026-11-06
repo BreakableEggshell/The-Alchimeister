@@ -1,6 +1,7 @@
 extends Node
 ## Autoload "SaveGame": the level/stage structure, which stages are unlocked,
-## the stage the player was last in (for Continue), and settings. Everything
+## the stage the player was last in (for Continue), potions discovered by
+## brewing them, and settings. Everything
 ## is saved to user://save.cfg as soon as it changes.
 
 const START_MENU := "res://scenes/menu/start_menu.tscn"
@@ -26,6 +27,8 @@ const FIRST_STAGE := "1-1"
 var save_path := "user://save.cfg"
 var unlocked: Array[String] = [FIRST_STAGE]
 var last_stage := ""
+## Discoverable potion kinds (see PotionData.DISCOVERABLE) brewed at least once.
+var discovered_potions: Array[String] = []
 var music_volume := 0.8
 var sound_volume := 0.8
 var fullscreen := false
@@ -48,6 +51,8 @@ func load_save() -> void:
 		if not unlocked.has(FIRST_STAGE):
 			unlocked.append(FIRST_STAGE)
 		last_stage = file.get_value("progress", "last_stage", "")
+		var potions: Array = file.get_value("progress", "discovered_potions", [])
+		discovered_potions.assign(potions)
 		music_volume = file.get_value("settings", "music_volume", music_volume)
 		sound_volume = file.get_value("settings", "sound_volume", sound_volume)
 		fullscreen = file.get_value("settings", "fullscreen", fullscreen)
@@ -58,6 +63,7 @@ func save() -> void:
 	var file := ConfigFile.new()
 	file.set_value("progress", "unlocked", unlocked)
 	file.set_value("progress", "last_stage", last_stage)
+	file.set_value("progress", "discovered_potions", discovered_potions)
 	file.set_value("settings", "music_volume", music_volume)
 	file.set_value("settings", "sound_volume", sound_volume)
 	file.set_value("settings", "fullscreen", fullscreen)
@@ -81,6 +87,24 @@ func unlock(stage: String) -> void:
 	if stage != "" and not unlocked.has(stage):
 		unlocked.append(stage)
 		save()
+
+
+func is_potion_discovered(kind: StringName) -> bool:
+	return discovered_potions.has(String(kind))
+
+
+## False for a discoverable potion the player hasn't brewed yet.
+func is_potion_known(kind: StringName) -> bool:
+	return not PotionData.DISCOVERABLE.has(kind) or is_potion_discovered(kind)
+
+
+## Returns true if this was the first time.
+func discover_potion(kind: StringName) -> bool:
+	if is_potion_discovered(kind):
+		return false
+	discovered_potions.append(String(kind))
+	save()
+	return true
 
 
 func set_last_stage(stage: String) -> void:
@@ -156,6 +180,7 @@ func _set_bus_volume(bus: String, value: float) -> void:
 func _set_defaults() -> void:
 	unlocked.assign([FIRST_STAGE])
 	last_stage = ""
+	discovered_potions.clear()
 	music_volume = 0.8
 	sound_volume = 0.8
 	fullscreen = false

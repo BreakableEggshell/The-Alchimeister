@@ -7,6 +7,8 @@ extends Node2D
 
 ## Emitted when an aim starts, and when it ends by throwing or cancelling.
 signal aiming_changed(aiming: bool)
+## Emitted when a potion actually leaves the hand.
+signal thrown
 
 @export var thrower: CharacterBody2D
 @export var cancel_zone: Control
@@ -43,6 +45,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_pointer_screen = event.position
 		if event.pressed:
+			# A frozen thrower can't throw.
+			if thrower.has_method("is_frozen") and thrower.is_frozen():
+				return
 			if inventory and inventory.count(inventory.selected) <= 0:
 				inventory.take_selected()  # Reports "none left".
 				return
@@ -130,11 +135,14 @@ func _release() -> void:
 		return
 	var potion := Potion.new()
 	if inventory:
-		if not inventory.take_selected():
-			return
+		# Read the kind first: using up the last one can clear the selection.
 		potion.kind = inventory.selected
+		if not inventory.take_selected():
+			potion.free()
+			return
 	potion.velocity = launch
 	potion.gravity = potion_gravity
 	potion.exclude = [thrower.get_rid()]
 	get_parent().add_child(potion)
 	potion.global_position = _hand_position()
+	thrown.emit()

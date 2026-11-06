@@ -7,19 +7,36 @@ const FIRE := &"fire"
 const KNOCKBACK := &"knockback"
 const FREEZE := &"freeze"
 const TRANSLUCENT := &"translucent"
-const KINDS: Array[StringName] = [FIRE, KNOCKBACK, FREEZE, TRANSLUCENT]
+## Brewed from any mix that isn't a recipe. Hidden until first brewed.
+const DEATH := &"death"
+const KINDS: Array[StringName] = [FIRE, KNOCKBACK, FREEZE, TRANSLUCENT, DEATH]
+## Potions the player must brew once before the book and HUD reveal them.
+const DISCOVERABLE: Array[StringName] = [DEATH]
+## A recipe shown in the book whose potion can't be brewed yet. Its table mix
+## (one of every ingredient) is reserved so it never brews a Death potion.
+const SECRET := &"secret"
 
 const NAMES := {
 	FIRE: "FIRE",
 	KNOCKBACK: "KNOCKBACK",
 	FREEZE: "FREEZE",
 	TRANSLUCENT: "TRANSLUCENT",
+	DEATH: "DEATH",
+}
+## Short lines for the recipe book.
+const DESCRIPTIONS := {
+	FIRE: "BURNS FOES TO ASH",
+	KNOCKBACK: "BLASTS THINGS AWAY",
+	FREEZE: "FREEZES FOES SOLID",
+	TRANSLUCENT: "WALK THROUGH FOES",
+	DEATH: "SLAYS ANYTHING IT HITS",
 }
 const COLORS := {
 	FIRE: Color(1.0, 0.45, 0.15),
 	KNOCKBACK: Color(0.55, 0.95, 0.45),
 	FREEZE: Color(0.45, 0.85, 1.0),
 	TRANSLUCENT: Color(0.85, 0.75, 1.0, 0.75),
+	DEATH: Color(0.45, 0.08, 0.2),
 }
 ## Colour for a potion with no kind (the plain prototype potion).
 const PLAIN_COLOR := Color(0.55, 0.95, 0.45)
@@ -41,12 +58,16 @@ const INGREDIENT_COLORS := {
 	FROST_SHARD: Color(0.6, 0.9, 1.0),
 	GHOST_WISP: Color(0.85, 0.8, 1.0),
 }
+const INGREDIENTS: Array[StringName] = [EMBER, GUST_FEATHER, FROST_SHARD, GHOST_WISP]
 
 ## Effect tuning.
 const SPLASH_RADIUS := 22.0
 const BURN_TIME := 3.0
 const FREEZE_TIME := 6.0
 const TRANSLUCENT_TIME := 6.0
+## Seconds the player is frozen in place by a freeze splash (monsters use
+## FREEZE_TIME). A burning player dies after BURN_TIME, like monsters.
+const PLAYER_FREEZE_TIME := 2.0
 ## Seconds a monster is dazed (still and harmless) after a knockback hit.
 const STUN_TIME := 3.0
 const KNOCKBACK_SPEED := 230.0

@@ -37,11 +37,18 @@ func _ready() -> void:
 		PotionData.KNOCKBACK: start_knockback,
 		PotionData.FREEZE: start_freeze,
 		PotionData.TRANSLUCENT: start_translucent,
+		PotionData.DEATH: 0,
 	}
 
 
 func count(kind: StringName) -> int:
 	return _potions.get(kind, 0)
+
+
+## Whether the potion bar and the book's potion counts list this kind.
+## Discoverable potions (Death) only appear while you hold at least one.
+func is_shown(kind: StringName) -> bool:
+	return not PotionData.DISCOVERABLE.has(kind) or count(kind) > 0
 
 
 func ingredient_count(kind: StringName) -> int:
@@ -63,6 +70,9 @@ func take_selected() -> bool:
 		message.emit("NO %s POTIONS LEFT" % PotionData.NAMES[selected], Color(1, 0.5, 0.5))
 		return false
 	_potions[selected] -= 1
+	# The last one of a potion that vanishes from the bar can't stay selected.
+	if not is_shown(selected):
+		selected = &""
 	changed.emit()
 	return true
 
@@ -91,7 +101,9 @@ func return_ingredient(kind: StringName) -> void:
 
 ## What these table ingredients brew into, ignoring order and empty entries:
 ## {potion, amount}. A table holding k copies of a recipe makes k potions, so
-## 3 Frost Shards make 3 Freeze potions. Empty potion if nothing matches.
+## 3 Frost Shards make 3 Freeze potions. Any other mix makes one Death
+## potion, except one of every ingredient: that is the secret recipe, which
+## can't be brewed yet (PotionData.SECRET, amount 0). Empty table: empty potion.
 func match_recipe(kinds: Array) -> Dictionary:
 	var tally := {}
 	for kind in kinds:
@@ -106,6 +118,9 @@ func match_recipe(kinds: Array) -> Dictionary:
 			var copies: int = tally.get(first, 0) / recipe[first]
 			if copies >= 1 and recipe.keys().all(func(ingredient) -> bool: return tally.get(ingredient, 0) == recipe[ingredient] * copies):
 				return {"potion": potion, "amount": copies}
+		if tally.size() == PotionData.INGREDIENTS.size() and PotionData.INGREDIENTS.all(func(ingredient) -> bool: return tally.get(ingredient, 0) == 1):
+			return {"potion": PotionData.SECRET, "amount": 0}
+		return {"potion": PotionData.DEATH, "amount": 1}
 	return {"potion": &"", "amount": 0}
 
 

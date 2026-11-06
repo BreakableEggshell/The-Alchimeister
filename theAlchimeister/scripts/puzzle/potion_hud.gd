@@ -1,5 +1,6 @@
 extends Control
-## Stage HUD: one slot per potion kind (click it or press 1-4 to select),
+## Stage HUD: one slot per potion kind (click it or press 1-5 to select;
+## the Death potion's slot only appears while you hold one),
 ## short-lived messages, the recipe book button, the dialogue box, and the
 ## end-of-stage banner with its buttons.
 ## While dialogue plays, the potion slots and book button are hidden.
@@ -79,8 +80,9 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	for i in PotionData.KINDS.size():
-		if event.is_action_pressed("potion_%d" % (i + 1)):
-			inventory.select(PotionData.KINDS[i])
+		var kind := PotionData.KINDS[i]
+		if inventory.is_shown(kind) and event.is_action_pressed("potion_%d" % (i + 1)):
+			inventory.select(kind)
 			get_viewport().set_input_as_handled()
 
 
@@ -130,6 +132,7 @@ func _update_visibility() -> void:
 func _refresh() -> void:
 	for kind in _slots:
 		var slot: Button = _slots[kind]
+		slot.visible = inventory.is_shown(kind)
 		slot.set_pressed_no_signal(kind == inventory.selected)
 		slot.modulate.a = 1.0 if inventory.count(kind) > 0 or kind == inventory.selected else 0.45
 		slot.queue_redraw()

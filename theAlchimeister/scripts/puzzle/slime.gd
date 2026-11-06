@@ -8,6 +8,7 @@ extends CharacterBody2D
 ## Knockback: flung away, dazed (still and harmless) for a moment, and drops
 ## its items. Wall slimes ignore knockback.
 ## Translucent: the player can pass through it.
+## Death: dies at once and drops its items, wall slimes too.
 ## A slime drops its items only once, on whichever happens first.
 
 const FRAME_COUNT := 4
@@ -79,6 +80,8 @@ func apply_potion(kind: StringName, origin: Vector2) -> void:
 			_drop_items()
 		PotionData.TRANSLUCENT:
 			_translucent_left = PotionData.TRANSLUCENT_TIME
+		PotionData.DEATH:
+			_die()
 
 
 func is_translucent() -> bool:

@@ -1,7 +1,11 @@
 extends "res://scripts/platformer/platformer_knight.gd"
 ## The platformer knight plus what the puzzle stages need: potion effects on
-## the player (knockback and translucent; fire and freeze don't affect them),
-## pushing crates, floating text above the head, and dying when caught.
+## the player, pushing crates, floating text above the head, and dying when
+## caught.
+## Fire: burns, and dies after PotionData.BURN_TIME unless washed off.
+## Freeze: can't move, jump or throw for PotionData.PLAYER_FREEZE_TIME.
+## Knockback: flung away. Translucent: monsters pass through. Death: dies.
+## Fire and freeze cancel each other; the cleansing portal clears them all.
 
 signal died
 
@@ -11,6 +15,9 @@ const FONT := preload("res://assets/brackeys_platformer_assets/fonts/PixelOperat
 @export var push_speed := 45.0
 
 var _translucent_left := 0.0
+var _burn_left := 0.0
+var _freeze_left := 0.0
+var _flames: CPUParticles2D
 var _dead := false
 var _talking := false
 var _float_label: Label
@@ -26,16 +33,37 @@ func apply_potion(kind: StringName, origin: Vector2) -> void:
 			velocity = PotionData.knockback_velocity(global_position + Vector2(0, -8), origin)
 		PotionData.TRANSLUCENT:
 			_translucent_left = PotionData.TRANSLUCENT_TIME
+		PotionData.FIRE:
+			_freeze_left = 0.0
+			_burn_left = PotionData.BURN_TIME
+			float_text("[BURNING!]", PotionData.color_of(PotionData.FIRE))
+		PotionData.FREEZE:
+			_burn_left = 0.0
+			_freeze_left = PotionData.PLAYER_FREEZE_TIME
+			velocity.x = 0.0
+			float_text("[FROZEN]", PotionData.color_of(PotionData.FREEZE))
+		PotionData.DEATH:
+			die()
 
 
 func is_translucent() -> bool:
 	return _translucent_left > 0.0
 
 
+func is_burning() -> bool:
+	return _burn_left > 0.0
+
+
+func is_frozen() -> bool:
+	return _freeze_left > 0.0
+
+
 ## Washes off potion effects (the cleansing portal).
 func clear_potion_effects() -> void:
-	if is_translucent():
+	if is_translucent() or is_burning() or is_frozen():
 		_translucent_left = 0.0
+		_burn_left = 0.0
+		_freeze_left = 0.0
 		float_text("[EFFECTS CLEARED]", Color(0.55, 0.85, 1.0))
 
 
@@ -43,6 +71,8 @@ func die() -> void:
 	if _dead:
 		return
 	_dead = true
+	if _flames:
+		_flames.emitting = false
 	set_physics_process(false)
 	_sprite.modulate = Color(1.0, 0.35, 0.35)
 	_sprite.frame = 58  # Death row of the sheet.
@@ -94,6 +124,20 @@ func _draw_chat_icon() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_burning():
+		_burn_left -= delta
+		if _burn_left <= 0.0:
+			_burn_left = 0.0
+			die()
+			return
+	if is_frozen():
+		# Stuck in place: no running or jumping, but still falls.
+		_freeze_left = maxf(_freeze_left - delta, 0.0)
+		velocity.x = 0.0
+		if not is_on_floor():
+			velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
+		move_and_slide()
+		return
 	if _talking:
 		velocity.x = 0.0
 		if not is_on_floor():
@@ -121,9 +165,38 @@ func _process(delta: float) -> void:
 	if _dead:
 		return
 	_translucent_left = maxf(_translucent_left - delta, 0.0)
+	if not _flames:
+		_flames = _make_flames()
+		add_child(_flames)
+	_flames.emitting = is_burning()
+	var tint := Color.WHITE
+	if is_frozen():
+		tint = Color(0.6, 0.85, 1.0)
+	elif is_burning():
+		tint = Color(1.0, 0.65, 0.45)
+	_sprite.modulate = tint
 	var alpha := 1.0
 	if is_translucent():
 		# Blink during the last second as a warning.
 		var warning := _translucent_left < 1.0 and int(_translucent_left * 10.0) % 2 == 0
 		alpha = 0.6 if warning else 0.35
 	_sprite.modulate.a = alpha
+
+
+func _make_flames() -> CPUParticles2D:
+	var flames := CPUParticles2D.new()
+	flames.emitting = false
+	flames.amount = 12
+	flames.lifetime = 0.45
+	flames.position = Vector2(0, -9)
+	flames.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	flames.emission_rect_extents = Vector2(5, 7)
+	flames.direction = Vector2.UP
+	flames.spread = 20.0
+	flames.gravity = Vector2(0, -60)
+	flames.initial_velocity_min = 8.0
+	flames.initial_velocity_max = 18.0
+	flames.scale_amount_min = 1.0
+	flames.scale_amount_max = 2.0
+	flames.color = PotionData.color_of(PotionData.FIRE)
+	return flames

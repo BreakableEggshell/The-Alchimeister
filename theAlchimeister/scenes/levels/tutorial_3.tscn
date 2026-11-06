@@ -29,6 +29,7 @@ position = Vector2(70, 192)
 script = ExtResource("10_chest")
 contents = "gust_feather"
 amount = 2
+extra_contents = "ember"
 
 [node name="RedPlate" type="Area2D" parent="Level"]
 position = Vector2(160, 192)

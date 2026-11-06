@@ -14,6 +14,10 @@ const TALK_DELAY := 0.6
 @export_enum("ember", "gust_feather", "frost_shard", "ghost_wisp") var contents := "ember"
 ## How many of `contents` it gives.
 @export var amount := 1
+## An optional second ingredient it also gives.
+@export_enum("none", "ember", "gust_feather", "frost_shard", "ghost_wisp") var extra_contents := "none"
+## How many of `extra_contents` it gives.
+@export var extra_amount := 1
 ## "SPEAKER: text" lines played after opening. Empty for none.
 @export var open_lines: PackedStringArray
 
@@ -55,7 +59,12 @@ func open() -> void:
 	_prompt.hide()
 	queue_redraw()
 	inventory.add_ingredient(StringName(contents), amount)
-	_float_icon()
+	if extra_contents != "none":
+		inventory.add_ingredient(StringName(extra_contents), extra_amount)
+		_float_icon(StringName(contents), -5.0)
+		_float_icon(StringName(extra_contents), 5.0)
+	else:
+		_float_icon(StringName(contents), 0.0)
 	if not open_lines.is_empty() and _player:
 		_talk()
 
@@ -115,12 +124,11 @@ func _place_prompt() -> void:
 	_prompt.position = Vector2(-roundf(_prompt.size.x / 2.0), -14.0 - _prompt.size.y)
 
 
-## Shows the ingredient rising out of the chest and fading.
-func _float_icon() -> void:
+## Shows an ingredient rising out of the chest and fading.
+func _float_icon(kind: StringName, x: float) -> void:
 	var icon := Node2D.new()
-	var kind := StringName(contents)
 	icon.draw.connect(func() -> void: PotionData.draw_ingredient(icon, kind, Vector2.ZERO))
-	icon.position = Vector2(0, -12)
+	icon.position = Vector2(x, -12)
 	add_child(icon)
 	var tween := icon.create_tween().set_parallel()
 	tween.tween_property(icon, "position:y", -30.0, 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)

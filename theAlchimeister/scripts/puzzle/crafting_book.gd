@@ -3,10 +3,14 @@ extends Control
 ## the game (B, Esc or the book icon).
 ## Left page: a 2x2 crafting table pointing at a result box, the potions you
 ## hold, the ingredient storage, and MENU / SETTINGS / LOG buttons.
-## Right page: every recipe, plus locked ones still to discover.
+## Right page: a scrolling list of every recipe. Hovering (or tapping) an
+## ingredient shows its name; hovering (or tapping) the potion shows its
+## description. A tapped tip stays until you tap somewhere else. Potions not
+## yet discovered show a lock and "???"; the Death recipe (any mix that isn't
+## a recipe) cycles through random mixes.
 ## Ingredients move by dragging or tapping, one per table box. Recipes are
 ## shapeless, and a table holding several copies of a recipe brews that many
-## potions. Tap the result to brew.
+## potions. Any other mix brews a Death potion. Tap the result to brew.
 
 signal opened
 signal closed
@@ -28,9 +32,15 @@ const STATUS_Y := 76.0
 const COUNTS_Y := 88.0
 const STORAGE_AT := Vector2(16, 100)
 const BUTTONS_Y := 154.0
-const RECIPE_ROW_HEIGHT := 30.0
-## Recipes not yet revealed, shown as locked rows.
-const LOCKED_RECIPES := 1
+## Top of the recipe list on the right page.
+const RECIPES_TOP := 22.0
+const RECIPE_ROW_HEIGHT := 18.0
+const RECIPE_BOX := 14.0
+## Baseline of the page titles.
+const TITLE_BASELINE := 14.0
+const TIP_COLOR := Color(0.16, 0.15, 0.22)
+## Seconds between mixes shown on the Death recipe.
+const CYCLE_TIME := 1.0
 const SLIDE_TIME := 0.25
 const COVER_COLOR := Color(0.42, 0.2, 0.14)
 const PAGE_COLOR := Color(0.94, 0.88, 0.74)
@@ -53,11 +63,23 @@ var _status_color := INK
 var _status_alpha := 0.0
 var _tween: Tween
 var _status_tween: Tween
+## The mix currently shown on the Death recipe row.
+var _death_preview: Array[StringName] = []
+var _recipe_scroll: ScrollContainer
+var _recipe_list: Control
+## Draws the tooltip above everything else in the book.
+var _tip_layer: Control
+## What the tooltip points at: {row, part}; part is an ingredient box index,
+## or -1 for the potion. Empty for no tooltip.
+var _tip := {}
+## A tapped tooltip stays until the next tap elsewhere.
+var _tip_pinned := false
 
 
 func _ready() -> void:
 	hide()
 	_build()
+	_roll_death_preview()
 	inventory.changed.connect(_refresh)
 	_refresh()
 
@@ -75,6 +97,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			toggle()
 		get_viewport().set_input_as_handled()
+
+
+func _input(event: InputEvent) -> void:
+	if not is_open:
+		return
+	if event is InputEventMouseMotion:
+		var part := _recipe_part_at(event.position)
+		if not part.is_empty() or not _tip_pinned:
+			_tip_pinned = false
+			_set_tip(part)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var part := _recipe_part_at(event.position)
+		_tip_pinned = not part.is_empty()
+		_set_tip(part)
 
 
 func toggle() -> void:
@@ -102,6 +138,8 @@ func close() -> void:
 	if not is_open:
 		return
 	is_open = false
+	_tip_pinned = false
+	_set_tip({})
 	_return_table()
 	_slide(get_viewport_rect().size.y, 0.0).tween_callback(func() -> void:
 		hide()
@@ -163,13 +201,20 @@ func _on_slot_dropped(target: IngredientSlot, source: IngredientSlot) -> void:
 func _brew() -> void:
 	var result := inventory.match_recipe(_table)
 	var potion: StringName = result.potion
+	if potion == PotionData.SECRET:
+		_flash_status("THE MIX WON'T SETTLE...", Color(INK, 0.8))
+		return
 	if potion == &"":
 		return
 	# The ingredients already left storage when they were placed on the table.
 	_table.fill(&"")
+	var discovered := PotionData.DISCOVERABLE.has(potion) and SaveGame.discover_potion(potion)
 	inventory.brew(potion, result.amount)
-	var plural := "S" if result.amount > 1 else ""
-	_flash_status("+%d %s POTION%s" % [result.amount, PotionData.NAMES[potion], plural], PotionData.color_of(potion).darkened(0.35))
+	var text := "NEW: %s POTION!" % PotionData.NAMES[potion]
+	if not discovered:
+		var plural := "S" if result.amount > 1 else ""
+		text = "+%d %s POTION%s" % [result.amount, PotionData.NAMES[potion], plural]
+	_flash_status(text, PotionData.color_of(potion).darkened(0.35))
 
 
 func _return_table() -> void:
@@ -189,9 +234,13 @@ func _refresh() -> void:
 		var amount := inventory.ingredient_count(kind) if kind != &"" else 0
 		_storage_slots[i].show_contents(kind if amount > 0 else &"", amount)
 	var result := inventory.match_recipe(_table)
-	var table_used := _table.any(func(kind: StringName) -> bool: return kind != &"")
-	_result_slot.show_contents(result.potion, result.amount, table_used and result.potion == &"")
+	var potion: StringName = result.potion
+	var locked := potion == PotionData.SECRET or (potion != &"" and not SaveGame.is_potion_known(potion))
+	_result_slot.show_contents(potion, result.amount, locked)
 	_book.queue_redraw()
+	_recipe_list.custom_minimum_size.y = _recipe_entries().size() * RECIPE_ROW_HEIGHT
+	_recipe_list.queue_redraw()
+	_tip_layer.queue_redraw()
 
 
 func _flash_status(text: String, color: Color) -> void:
@@ -227,16 +276,44 @@ func _build() -> void:
 			var cell := Vector2(column, row) * (SLOT + GAP)
 			_storage_slots.append(_add_slot(IngredientSlot.Role.STORAGE, _storage_slots.size(), LEFT_PAGE + STORAGE_AT + cell, SLOT))
 
+	# The X is drawn by hand so it sits on the same baseline as "RECIPES".
 	var close_button := Button.new()
-	close_button.text = "X"
 	close_button.flat = true
 	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.add_theme_color_override("font_color", INK)
-	close_button.add_theme_color_override("font_hover_color", Color(0.75, 0.25, 0.2))
-	close_button.position = RIGHT_PAGE + Vector2(PAGE_SIZE.x - 16, 1)
-	close_button.size = Vector2(14, 14)
+	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+		close_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	close_button.position = RIGHT_PAGE + Vector2(PAGE_SIZE.x - 18, TITLE_BASELINE - 10)
+	close_button.size = Vector2(14, 13)
 	close_button.pressed.connect(close)
+	close_button.draw.connect(func() -> void:
+		var color := Color(0.75, 0.25, 0.2) if close_button.is_hovered() else INK
+		close_button.draw_string(get_theme_font("font", "Label"), Vector2(0, 10), "X", HORIZONTAL_ALIGNMENT_CENTER, close_button.size.x, 8, color))
 	_book.add_child(close_button)
+
+	_recipe_scroll = ScrollContainer.new()
+	_recipe_scroll.position = RIGHT_PAGE + Vector2(8, RECIPES_TOP)
+	_recipe_scroll.size = Vector2(PAGE_SIZE.x - 12, PAGE_SIZE.y - RECIPES_TOP - 4)
+	_recipe_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_recipe_scroll.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	var bar := _recipe_scroll.get_v_scroll_bar()
+	var track := StyleBoxFlat.new()
+	track.bg_color = PAGE_COLOR.darkened(0.12)
+	track.content_margin_left = 2
+	track.content_margin_right = 2
+	bar.add_theme_stylebox_override("scroll", track)
+	for state in ["grabber", "grabber_highlight", "grabber_pressed"]:
+		var grabber := StyleBoxFlat.new()
+		grabber.bg_color = Color(INK, 0.55 if state == "grabber" else 0.8)
+		bar.add_theme_stylebox_override(state, grabber)
+	_recipe_scroll.get_v_scroll_bar().value_changed.connect(func(_value: float) -> void:
+		_tip_pinned = false
+		_set_tip({}))
+	_book.add_child(_recipe_scroll)
+	_recipe_list = Control.new()
+	_recipe_list.mouse_filter = Control.MOUSE_FILTER_PASS
+	_recipe_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_recipe_list.draw.connect(_draw_recipes)
+	_recipe_scroll.add_child(_recipe_list)
 
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 4)
@@ -250,6 +327,26 @@ func _build() -> void:
 	log_button.pressed.connect(log_requested.emit)
 
 	_settings = _build_settings()
+	_settings.visibility_changed.connect(func() -> void:
+		_tip_pinned = false
+		_set_tip({}))
+
+	_tip_layer = Control.new()
+	_tip_layer.size = BOOK_SIZE
+	_tip_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tip_layer.draw.connect(_draw_tip)
+	_book.add_child(_tip_layer)
+
+	var cycle := Timer.new()
+	cycle.wait_time = CYCLE_TIME
+	cycle.autostart = true
+	# The book pauses the game, but the Death recipe keeps cycling.
+	cycle.process_mode = Node.PROCESS_MODE_ALWAYS
+	cycle.timeout.connect(func() -> void:
+		_roll_death_preview()
+		_recipe_list.queue_redraw()
+		_tip_layer.queue_redraw())
+	add_child(cycle)
 
 
 func _add_slot(role: IngredientSlot.Role, index: int, at: Vector2, side: float) -> IngredientSlot:
@@ -310,6 +407,13 @@ func _build_settings() -> Control:
 	fullscreen.position = Vector2(66, 104)
 	fullscreen.toggled.connect(SaveGame.set_fullscreen)
 	panel.add_child(fullscreen)
+	# The editor's Game tab ignores window mode changes, so say why it can't work.
+	if Engine.is_embedded_in_editor():
+		fullscreen.disabled = true
+		fullscreen.add_theme_color_override("font_disabled_color", Color(INK, 0.45))
+		var note := _ink_label("(NOT IN THE EDITOR'S GAME TAB)", Vector2(70, 124), 240)
+		note.add_theme_color_override("font_color", Color(INK, 0.6))
+		panel.add_child(note)
 	var back_row := HBoxContainer.new()
 	back_row.position = Vector2(156, 148)
 	panel.add_child(back_row)
@@ -340,27 +444,23 @@ func _draw_book() -> void:
 	# Left page: crafting.
 	_page_text(font, "BREWING", LEFT_PAGE + Vector2(0, 12), INK)
 	var arrow_y := LEFT_PAGE.y + TABLE_AT.y + SLOT + GAP / 2.0
-	_draw_arrow(LEFT_PAGE.x + TABLE_AT.x + 2.0 * SLOT + GAP + 6.0, LEFT_PAGE.x + RESULT_AT.x - 6.0, arrow_y)
+	_draw_arrow(_book, LEFT_PAGE.x + TABLE_AT.x + 2.0 * SLOT + GAP + 6.0, LEFT_PAGE.x + RESULT_AT.x - 6.0, arrow_y)
 	if _status_alpha > 0.0:
 		_page_text(font, _status, LEFT_PAGE + Vector2(0, STATUS_Y), Color(_status_color, _status_alpha))
 	_draw_potion_counts(font)
 
-	# Right page: recipes.
-	_page_text(font, "RECIPES", RIGHT_PAGE + Vector2(0, 14), INK)
-	var row := 0
-	for potion in PotionData.KINDS:
-		_draw_recipe_row(font, row, inventory.recipes.get(potion, {}), potion)
-		row += 1
-	for i in LOCKED_RECIPES:
-		_draw_recipe_row(font, row, {}, &"")
-		row += 1
+	# Right page: the title; the list draws itself (_draw_recipes).
+	_page_text(font, "RECIPES", RIGHT_PAGE + Vector2(0, TITLE_BASELINE), INK)
 
 
 ## "[potion] x N" for each potion held, greyed out at 0.
 func _draw_potion_counts(font: Font) -> void:
-	var x := LEFT_PAGE.x + 8.0
+	var kinds := PotionData.KINDS.filter(inventory.is_shown)
+	# Spread to fit the page while a fifth potion (Death, when held) is listed.
+	var step := minf(40.0, 166.0 / kinds.size())
+	var x := LEFT_PAGE.x + (8.0 if step >= 40.0 else 4.0)
 	var y := LEFT_PAGE.y + COUNTS_Y
-	for kind in PotionData.KINDS:
+	for kind in kinds:
 		var amount := inventory.count(kind)
 		var faded := 1.0 if amount > 0 else 0.35
 		_book.draw_rect(Rect2(x, y - 8, 16, 16), Color(IngredientSlot.FILL, faded))
@@ -369,8 +469,8 @@ func _draw_potion_counts(font: Font) -> void:
 			PotionData.draw_potion(_book, kind, icon_at)
 		else:
 			_draw_grey_potion(icon_at)
-		_book.draw_string(font, Vector2(x + 18, y + 4), "x%d" % amount, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(INK, faded))
-		x += 40.0
+		_book.draw_string(font, Vector2(x + 17, y + 4), "x%d" % amount, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(INK, faded))
+		x += step
 
 
 func _draw_grey_potion(at: Vector2) -> void:
@@ -379,30 +479,160 @@ func _draw_grey_potion(at: Vector2) -> void:
 	_book.draw_circle(at, 3.0, grey)
 
 
-func _draw_recipe_row(font: Font, row: int, recipe: Dictionary, potion: StringName) -> void:
-	var top := RIGHT_PAGE + Vector2(10, 22 + row * RECIPE_ROW_HEIGHT)
-	var mid_y := top.y + 13.0
-	var locked := potion == &""
-	_book.draw_rect(Rect2(top, Vector2(PAGE_SIZE.x - 18, 26)), PAGE_COLOR.darkened(0.16 if locked else 0.06))
-	if locked:
-		PotionData.draw_lock_icon(_book, Vector2(top.x + 14, mid_y + 1), INK)
-		_book.draw_string(font, Vector2(top.x + 66, mid_y + 4), "???", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(INK, 0.6))
+# --- Recipe list
+
+## Every recipe row in order: {ingredients, potion, known}. The secret recipe
+## comes last.
+func _recipe_entries() -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	for potion in PotionData.KINDS:
+		var ingredients := _death_preview if potion == PotionData.DEATH else _recipe_ingredients(potion)
+		entries.append({"ingredients": ingredients, "potion": potion, "known": SaveGame.is_potion_known(potion)})
+	entries.append({"ingredients": PotionData.INGREDIENTS, "potion": PotionData.SECRET, "known": false})
+	return entries
+
+
+## Where a row's parts sit, relative to the row's top-left: one box per
+## ingredient, the arrow's ends, and the potion box plus its name.
+func _recipe_layout(entry: Dictionary) -> Dictionary:
+	var box_y := (RECIPE_ROW_HEIGHT - 1.0 - RECIPE_BOX) / 2.0
+	var boxes: Array[Rect2] = []
+	var x := 3.0
+	for ingredient in entry.ingredients:
+		boxes.append(Rect2(x, box_y, RECIPE_BOX, RECIPE_BOX))
+		x += RECIPE_BOX + 1.0
+	var title := _recipe_title(entry)
+	var title_width := get_theme_font("font", "Label").get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	return {
+		"boxes": boxes,
+		"arrow": Vector2(x + 2.0, x + 13.0),
+		"potion_box": Rect2(x + 16.0, box_y, RECIPE_BOX, RECIPE_BOX),
+		# The potion box and its name: the part that shows the description.
+		"potion": Rect2(x + 16.0, box_y, RECIPE_BOX + 4.0 + title_width, RECIPE_BOX),
+	}
+
+
+func _recipe_title(entry: Dictionary) -> String:
+	return PotionData.NAMES[entry.potion] if entry.known else "???"
+
+
+func _draw_recipes() -> void:
+	var font := get_theme_font("font", "Label")
+	var entries := _recipe_entries()
+	for row in entries.size():
+		var entry: Dictionary = entries[row]
+		var top := Vector2(0, row * RECIPE_ROW_HEIGHT)
+		var layout := _recipe_layout(entry)
+		_recipe_list.draw_rect(Rect2(top, Vector2(_recipe_list.size.x - 2.0, RECIPE_ROW_HEIGHT - 1.0)), PAGE_COLOR.darkened(0.06 if entry.known else 0.16))
+		var mid_y: float = top.y + layout.boxes[0].get_center().y
+		for i in layout.boxes.size():
+			var box: Rect2 = layout.boxes[i]
+			_recipe_list.draw_rect(Rect2(top + box.position, box.size), IngredientSlot.FILL)
+			if entry.ingredients[i] != &"":
+				PotionData.draw_ingredient(_recipe_list, entry.ingredients[i], top + box.get_center())
+		_draw_arrow(_recipe_list, layout.arrow.x, layout.arrow.y, mid_y)
+		var potion_box: Rect2 = layout.potion_box
+		_recipe_list.draw_rect(Rect2(top + potion_box.position, potion_box.size), IngredientSlot.FILL)
+		var icon_at := top + potion_box.get_center() + Vector2(0, 1)
+		if entry.known:
+			PotionData.draw_potion(_recipe_list, entry.potion, icon_at)
+		else:
+			PotionData.draw_lock_icon(_recipe_list, icon_at, IngredientSlot.BORDER.lightened(0.4))
+		var title_at := Vector2(potion_box.end.x + 4.0, mid_y + 4.0)
+		_recipe_list.draw_string(font, title_at, _recipe_title(entry), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, INK if entry.known else Color(INK, 0.6))
+
+
+## The recipe part at a viewport position (from an input event), as
+## {row, part}, or empty.
+func _recipe_part_at(viewport_position: Vector2) -> Dictionary:
+	if _settings.visible:
+		return {}
+	var in_view := _recipe_scroll.get_global_transform_with_canvas().affine_inverse() * viewport_position
+	if not Rect2(Vector2.ZERO, _recipe_scroll.size).has_point(in_view):
+		return {}
+	var at := _recipe_list.get_global_transform_with_canvas().affine_inverse() * viewport_position
+	var row := floori(at.y / RECIPE_ROW_HEIGHT)
+	var entries := _recipe_entries()
+	if row < 0 or row >= entries.size():
+		return {}
+	var entry: Dictionary = entries[row]
+	var local := at - Vector2(0, row * RECIPE_ROW_HEIGHT)
+	var layout := _recipe_layout(entry)
+	for i in layout.boxes.size():
+		if layout.boxes[i].has_point(local) and entry.ingredients[i] != &"":
+			return {"row": row, "part": i}
+	if layout.potion.has_point(local):
+		return {"row": row, "part": -1}
+	return {}
+
+
+func _set_tip(part: Dictionary) -> void:
+	if part != _tip:
+		_tip = part
+		_tip_layer.queue_redraw()
+
+
+## Ingredient name or potion description for the current tip ("" for none).
+## The Death row cycles, so this is worked out fresh each time.
+func _tip_text() -> String:
+	if _tip.is_empty():
+		return ""
+	var entry: Dictionary = _recipe_entries()[_tip.row]
+	if _tip.part >= 0:
+		return PotionData.INGREDIENT_NAMES.get(entry.ingredients[_tip.part], "")
+	return PotionData.DESCRIPTIONS[entry.potion] if entry.known else "???"
+
+
+## A small dark label just above what the tip points at (below it if that
+## would cover the page title), kept inside the book.
+func _draw_tip() -> void:
+	var text := _tip_text()
+	if text == "":
 		return
-	var x := top.x + 4.0
+	var font := get_theme_font("font", "Label")
+	var entry: Dictionary = _recipe_entries()[_tip.row]
+	var layout := _recipe_layout(entry)
+	var target: Rect2 = layout.potion if _tip.part < 0 else layout.boxes[_tip.part]
+	target.position += Vector2(0, _tip.row * RECIPE_ROW_HEIGHT) + _recipe_list.global_position - _book.global_position
+	var box_size := Vector2(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x + 8.0, 13.0)
+	var at := Vector2(target.get_center().x - box_size.x / 2.0, target.position.y - box_size.y - 2.0)
+	if at.y < RIGHT_PAGE.y + RECIPES_TOP:
+		at.y = target.end.y + 2.0
+	at.x = clampf(at.x, 2.0, BOOK_SIZE.x - box_size.x - 2.0)
+	at = at.round()
+	_tip_layer.draw_rect(Rect2(at, box_size), TIP_COLOR)
+	_tip_layer.draw_rect(Rect2(at, box_size).grow(-0.5), PAGE_COLOR, false)
+	_tip_layer.draw_string(font, at + Vector2(4, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, PAGE_COLOR)
+
+
+## A recipe's ingredients as a flat list, one entry per box.
+func _recipe_ingredients(potion: StringName) -> Array[StringName]:
+	var recipe: Dictionary = inventory.recipes.get(potion, {})
+	var list: Array[StringName] = []
 	for ingredient in recipe:
 		for n in recipe[ingredient]:
-			_book.draw_rect(Rect2(x, mid_y - 8, 16, 16), IngredientSlot.FILL)
-			PotionData.draw_ingredient(_book, ingredient, Vector2(x + 8, mid_y))
-			x += 18.0
-	_draw_arrow(x + 3.0, x + 15.0, mid_y)
-	_book.draw_rect(Rect2(x + 19, mid_y - 8, 16, 16), IngredientSlot.FILL)
-	PotionData.draw_potion(_book, potion, Vector2(x + 27, mid_y + 1))
-	_book.draw_string(font, Vector2(top.x + 66, mid_y + 4), PotionData.NAMES[potion], HORIZONTAL_ALIGNMENT_LEFT, -1, 8, INK)
+			list.append(ingredient)
+	return list
 
 
-func _draw_arrow(from_x: float, to_x: float, y: float) -> void:
-	_book.draw_line(Vector2(from_x, y), Vector2(to_x - 3, y), INK, 2.0)
-	_book.draw_colored_polygon(PackedVector2Array([Vector2(to_x, y), Vector2(to_x - 5, y - 4), Vector2(to_x - 5, y + 4)]), INK)
+## Picks a new random mix for the Death recipe: four boxes, each a random
+## ingredient or empty, rerolled until it really would brew a Death potion.
+func _roll_death_preview() -> void:
+	var choices: Array[StringName] = PotionData.INGREDIENTS.duplicate()
+	choices.append(&"")
+	var mix: Array[StringName] = []
+	while true:
+		mix = []
+		for i in 4:
+			mix.append(choices.pick_random())
+		if mix != _death_preview and inventory.match_recipe(mix).potion == PotionData.DEATH:
+			break
+	_death_preview = mix
+
+
+func _draw_arrow(canvas: CanvasItem, from_x: float, to_x: float, y: float) -> void:
+	canvas.draw_line(Vector2(from_x, y), Vector2(to_x - 3, y), INK, 2.0)
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(to_x, y), Vector2(to_x - 5, y - 4), Vector2(to_x - 5, y + 4)]), INK)
 
 
 func _page_text(font: Font, text: String, at: Vector2, color: Color) -> void:

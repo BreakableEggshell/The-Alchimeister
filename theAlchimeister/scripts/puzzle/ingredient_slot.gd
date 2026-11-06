@@ -20,8 +20,8 @@ var index := 0
 var kind: StringName = &""
 ## Stack size for storage slots; potions that will be brewed for the result slot.
 var count := 0
-## Result slot only: the table holds something that isn't a recipe.
-var invalid := false
+## Result slot only: the potion is still a secret, so a lock is drawn instead.
+var locked := false
 
 var _hover := false
 var _press_inside := false
@@ -41,10 +41,10 @@ func _init(slot_role: Role = Role.STORAGE, slot_index := 0, slot_size := Vector2
 		queue_redraw())
 
 
-func show_contents(new_kind: StringName, new_count := 0, is_invalid := false) -> void:
+func show_contents(new_kind: StringName, new_count := 0, is_locked := false) -> void:
 	kind = new_kind
 	count = new_count
-	invalid = is_invalid
+	locked = is_locked
 	queue_redraw()
 
 
@@ -89,15 +89,13 @@ func _draw() -> void:
 	var lit := _hover and (role != Role.STORAGE or kind != &"")
 	draw_rect(box.grow(-0.5), HOVER_BORDER if lit else BORDER, false)
 	var center := size / 2.0
-	if kind != &"":
+	if locked:
+		PotionData.draw_lock_icon(self, center + Vector2(0, 1), BORDER.lightened(0.4))
+	elif kind != &"":
 		if role == Role.RESULT:
 			PotionData.draw_potion(self, kind, center + Vector2(0, 1))
 		else:
 			PotionData.draw_ingredient(self, kind, center)
-	elif invalid:
-		var r := 4.0
-		draw_line(center - Vector2(r, r), center + Vector2(r, r), Color(0.9, 0.35, 0.35), 1.5)
-		draw_line(center + Vector2(-r, r), center + Vector2(r, -r), Color(0.9, 0.35, 0.35), 1.5)
 	# Stack size in storage; potions to be brewed on the result.
 	if role != Role.TABLE and count > 1:
 		var font := get_theme_font("font", "Label")

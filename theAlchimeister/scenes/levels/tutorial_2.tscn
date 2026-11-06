@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="5_chest"]
 [ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="6_exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="7_slime"]
+[ext_resource type="Script" path="res://scripts/puzzle/throw_hint.gd" id="8_hint"]
 
 [node name="Tutorial2" instance=ExtResource("1_base")]
 stage_id = "1-2"
@@ -42,6 +43,10 @@ position = Vector2(336, 120)
 script = ExtResource("4_gate")
 size = Vector2(12, 72)
 plates = [NodePath("../WallButton")]
+
+[node name="ThrowHint" type="Node2D" parent="Level"]
+position = Vector2(240, 120)
+script = ExtResource("8_hint")
 
 [node name="Exit" type="Area2D" parent="Level"]
 position = Vector2(420, 192)
