@@ -1,15 +1,20 @@
 extends Control
 ## Stage HUD: one slot per potion kind (click it or press 1-5 to select;
-## the Death potion's slot only appears while you hold one),
-## short-lived messages, the recipe book button, the dialogue box, and the
-## end-of-stage banner with its buttons.
+## the Death potion's slot only appears while you hold one), with its key
+## number underneath (and "B" under the book button),
+## short-lived messages, the recipe book button, the dialogue box, the
+## out-of-potions restart hint (tap it to restart), and the end-of-stage banner with its buttons.
 ## While dialogue plays, the potion slots and book button are hidden.
 
 signal next_pressed
 signal levels_pressed
+signal restart_pressed
 
 const MAX_MESSAGES := 3
 const MESSAGE_TIME := 1.6
+const KEY_COLOR := Color(1, 1, 1, 0.75)
+## Blinks per second of the slot highlight (see highlight_slots()).
+const BLINK_RATE := 2.5
 
 @export var inventory: Inventory
 @export var thrower: Node2D
@@ -19,6 +24,9 @@ const MESSAGE_TIME := 1.6
 var _slots := {}
 var _aiming := false
 var _stage_over := false
+var _highlight: Control
+var _potions_enabled := true
+var _restart_hint: Button
 
 @onready var _slot_row: HBoxContainer = $Slots
 @onready var _messages: VBoxContainer = $Messages
@@ -34,7 +42,9 @@ func _ready() -> void:
 	# The book button shares the top-right corner with the throw-cancel box,
 	# so it steps aside while a throw is being aimed.
 	_book_button.pressed.connect(book.toggle)
-	_book_button.draw.connect(func() -> void: PotionData.draw_book_icon(_book_button, _book_button.size / 2.0))
+	_book_button.draw.connect(func() -> void:
+		PotionData.draw_book_icon(_book_button, _book_button.size / 2.0)
+		_draw_key(_book_button, "B"))
 	thrower.aiming_changed.connect(func(aiming: bool) -> void:
 		_aiming = aiming
 		_update_visibility())
@@ -55,6 +65,40 @@ func _ready() -> void:
 	book.move_to_front()
 	_slot_row.move_to_front()
 	_book_button.move_to_front()
+	_highlight = Control.new()
+	_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_highlight.process_mode = Node.PROCESS_MODE_ALWAYS
+	_highlight.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_highlight.draw.connect(_draw_highlight)
+	_highlight.hide()
+	add_child(_highlight)
+	var blink := Timer.new()
+	blink.wait_time = 0.5 / BLINK_RATE
+	blink.timeout.connect(_highlight.queue_redraw)
+	_highlight.add_child(blink)
+	blink.start()
+	# A flat button, so touch players can tap it instead of pressing R.
+	_restart_hint = Button.new()
+	_restart_hint.text = "PRESS R TO RESTART THE LEVEL"
+	_restart_hint.flat = true
+	_restart_hint.focus_mode = Control.FOCUS_NONE
+	_restart_hint.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_restart_hint.add_theme_color_override("font_color", Color(1, 0.35, 0.35))
+	_restart_hint.add_theme_color_override("font_hover_color", Color(1, 0.6, 0.6))
+	_restart_hint.add_theme_color_override("font_pressed_color", Color(1, 0.75, 0.75))
+	_restart_hint.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.08))
+	_restart_hint.add_theme_constant_override("outline_size", 4)
+	for state in ["normal", "hover", "pressed", "focus"]:
+		_restart_hint.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	_restart_hint.pressed.connect(restart_pressed.emit)
+	_restart_hint.anchor_left = 0.5
+	_restart_hint.anchor_right = 0.5
+	_restart_hint.offset_left = -96.0
+	_restart_hint.offset_right = 96.0
+	_restart_hint.offset_top = 44.0
+	_restart_hint.offset_bottom = 56.0
+	_restart_hint.hide()
+	add_child(_restart_hint)
 	_end_buttons.move_to_front()
 	dialogue.move_to_front()
 	var group := ButtonGroup.new()
@@ -79,11 +123,30 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not _potions_enabled:
+		return
 	for i in PotionData.KINDS.size():
 		var kind := PotionData.KINDS[i]
 		if inventory.is_shown(kind) and event.is_action_pressed("potion_%d" % (i + 1)):
 			inventory.select(kind)
 			get_viewport().set_input_as_handled()
+
+
+## Shows or hides the potion bar (and turns its number keys on or off).
+func set_potions_enabled(on: bool) -> void:
+	_potions_enabled = on
+	_update_visibility()
+
+
+## Shows or hides the red "PRESS R TO RESTART THE LEVEL" line.
+func show_restart_hint(on: bool) -> void:
+	_restart_hint.visible = on and not _stage_over
+
+
+## Makes the potion slot borders blink bright white (or stops it).
+func highlight_slots(on: bool) -> void:
+	_highlight.visible = on
+	_highlight.queue_redraw()
 
 
 func show_message(text: String, color: Color) -> void:
@@ -103,6 +166,7 @@ func show_message(text: String, color: Color) -> void:
 ## Closes the book and removes its button, once the stage is over.
 func disable_book() -> void:
 	_stage_over = true
+	_restart_hint.hide()
 	book.close()
 	_update_visibility()
 
@@ -123,8 +187,9 @@ func show_end_buttons(has_next: bool) -> void:
 
 
 func _update_visibility() -> void:
-	var talking: bool = dialogue.is_playing
-	_slot_row.visible = not talking
+	var talking: bool = dialogue.is_playing or dialogue.is_waiting
+	_slot_row.visible = _potions_enabled and not talking
+	_highlight.modulate.a = 0.0 if talking else 1.0
 	_book_button.visible = not (talking or _aiming or _stage_over)
 	book.enabled = not (talking or _stage_over)
 
@@ -144,3 +209,23 @@ func _draw_slot(slot: Button, kind: StringName) -> void:
 	var count := inventory.count(kind)
 	var color := Color.WHITE if count > 0 else Color(1, 1, 1, 0.5)
 	slot.draw_string(font, Vector2(16, 14), str(count), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, color)
+	_draw_key(slot, str(PotionData.KINDS.find(kind) + 1))
+
+
+## The keyboard key for a button, centred just below it.
+func _draw_key(button: Control, key: String) -> void:
+	var font := button.get_theme_font("font")
+	button.draw_string(font, Vector2(0, button.size.y + 9), key, HORIZONTAL_ALIGNMENT_CENTER, button.size.x, 8, KEY_COLOR)
+
+
+func _draw_highlight() -> void:
+	var lit := fmod(Time.get_ticks_msec() / 1000.0 * BLINK_RATE, 1.0) < 0.5
+	if not lit:
+		return
+	for kind in _slots:
+		var slot: Button = _slots[kind]
+		if not slot.is_visible_in_tree():
+			continue
+		var rect := Rect2(slot.global_position - global_position, slot.size)
+		_highlight.draw_rect(rect.grow(1.0), Color(1, 1, 1, 0.35), false, 3.0)
+		_highlight.draw_rect(rect, Color.WHITE, false, 1.0)

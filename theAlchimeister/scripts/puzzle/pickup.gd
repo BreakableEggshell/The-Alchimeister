@@ -8,6 +8,7 @@ var _clock := 0.0
 
 
 func _ready() -> void:
+	add_to_group("pickups")
 	collision_layer = 0
 	collision_mask = PotionData.LAYER_PLAYER
 	var shape := CollisionShape2D.new()

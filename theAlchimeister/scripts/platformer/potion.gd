@@ -37,6 +37,10 @@ static func step(space: PhysicsDirectSpaceState2D, from: Vector2, vel: Vector2, 
 	return {"position": to, "velocity": vel, "hit": false, "normal": Vector2.ZERO}
 
 
+func _enter_tree() -> void:
+	add_to_group("potions")
+
+
 func _physics_process(delta: float) -> void:
 	if _shattered:
 		return

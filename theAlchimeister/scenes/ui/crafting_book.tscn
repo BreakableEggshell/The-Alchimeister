@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://kmm6orml7jm5"]
 
-[ext_resource type="Script" path="res://scripts/puzzle/crafting_book.gd" id="1_book"]
+[ext_resource type="Script" uid="uid://bk5x5374dwuv8" path="res://scripts/puzzle/crafting_book.gd" id="1_book"]
 
-[node name="CraftingBook" type="Control"]
+[node name="CraftingBook" type="Control" unique_id=2050315127]
 process_mode = 3
 visible = false
 layout_mode = 3

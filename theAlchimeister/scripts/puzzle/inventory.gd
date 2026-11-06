@@ -7,6 +7,8 @@ signal changed
 signal selected_changed(kind: StringName)
 ## Something worth telling the player (a pickup, an empty slot).
 signal message(text: String, color: Color)
+## Tried to throw with no potion picked.
+signal pick_missed
 
 @export var start_fire := 0
 @export var start_knockback := 0
@@ -65,6 +67,7 @@ func select(kind: StringName) -> void:
 func take_selected() -> bool:
 	if selected == &"":
 		message.emit("PICK A POTION FIRST", Color(1, 0.5, 0.5))
+		pick_missed.emit()
 		return false
 	if count(selected) <= 0:
 		message.emit("NO %s POTIONS LEFT" % PotionData.NAMES[selected], Color(1, 0.5, 0.5))

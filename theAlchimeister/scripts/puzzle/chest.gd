@@ -2,14 +2,12 @@
 extends Area2D
 ## A treasure chest. When the player is close, an "[E]Open" prompt appears;
 ## pressing E or tapping the prompt opens it and gives its ingredients.
-## With `open_lines`, opening it also stops the player with a speech bubble
-## over their head and plays that conversation.
+## With `open_lines`, opening it also pauses the game with a speech bubble
+## over the player's head and plays that conversation.
 ## Origin is the floor surface at its centre.
 
 const FONT := preload("res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf")
 const OUTLINE := Color.WHITE
-## Seconds the speech bubble shows before the conversation starts.
-const TALK_DELAY := 0.6
 
 @export_enum("ember", "gust_feather", "frost_shard", "ghost_wisp") var contents := "ember"
 ## How many of `contents` it gives.
@@ -30,6 +28,7 @@ var _prompt: Button
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
+	add_to_group("chests")
 	collision_layer = 0
 	collision_mask = PotionData.LAYER_PLAYER
 	var shape := CollisionShape2D.new()
@@ -51,6 +50,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func is_opened() -> bool:
+	return _opened
+
+
 func open() -> void:
 	var inventory := get_tree().get_first_node_in_group("inventory") as Inventory
 	if _opened or not inventory:
@@ -65,21 +68,9 @@ func open() -> void:
 		_float_icon(StringName(extra_contents), 5.0)
 	else:
 		_float_icon(StringName(contents), 0.0)
-	if not open_lines.is_empty() and _player:
-		_talk()
-
-
-func _talk() -> void:
-	var player := _player
-	player.set_talking(true)
-	await get_tree().create_timer(TALK_DELAY).timeout
 	var dialogue := get_tree().get_first_node_in_group("dialogue")
-	if dialogue:
-		dialogue.play(open_lines)
-		if dialogue.is_playing:
-			await dialogue.finished
-	if is_instance_valid(player):
-		player.set_talking(false)
+	if dialogue and not open_lines.is_empty():
+		dialogue.interrupt(open_lines, _player)
 
 
 func _on_body_moved(body: Node, entered: bool) -> void:

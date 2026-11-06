@@ -2,6 +2,8 @@ extends Node2D
 ## A puzzle stage. Sets up the stage bounds, plays the intro dialogue on the
 ## first attempt, restarts on R or shortly after the player is caught, and on
 ## reaching the exit unlocks the next stage and offers to go on.
+## Once the player is out of potions with no way to get more, and hasn't yet
+## got past the parts that need them, a red "PRESS R" line stays up.
 ## Each stage starts from its own inventory; nothing carries over.
 
 ## Restarts per stage this session. Static, so it survives scene reloads.
@@ -11,6 +13,8 @@ static var _restarts := {}
 ## Width and height of the playable area, in pixels.
 @export var stage_size := Vector2(384, 216)
 @export var throwing_enabled := true
+## Shows the potion bar. Off for stages that only teach moving.
+@export var show_potion_bar := true
 ## "SPEAKER: text" lines played when the stage is first entered.
 @export var intro_lines: PackedStringArray
 @export var player: CharacterBody2D
@@ -20,8 +24,19 @@ static var _restarts := {}
 @export var backdrop: Node2D
 ## Seconds to show "caught" before restarting.
 @export var restart_delay := 1.2
+## After this many tries to throw with no potion picked, the potion slots
+## blink until one is picked. 0 turns it off.
+@export var highlight_slots_after_misses := 3
+## Past this x (stage pixels) nothing left needs a potion, so running out
+## doesn't call for a restart. 0 means NEAR_EXIT pixels before the exit.
+@export var potions_needed_until_x := 0.0
+
+const NEAR_EXIT := 48.0
+## Seconds between checks for being stuck without potions.
+const STUCK_CHECK_TIME := 0.25
 
 var _over := false
+var _pick_misses := 0
 
 
 func _ready() -> void:
@@ -34,7 +49,20 @@ func _ready() -> void:
 		exit.reached.connect(_on_exit_reached)
 	inventory.selected_changed.connect(func(kind: StringName) -> void:
 		player.float_text("[%s]" % PotionData.NAMES[kind], PotionData.color_of(kind)))
+	if highlight_slots_after_misses > 0:
+		inventory.pick_missed.connect(_on_pick_missed)
+		inventory.selected_changed.connect(func(_kind: StringName) -> void:
+			_pick_misses = 0
+			hud.highlight_slots(false))
 	thrower.set_process_unhandled_input(throwing_enabled)
+	hud.set_potions_enabled(show_potion_bar)
+	if throwing_enabled:
+		var stuck_check := Timer.new()
+		stuck_check.wait_time = STUCK_CHECK_TIME
+		stuck_check.timeout.connect(_check_stuck)
+		add_child(stuck_check)
+		stuck_check.start()
+	hud.restart_pressed.connect(restart)
 	hud.next_pressed.connect(_go_next)
 	hud.levels_pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
 	_on_stage_start.call_deferred(restart_count())
@@ -49,6 +77,43 @@ func restart() -> void:
 	_restarts[stage_id] = restart_count() + 1
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+
+
+func _on_pick_missed() -> void:
+	_pick_misses += 1
+	if _pick_misses >= highlight_slots_after_misses:
+		hud.highlight_slots(true)
+
+
+func _check_stuck() -> void:
+	hud.show_restart_hint(not _over and not player._dead and is_stuck())
+
+
+## Out of potions with no way to make more, short of the point where none are
+## needed, and nothing still in play that could change things (a potion in
+## the air, an effect still running on the player or a monster).
+func is_stuck() -> bool:
+	if player.global_position.x >= _no_potions_needed_x():
+		return false
+	if PotionData.KINDS.any(func(kind: StringName) -> bool: return inventory.count(kind) > 0):
+		return false
+	if PotionData.INGREDIENTS.any(func(kind: StringName) -> bool: return inventory.ingredient_count(kind) > 0):
+		return false
+	var tree := get_tree()
+	if tree.get_node_count_in_group("potions") > 0 or tree.get_node_count_in_group("pickups") > 0:
+		return false
+	if tree.get_nodes_in_group("chests").any(func(chest: Node) -> bool: return not chest.is_opened()):
+		return false
+	if tree.get_nodes_in_group("enemies").any(func(enemy: Node) -> bool: return enemy.has_effect()):
+		return false
+	return not (player.is_translucent() or player.is_frozen() or player.is_burning())
+
+
+func _no_potions_needed_x() -> float:
+	if potions_needed_until_x > 0.0:
+		return potions_needed_until_x
+	var exit := get_tree().get_first_node_in_group("stage_exit") as Node2D
+	return exit.global_position.x - NEAR_EXIT if exit else INF
 
 
 ## Called once the stage is ready; `attempt` is 0 on the first try.

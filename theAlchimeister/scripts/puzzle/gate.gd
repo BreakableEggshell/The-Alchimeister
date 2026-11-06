@@ -34,7 +34,6 @@ func _ready() -> void:
 	_shape.position = size / 2.0
 	add_child(_shape)
 	for plate in plates:
-		plate.opens_gate = open_when_pressed
 		plate.toggled.connect(_update.unbind(1))
 	# Plates learn what's on them during the first physics frames. Gates start
 	# closed; if something already holds one open, it opens at normal speed.

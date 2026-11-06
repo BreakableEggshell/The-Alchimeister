@@ -202,20 +202,6 @@ custom_minimum_size = Vector2(60, 18)
 layout_mode = 2
 text = "LEVELS"
 
-[node name="Controls" type="Label" parent="HUD/Hud"]
-modulate = Color(1, 1, 1, 0.5)
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 4.0
-offset_top = -21.0
-offset_right = 380.0
-offset_bottom = -2.0
-grow_vertical = 0
-text = "MOVE: A D   JUMP: W   POTION: 1-4   BOOK: ESC
-THROW: DRAG, LET GO   OPEN: E   RESTART: R"
-
 [node name="CancelZone" type="Panel" parent="HUD/Hud"]
 layout_mode = 1
 anchors_preset = 1

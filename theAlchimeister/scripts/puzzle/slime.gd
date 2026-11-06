@@ -10,8 +10,18 @@ extends CharacterBody2D
 ## Translucent: the player can pass through it.
 ## Death: dies at once and drops its items, wall slimes too.
 ## A slime drops its items only once, on whichever happens first.
+## Stunned slimes are faded. A stun blinks for its whole length; a freeze or
+## translucency blinks for its last WARN_TIME seconds. The blinking starts
+## slow and speeds up until the effect wears off.
 
 const FRAME_COUNT := 4
+const STUNNED_ALPHA := 0.6
+const TRANSLUCENT_ALPHA := 0.35
+## Seconds before a freeze or translucency ends that it starts blinking.
+const WARN_TIME := 3.0
+## Blinks per second when the blinking starts, and just before the effect ends.
+const BLINK_SLOW := 1.5
+const BLINK_FAST := 6.0
 
 ## Walking speed. 0 makes an unmoving monster.
 @export var speed := 30.0
@@ -42,6 +52,9 @@ var _stun_left := 0.0
 var _dead := false
 var _dropped := false
 var _anim_clock := 0.0
+var _blink_phase := 0.0
+## False during the "off" half of a warning blink.
+var _blink_on := true
 var _flames: CPUParticles2D
 var _potion_hitbox: Area2D
 
@@ -50,6 +63,7 @@ var _potion_hitbox: Area2D
 
 
 func _ready() -> void:
+	add_to_group("enemies")
 	_direction = start_direction
 	_start = global_position
 	if on_wall:
@@ -106,6 +120,11 @@ func is_burning() -> bool:
 
 func is_stunned() -> bool:
 	return _stun_left > 0.0
+
+
+## Whether any potion effect is still running on it.
+func has_effect() -> bool:
+	return not _dead and (is_frozen() or is_burning() or is_stunned() or is_translucent())
 
 
 func _physics_process(delta: float) -> void:
@@ -168,27 +187,58 @@ func _animate(delta: float) -> void:
 	if not is_frozen():
 		_sprite.frame = int(_anim_clock * anim_fps) % FRAME_COUNT
 	_sprite.flip_h = _direction < 0
+	_update_blink(delta)
 	var tint := Color.WHITE
-	if is_frozen():
+	if _shows(_freeze_left):
 		tint = Color(0.6, 0.85, 1.4)
 	elif is_burning():
 		tint = Color(1.5, 0.75, 0.45) if int(_anim_clock * 12.0) % 2 == 0 else Color(1.3, 0.5, 0.3)
-	elif is_stunned():
+	elif _shows(_stun_left, PotionData.STUN_TIME):
 		tint = Color(1.15, 1.1, 0.75)
-	tint.a = 0.35 if is_translucent() else 1.0
+	tint.a = 1.0
+	if _shows(_stun_left, PotionData.STUN_TIME):
+		tint.a = STUNNED_ALPHA
+	if _shows(_translucent_left):
+		tint.a = TRANSLUCENT_ALPHA
 	_sprite.modulate = tint
 	_flames.emitting = is_burning()
 	queue_redraw()
 
 
+## Advances the warning blink. Its speed follows whichever blinking effect
+## is closest to wearing off.
+func _update_blink(delta: float) -> void:
+	var blinking := false
+	# 0 when the blinking starts, 1 as the effect ends.
+	var urgency := 0.0
+	for effect in [[_freeze_left, WARN_TIME], [_stun_left, PotionData.STUN_TIME], [_translucent_left, WARN_TIME]]:
+		var left: float = effect[0]
+		var warn: float = effect[1]
+		if left > 0.0 and left <= warn:
+			blinking = true
+			urgency = maxf(urgency, 1.0 - left / warn)
+	if not blinking:
+		_blink_phase = 0.0
+		_blink_on = true
+		return
+	_blink_phase += delta * lerpf(BLINK_SLOW, BLINK_FAST, urgency)
+	_blink_on = fmod(_blink_phase, 1.0) < 0.5
+
+
+## Whether an effect with `left` seconds to go, which blinks for its last
+## `warn` seconds, should look applied right now.
+func _shows(left: float, warn := WARN_TIME) -> bool:
+	return left > 0.0 and (left > warn or _blink_on)
+
+
 func _draw() -> void:
 	if _dead:
 		return
-	if is_frozen():
+	if _shows(_freeze_left):
 		var ice := Rect2(-9, -14, 18, 14)
 		draw_rect(ice, Color(0.6, 0.9, 1.0, 0.3))
 		draw_rect(ice, Color(0.8, 0.95, 1.0, 0.8), false)
-	if is_stunned():
+	if _shows(_stun_left, PotionData.STUN_TIME):
 		# Dizzy stars circling above the head.
 		for i in 3:
 			var angle := _anim_clock * 5.0 + TAU * i / 3.0

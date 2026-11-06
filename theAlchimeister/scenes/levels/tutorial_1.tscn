@@ -12,6 +12,8 @@
 stage_id = "1-1"
 stage_size = Vector2(560, 216)
 throwing_enabled = false
+show_potion_bar = false
+highlight_slots_after_misses = 0
 
 [node name="Level" type="Node2D" parent="."]
 

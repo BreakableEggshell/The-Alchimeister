@@ -11,51 +11,52 @@
 
 [node name="Tutorial2" instance=ExtResource("1_base")]
 stage_id = "1-2"
-stage_size = Vector2(456, 216)
+stage_size = Vector2(384, 216)
+potions_needed_until_x = 278.0
 
 [node name="Level" type="Node2D" parent="."]
 
 [node name="Floor" type="StaticBody2D" parent="Level"]
 position = Vector2(0, 192)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 456, 0, 456, 24, 0, 24)
+points = PackedVector2Array(0, 0, 384, 0, 384, 24, 0, 24)
 
 [node name="Overhang" type="StaticBody2D" parent="Level"]
-position = Vector2(336, 0)
+position = Vector2(264, 0)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 48, 0, 48, 120, 0, 120)
 
 [node name="Chest" type="Area2D" parent="Level"]
-position = Vector2(240, 192)
+position = Vector2(168, 192)
 script = ExtResource("5_chest")
 contents = "frost_shard"
 amount = 4
-open_lines = PackedStringArray("SHELDON: Just a bunch of junk. But looks like we can making something with this.", "SHELDON: Press [B] to see what you can make.")
+open_lines = PackedStringArray("SHELDON: Just a bunch of junk. But looks like we can make something with this.", "SHELDON: Press [B] to see what you can make.")
 
 [node name="WallButton" type="Area2D" parent="Level"]
-position = Vector2(335, 65)
+position = Vector2(263, 65)
 rotation = -1.5708
 script = ExtResource("3_plate")
 width = 16.0
 
 [node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(336, 120)
+position = Vector2(264, 120)
 script = ExtResource("4_gate")
 size = Vector2(12, 72)
 plates = [NodePath("../WallButton")]
 
 [node name="ThrowHint" type="Node2D" parent="Level"]
-position = Vector2(240, 120)
+position = Vector2(168, 120)
 script = ExtResource("8_hint")
 
 [node name="Exit" type="Area2D" parent="Level"]
-position = Vector2(420, 192)
+position = Vector2(348, 192)
 script = ExtResource("6_exit")
 
 [node name="Enemies" type="Node2D" parent="."]
 
 [node name="WallSlime" parent="Enemies" instance=ExtResource("7_slime")]
-position = Vector2(335.5, 65)
+position = Vector2(263.5, 65)
 speed = 50.0
 patrol_distance = 26.0
 start_direction = -1

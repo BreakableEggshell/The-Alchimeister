@@ -5,6 +5,8 @@ extends Control
 ## Top-right while playing: fast-forward (asks "SKIP DIALOGUE?") and log.
 ## The log (chat history for this stage, skipped lines included) can also be
 ## opened from elsewhere with show_log().
+## Mid-gameplay conversations go through interrupt(): the game pauses, a speech
+## bubble pops up over the talker, then the conversation starts.
 
 signal started
 signal finished
@@ -14,15 +16,21 @@ const SPEAKERS := {
 	"ALCHEMIST": {"portrait": preload("res://assets/alchemist_talk.png"), "color": Color(1.0, 0.5, 0.45)},
 }
 const CHARS_PER_SECOND := 50.0
+## Seconds the speech bubble shows before a mid-gameplay conversation starts.
+const BUBBLE_TIME := 0.6
 const PANEL_HEIGHT := 56.0
 const BG := Color(0.1, 0.09, 0.14, 0.95)
 const BORDER := Color(0.95, 0.85, 0.55)
 
 var is_playing := false
+## True while interrupt() shows the speech bubble, before the lines start.
+var is_waiting := false
 ## Every line shown (or skipped) this stage: [{speaker, text}].
 var history: Array[Dictionary] = []
 
 var _lines: Array[Dictionary] = []
+## Lines asked for while the speech bubble was up; played right after it.
+var _queued := PackedStringArray()
 var _index := 0
 var _paused_by_me := false
 var _type_tween: Tween
@@ -61,6 +69,40 @@ func play(lines: PackedStringArray) -> void:
 	_set_playing_visible(true)
 	started.emit()
 	_show_line()
+
+
+## For conversations in the middle of gameplay: pauses the game, shows a
+## speech bubble over `talker` (anything with set_talking()), then plays the
+## lines. Returns once the conversation is over.
+func interrupt(lines: PackedStringArray, talker: Node = null) -> void:
+	if lines.is_empty():
+		return
+	if is_playing or is_waiting:
+		_queue_after_bubble(lines)
+		return
+	var paused_here := not get_tree().paused
+	get_tree().paused = true
+	is_waiting = true
+	started.emit()
+	if talker:
+		talker.set_talking(true)
+	await get_tree().create_timer(BUBBLE_TIME, true).timeout
+	is_waiting = false
+	play(lines + _queued)
+	_queued = PackedStringArray()
+	if is_playing:
+		await finished
+	if is_instance_valid(talker):
+		talker.set_talking(false)
+	if paused_here:
+		get_tree().paused = false
+
+
+func _queue_after_bubble(lines: PackedStringArray) -> void:
+	if is_playing:
+		play(lines)
+	else:
+		_queued.append_array(lines)
 
 
 func advance() -> void:

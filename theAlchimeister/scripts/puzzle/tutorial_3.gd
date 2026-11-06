@@ -49,4 +49,4 @@ func _check_run_out() -> void:
 	if _was_translucent or _over:
 		return
 	var line := BLUNT_LINE if restart_count() >= BLUNT_AFTER_RESTARTS else RUN_OUT_LINE
-	hud.dialogue.play(PackedStringArray([line]))
+	hud.dialogue.interrupt(PackedStringArray([line]), player)

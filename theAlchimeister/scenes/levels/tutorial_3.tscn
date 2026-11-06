@@ -16,6 +16,7 @@
 script = ExtResource("2_stage")
 stage_id = "1-3"
 stage_size = Vector2(1080, 216)
+potions_needed_until_x = 960.0
 
 [node name="Level" type="Node2D" parent="."]
 
