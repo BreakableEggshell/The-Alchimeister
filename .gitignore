@@ -15,3 +15,6 @@ desktop.ini
 # Editor/IDE
 .vscode/
 .idea/
+
+# Ignore Claude project rule file
+CLAUDE.md

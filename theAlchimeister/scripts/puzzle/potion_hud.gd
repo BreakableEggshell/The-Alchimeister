@@ -3,7 +3,8 @@ extends Control
 ## the Death potion's slot only appears while you hold one), with its key
 ## number underneath (and "B" under the book button),
 ## short-lived messages, the recipe book button, the dialogue box, the
-## out-of-potions restart hint (tap it to restart), and the end-of-stage banner with its buttons.
+## out-of-potions restart hint (tap it to restart), and the end-of-stage banner with its buttons
+## (the stage dims behind them; arrow keys move between them, Enter picks).
 ## While dialogue plays, the potion slots and book button are hidden.
 
 signal next_pressed
@@ -15,6 +16,7 @@ const MESSAGE_TIME := 1.6
 const KEY_COLOR := Color(1, 1, 1, 0.75)
 ## Blinks per second of the slot highlight (see highlight_slots()).
 const BLINK_RATE := 2.5
+const END_DIM := Color(0, 0, 0, 0.55)
 
 @export var inventory: Inventory
 @export var thrower: Node2D
@@ -27,6 +29,7 @@ var _stage_over := false
 var _highlight: Control
 var _potions_enabled := true
 var _restart_hint: Button
+var _end_dim: ColorRect
 
 @onready var _slot_row: HBoxContainer = $Slots
 @onready var _messages: VBoxContainer = $Messages
@@ -48,10 +51,15 @@ func _ready() -> void:
 	thrower.aiming_changed.connect(func(aiming: bool) -> void:
 		_aiming = aiming
 		_update_visibility())
+	# The open book has its own buttons, so the potion slots and book icon
+	# step out of its way.
 	book.opened.connect(func() -> void:
 		thrower.cancel()
-		_messages.hide())
-	book.closed.connect(_messages.show)
+		_messages.hide()
+		_update_visibility())
+	book.closed.connect(func() -> void:
+		_messages.show()
+		_update_visibility())
 	book.log_requested.connect(dialogue.show_log)
 	dialogue.started.connect(func() -> void:
 		thrower.cancel()
@@ -99,6 +107,12 @@ func _ready() -> void:
 	_restart_hint.offset_bottom = 56.0
 	_restart_hint.hide()
 	add_child(_restart_hint)
+	_end_dim = ColorRect.new()
+	_end_dim.color = END_DIM
+	_end_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_end_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_end_dim.hide()
+	add_child(_end_dim)
 	_end_buttons.move_to_front()
 	dialogue.move_to_front()
 	var group := ButtonGroup.new()
@@ -179,18 +193,27 @@ func show_banner(title: String, subtitle: String, color: Color) -> void:
 	_banner_sub.visible = subtitle != ""
 
 
-## Shows the end-of-stage buttons. NEXT STAGE only when there is one.
-func show_end_buttons(has_next: bool) -> void:
+## Shows the end-of-stage buttons. The next button (labelled `next_label`)
+## only when there is somewhere to go.
+func show_end_buttons(has_next: bool, next_label := "NEXT STAGE") -> void:
+	_next_button.text = next_label
 	_next_button.visible = has_next
+	# The stage dims behind the banner and buttons, and the potion bar goes.
+	set_potions_enabled(false)
+	_end_dim.modulate.a = 0.0
+	_end_dim.show()
+	for node in [_end_dim, _banner, _banner_sub, _end_buttons, dialogue]:
+		node.move_to_front()
+	create_tween().tween_property(_end_dim, "modulate:a", 1.0, 0.3)
 	_end_buttons.show()
 	(_next_button if has_next else _levels_button).grab_focus()
 
 
 func _update_visibility() -> void:
 	var talking: bool = dialogue.is_playing or dialogue.is_waiting
-	_slot_row.visible = _potions_enabled and not talking
+	_slot_row.visible = _potions_enabled and not talking and not book.is_open
 	_highlight.modulate.a = 0.0 if talking else 1.0
-	_book_button.visible = not (talking or _aiming or _stage_over)
+	_book_button.visible = not (talking or _aiming or _stage_over or book.is_open)
 	book.enabled = not (talking or _stage_over)
 
 

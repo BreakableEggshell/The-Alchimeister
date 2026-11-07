@@ -3,25 +3,33 @@ extends CharacterBody2D
 ## ledges and the edge of its patrol range; with `on_wall` it crawls up and
 ## down a wall instead. Touching it kills the player unless the slime is
 ## frozen, stunned or dead, or either of them is translucent.
-## Fire: burns, keeps patrolling, dies after a while and drops its items.
-## Freeze: stops dead and becomes harmless for a while.
+## Fire: burns, patrols faster (FIRE_SPEED_BOOST), dies after a while and
+## drops its items. Slimes still carrying drops sparkle.
+## Freeze: stops dead, becomes harmless for a while, and drops its items.
 ## Knockback: flung away, dazed (still and harmless) for a moment, and drops
 ## its items. Wall slimes ignore knockback.
 ## Translucent: the player can pass through it.
 ## Death: dies at once and drops its items, wall slimes too.
 ## A slime drops its items only once, on whichever happens first.
-## Stunned slimes are faded. A stun blinks for its whole length; a freeze or
-## translucency blinks for its last WARN_TIME seconds. The blinking starts
-## slow and speeds up until the effect wears off.
+## Stunned slimes are faded. A freeze or stun blinks slowly for its whole
+## length; a translucency blinks for its last WARN_TIME seconds. In the last
+## HURRY_TIME seconds the blinking speeds up. Only the slime itself blinks:
+## the ice and the dizzy stars stay put until the effect ends.
 
 const FRAME_COUNT := 4
 const STUNNED_ALPHA := 0.6
+const SPARKLE_COUNT := 4
+## Twinkles per second per sparkle.
+const SPARKLE_RATE := 0.9
+const SPARKLE_COLOR := Color(1.0, 0.95, 0.6)
 const TRANSLUCENT_ALPHA := 0.35
-## Seconds before a freeze or translucency ends that it starts blinking.
+## Seconds before a translucency ends that it starts blinking.
 const WARN_TIME := 3.0
-## Blinks per second when the blinking starts, and just before the effect ends.
+## Seconds before any effect ends that the blinking speeds up.
+const HURRY_TIME := 1.5
+## Blinks per second, before and after HURRY_TIME.
 const BLINK_SLOW := 1.5
-const BLINK_FAST := 6.0
+const BLINK_FAST := 3.5
 
 ## Walking speed. 0 makes an unmoving monster.
 @export var speed := 30.0
@@ -57,6 +65,7 @@ var _blink_phase := 0.0
 var _blink_on := true
 var _flames: CPUParticles2D
 var _potion_hitbox: Area2D
+var _sparkles: Node2D
 
 @onready var _sprite: Sprite2D = $Sprite
 @onready var _hurtbox: Area2D = $Hurtbox
@@ -72,11 +81,16 @@ func _ready() -> void:
 		motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	_flames = _make_flames()
 	add_child(_flames)
+	# In front of the sprite, so the twinkles show over the body.
+	_sparkles = Node2D.new()
+	_sparkles.draw.connect(_draw_sparkles)
+	add_child(_sparkles)
 	_potion_hitbox = _make_potion_hitbox()
 	add_child(_potion_hitbox)
 
 
-func apply_potion(kind: StringName, origin: Vector2) -> void:
+## `power` scales knockback with how hard the potion was thrown.
+func apply_potion(kind: StringName, origin: Vector2, power := 1.0) -> void:
 	if _dead:
 		return
 	match kind:
@@ -86,10 +100,11 @@ func apply_potion(kind: StringName, origin: Vector2) -> void:
 		PotionData.FREEZE:
 			_burn_left = 0.0
 			_freeze_left = PotionData.FREEZE_TIME
+			_drop_items()
 		PotionData.KNOCKBACK:
 			if on_wall:
 				return
-			velocity = PotionData.knockback_velocity(global_position + Vector2(0, -5), origin)
+			velocity = PotionData.knockback_velocity(global_position + Vector2(0, -5), origin, power)
 			_stun_left = PotionData.STUN_TIME
 			_drop_items()
 		PotionData.TRANSLUCENT:
@@ -102,7 +117,7 @@ func is_translucent() -> bool:
 	return _translucent_left > 0.0
 
 
-## Washes off every potion effect (the cleansing portal).
+## Washes off every potion effect (cleansing water).
 func clear_potion_effects() -> void:
 	_burn_left = 0.0
 	_freeze_left = 0.0
@@ -146,7 +161,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			if patrol_distance > 0.0 and (global_position.y - _start.y) * _direction >= patrol_distance:
 				_direction = -_direction
-			velocity = Vector2(0, _direction * speed)
+			velocity = Vector2(0, _direction * _speed_now())
 	else:
 		if not is_on_floor():
 			velocity.y += gravity * delta
@@ -155,10 +170,14 @@ func _physics_process(delta: float) -> void:
 		else:
 			if _should_turn():
 				_direction = -_direction
-			velocity.x = _direction * speed
+			velocity.x = _direction * _speed_now()
 	move_and_slide()
 	_hurt_overlapping_player()
 	_animate(delta)
+
+
+func _speed_now() -> float:
+	return speed * (PotionData.FIRE_SPEED_BOOST if is_burning() else 1.0)
 
 
 func _should_turn() -> bool:
@@ -179,7 +198,7 @@ func _hurt_overlapping_player() -> void:
 		return
 	for body in _hurtbox.get_overlapping_bodies():
 		if body.has_method("die") and not body.is_translucent():
-			body.die()
+			body.die(GameOver.CAUGHT)
 
 
 func _animate(delta: float) -> void:
@@ -189,7 +208,7 @@ func _animate(delta: float) -> void:
 	_sprite.flip_h = _direction < 0
 	_update_blink(delta)
 	var tint := Color.WHITE
-	if _shows(_freeze_left):
+	if _shows(_freeze_left, PotionData.FREEZE_TIME):
 		tint = Color(0.6, 0.85, 1.4)
 	elif is_burning():
 		tint = Color(1.5, 0.75, 0.45) if int(_anim_clock * 12.0) % 2 == 0 else Color(1.3, 0.5, 0.3)
@@ -202,26 +221,27 @@ func _animate(delta: float) -> void:
 		tint.a = TRANSLUCENT_ALPHA
 	_sprite.modulate = tint
 	_flames.emitting = is_burning()
+	_sparkles.visible = drop != &"" and not _dropped
+	_sparkles.queue_redraw()
 	queue_redraw()
 
 
-## Advances the warning blink. Its speed follows whichever blinking effect
-## is closest to wearing off.
+## Advances the blink: slow, then fast once a blinking effect is in its last
+## HURRY_TIME seconds.
 func _update_blink(delta: float) -> void:
 	var blinking := false
-	# 0 when the blinking starts, 1 as the effect ends.
-	var urgency := 0.0
-	for effect in [[_freeze_left, WARN_TIME], [_stun_left, PotionData.STUN_TIME], [_translucent_left, WARN_TIME]]:
+	var hurry := false
+	for effect in [[_freeze_left, PotionData.FREEZE_TIME], [_stun_left, PotionData.STUN_TIME], [_translucent_left, WARN_TIME]]:
 		var left: float = effect[0]
 		var warn: float = effect[1]
 		if left > 0.0 and left <= warn:
 			blinking = true
-			urgency = maxf(urgency, 1.0 - left / warn)
+			hurry = hurry or left <= HURRY_TIME
 	if not blinking:
 		_blink_phase = 0.0
 		_blink_on = true
 		return
-	_blink_phase += delta * lerpf(BLINK_SLOW, BLINK_FAST, urgency)
+	_blink_phase += delta * (BLINK_FAST if hurry else BLINK_SLOW)
 	_blink_on = fmod(_blink_phase, 1.0) < 0.5
 
 
@@ -234,16 +254,32 @@ func _shows(left: float, warn := WARN_TIME) -> bool:
 func _draw() -> void:
 	if _dead:
 		return
-	if _shows(_freeze_left):
+	if is_frozen():
 		var ice := Rect2(-9, -14, 18, 14)
 		draw_rect(ice, Color(0.6, 0.9, 1.0, 0.3))
 		draw_rect(ice, Color(0.8, 0.95, 1.0, 0.8), false)
-	if _shows(_stun_left, PotionData.STUN_TIME):
+	if is_stunned():
 		# Dizzy stars circling above the head.
 		for i in 3:
 			var angle := _anim_clock * 5.0 + TAU * i / 3.0
 			var star := Vector2(cos(angle) * 7.0, -18.0 + sin(angle) * 2.5)
 			draw_rect(Rect2(star - Vector2(1, 1), Vector2(2, 2)), Color(1, 0.9, 0.3))
+
+
+## Little four-point twinkles popping in and out around a slime that still
+## carries drops.
+func _draw_sparkles() -> void:
+	for i in SPARKLE_COUNT:
+		# Each sparkle has its own spot and timing, and fades in and out.
+		var phase := fmod(_anim_clock * SPARKLE_RATE + i * 0.37, 1.0)
+		var glow := sin(phase * PI)
+		if glow < 0.15:
+			continue
+		var spot := Vector2(-11.0 + fmod(i * 7.3, 22.0), -3.0 - fmod(i * 5.1, 17.0))
+		var color := Color(SPARKLE_COLOR, glow)
+		var arm := 1.0 + glow * 1.5
+		_sparkles.draw_line(spot - Vector2(arm, 0), spot + Vector2(arm, 0), color)
+		_sparkles.draw_line(spot - Vector2(0, arm), spot + Vector2(0, arm), color)
 
 
 func _drop_items() -> void:

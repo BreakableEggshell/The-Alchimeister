@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="2_solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="3_chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/heavy_button.gd" id="4_button"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="5_gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="6_exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="7_slime"]
+
+[node name="Level2_1" instance=ExtResource("1_base")]
+stage_id = "2-1"
+stage_size = Vector2(512, 216)
+potions_needed_until_x = 380.0
+hint_lines = PackedStringArray("SHELDON: Those big buttons only care about heavy things. And ice is heavy!", "SHELDON: Freeze the slime on one button. For the other, stand on it and throw a freeze potion at your own feet.", "SHELDON: Keep one for the slime in the hallway, too.")
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 512, 0, 512, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(64, 192)
+script = ExtResource("3_chest")
+contents = "frost_shard"
+amount = 5
+
+[node name="SlimeButton" type="Area2D" parent="Level"]
+position = Vector2(150, 192)
+script = ExtResource("4_button")
+width = 36.0
+
+[node name="EmptyButton" type="Area2D" parent="Level"]
+position = Vector2(220, 192)
+script = ExtResource("4_button")
+width = 36.0
+
+[node name="BigGate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(268, 0)
+script = ExtResource("5_gate")
+size = Vector2(16, 192)
+plates = [NodePath("../SlimeButton"), NodePath("../EmptyButton")]
+needs_all = true
+travel_time = 2.0
+
+[node name="Hallway" type="StaticBody2D" parent="Level"]
+position = Vector2(284, 0)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 136, 0, 136, 168, 0, 168)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(470, 192)
+script = ExtResource("6_exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="ButtonSlime" parent="Enemies" instance=ExtResource("7_slime")]
+position = Vector2(150, 178)
+speed = 0.0
+
+[node name="HallwaySlime" parent="Enemies" instance=ExtResource("7_slime")]
+position = Vector2(350, 192)
+speed = 0.0

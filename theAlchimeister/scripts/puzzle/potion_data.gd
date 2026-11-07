@@ -28,7 +28,7 @@ const DESCRIPTIONS := {
 	FIRE: "BURNS FOES TO ASH",
 	KNOCKBACK: "BLASTS THINGS AWAY",
 	FREEZE: "FREEZES FOES SOLID",
-	TRANSLUCENT: "WALK THROUGH FOES",
+	TRANSLUCENT: "LETS THINGS PASS THROUGH",
 	DEATH: "SLAYS ANYTHING IT HITS",
 }
 const COLORS := {
@@ -63,15 +63,25 @@ const INGREDIENTS: Array[StringName] = [EMBER, GUST_FEATHER, FROST_SHARD, GHOST_
 ## Effect tuning.
 const SPLASH_RADIUS := 22.0
 const BURN_TIME := 3.0
+## Seconds a burning player has before dying (unless washed off in
+## cleansing water). Longer than monsters, so there's time to get to it.
+const PLAYER_BURN_TIME := 10.0
+## Burning monsters run this many times faster until they burn up.
+const FIRE_SPEED_BOOST := 1.6
+## A burning player runs this many times faster (so jumps much further)
+## until the fire is washed off or burns them up.
+const PLAYER_FIRE_SPEED_BOOST := 2.0
 const FREEZE_TIME := 6.0
 const TRANSLUCENT_TIME := 6.0
 ## Seconds the player is frozen in place by a freeze splash (monsters use
-## FREEZE_TIME). A burning player dies after BURN_TIME, like monsters.
+## FREEZE_TIME).
 const PLAYER_FREEZE_TIME := 2.0
 ## Seconds a monster is dazed (still and harmless) after a knockback hit.
-const STUN_TIME := 3.0
+const STUN_TIME := FREEZE_TIME
 const KNOCKBACK_SPEED := 230.0
 const KNOCKBACK_LIFT := 120.0
+## Knockback from the weakest throw, as a fraction of a full-power throw's.
+const KNOCKBACK_MIN_POWER := 0.3
 
 ## Physics layers (bit values), named in project settings.
 const LAYER_WORLD := 1
@@ -90,7 +100,14 @@ static func color_of(kind: StringName) -> Color:
 	return COLORS.get(kind, PLAIN_COLOR)
 
 
+## How hard a potion's splash hits, from how hard it was thrown: 0 for the
+## weakest throw, 1 for a full pull. Only knockback cares.
+static func splash_power(throw_strength: float) -> float:
+	return lerpf(KNOCKBACK_MIN_POWER, 1.0, clampf(throw_strength, 0.0, 1.0))
+
+
 ## Velocity to give a body hit by a knockback splash centred at `origin`.
+## `strength` scales it: the body's own heft times the throw's power.
 static func knockback_velocity(body_center: Vector2, origin: Vector2, strength := 1.0) -> Vector2:
 	var away := body_center - origin
 	var side := signf(away.x) if absf(away.x) > 0.5 else 1.0

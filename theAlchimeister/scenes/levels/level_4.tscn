@@ -1,0 +1,72 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/cleansing_water.gd" id="water"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+
+[node name="Level4" instance=ExtResource("base")]
+stage_id = "4"
+stage_size = Vector2(1000, 216)
+potions_needed_until_x = 880.0
+intro_lines = PackedStringArray("SHELDON: Is that water all the way over there? And look at those gaps...")
+hint_lines = PackedStringArray("SHELDON: Those gaps are way too wide to jump... unless you're on fire. Burning makes you run really fast.", "SHELDON: Throw an ember potion at your own feet, then sprint and jump! Get to the water before you burn up.", "SHELDON: Careful: a burning slime runs fast too, and it's still dangerous until it burns out.")
+
+[node name="Knight" parent="."]
+position = Vector2(24, 150)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="FloorA" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 150)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 200, 0, 200, 66, 0, 66)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(64, 150)
+script = ExtResource("chest")
+contents = "ember"
+amount = 2
+
+[node name="ShaftA" type="StaticBody2D" parent="Level"]
+position = Vector2(200, 214)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 84, 0, 84, 10, 0, 10)
+
+[node name="FloorB" type="StaticBody2D" parent="Level"]
+position = Vector2(284, 150)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 176, 0, 176, 66, 0, 66)
+
+[node name="ShaftB" type="StaticBody2D" parent="Level"]
+position = Vector2(460, 214)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 84, 0, 84, 10, 0, 10)
+
+[node name="FloorC" type="StaticBody2D" parent="Level"]
+position = Vector2(544, 150)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 456, 0, 456, 66, 0, 66)
+
+[node name="Hurdle" type="StaticBody2D" parent="Level"]
+position = Vector2(760, 118)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 16, 0, 16, 32, 0, 32)
+
+[node name="Water" type="Area2D" parent="Level"]
+position = Vector2(880, 150)
+script = ExtResource("water")
+height = 150.0
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(960, 150)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Runner" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(380, 150)
+speed = 30.0
+patrol_distance = 50.0

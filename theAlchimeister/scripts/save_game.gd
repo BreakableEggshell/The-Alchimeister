@@ -1,28 +1,38 @@
 extends Node
 ## Autoload "SaveGame": the level/stage structure, which stages are unlocked,
 ## the stage the player was last in (for Continue), potions discovered by
-## brewing them, and settings. Everything
+## brewing them, and settings (including auto hints). Everything
 ## is saved to user://save.cfg as soon as it changes.
 
 const START_MENU := "res://scenes/menu/start_menu.tscn"
 const LEVEL_SELECT := "res://scenes/menu/level_select.tscn"
-## Seven levels. Only Level 1 (the tutorial) has stages so far; a level with
-## no stages is always locked.
+## Seven levels. Levels 1 and 2 have stages; levels 3-7 are a single stage
+## each (picked straight from level select). A level with no stages is always
+## locked.
 const LEVELS: Array[Dictionary] = [
 	{"title": "TUTORIAL", "stages": ["1-1", "1-2", "1-3"]},
-	{"title": "", "stages": []},
-	{"title": "", "stages": []},
-	{"title": "", "stages": []},
-	{"title": "", "stages": []},
-	{"title": "", "stages": []},
-	{"title": "", "stages": []},
+	{"title": "I'M AFFECTED TOO", "stages": ["2-1", "2-2"]},
+	{"title": "THREE'S A CROWD", "stages": ["3"]},
+	{"title": "HOT FOOT", "stages": ["4"]},
+	{"title": "FALSE FLOORS", "stages": ["5"]},
+	{"title": "RETURN TO SENDER", "stages": ["6"]},
+	{"title": "THE ONLY WAY OUT", "stages": ["7"]},
 ]
 const STAGE_SCENES := {
 	"1-1": "res://scenes/levels/tutorial_1.tscn",
 	"1-2": "res://scenes/levels/tutorial_2.tscn",
 	"1-3": "res://scenes/levels/tutorial_3.tscn",
+	"2-1": "res://scenes/levels/level_2_1.tscn",
+	"2-2": "res://scenes/levels/level_2_2.tscn",
+	"3": "res://scenes/levels/level_3.tscn",
+	"4": "res://scenes/levels/level_4.tscn",
+	"5": "res://scenes/levels/level_5.tscn",
+	"6": "res://scenes/levels/level_6.tscn",
+	"7": "res://scenes/levels/level_7.tscn",
 }
 const FIRST_STAGE := "1-1"
+## Restarts between automatic hints (when auto_hints is on).
+const AUTO_HINT_EVERY := 5
 
 var save_path := "user://save.cfg"
 var unlocked: Array[String] = [FIRST_STAGE]
@@ -32,6 +42,9 @@ var discovered_potions: Array[String] = []
 var music_volume := 0.8
 var sound_volume := 0.8
 var fullscreen := false
+## Sheldon gives the stage's hint by himself after every
+## AUTO_HINT_EVERY restarts.
+var auto_hints := false
 
 
 func _ready() -> void:
@@ -56,6 +69,7 @@ func load_save() -> void:
 		music_volume = file.get_value("settings", "music_volume", music_volume)
 		sound_volume = file.get_value("settings", "sound_volume", sound_volume)
 		fullscreen = file.get_value("settings", "fullscreen", fullscreen)
+		auto_hints = file.get_value("settings", "auto_hints", auto_hints)
 	apply_settings()
 
 
@@ -67,6 +81,7 @@ func save() -> void:
 	file.set_value("settings", "music_volume", music_volume)
 	file.set_value("settings", "sound_volume", sound_volume)
 	file.set_value("settings", "fullscreen", fullscreen)
+	file.set_value("settings", "auto_hints", auto_hints)
 	file.save(save_path)
 
 
@@ -117,14 +132,34 @@ func has_last_stage() -> bool:
 	return STAGE_SCENES.has(last_stage)
 
 
-## The stage after `stage` within its level, or "" if it's the level's last.
+## The stage after `stage`: the next one in its level, or the first stage of
+## the next level that has any. "" after the very last stage.
 func next_stage(stage: String) -> String:
-	for level in LEVELS:
-		var stages: Array = level.stages
-		var i := stages.find(stage)
-		if i >= 0 and i + 1 < stages.size():
-			return stages[i + 1]
+	var level := level_of(stage)
+	if level < 0:
+		return ""
+	var stages: Array = LEVELS[level].stages
+	var i := stages.find(stage)
+	if i + 1 < stages.size():
+		return stages[i + 1]
+	for later in range(level + 1, LEVELS.size()):
+		if not LEVELS[later].stages.is_empty():
+			return LEVELS[later].stages[0]
 	return ""
+
+
+## Index into LEVELS of the level holding `stage`, or -1.
+func level_of(stage: String) -> int:
+	for i in LEVELS.size():
+		if LEVELS[i].stages.has(stage):
+			return i
+	return -1
+
+
+## Whether `stage` is the last one in its level.
+func is_last_in_level(stage: String) -> bool:
+	var level := level_of(stage)
+	return level >= 0 and LEVELS[level].stages.back() == stage
 
 
 func is_level_unlocked(level_index: int) -> bool:
@@ -162,6 +197,11 @@ func set_fullscreen(value: bool) -> void:
 	save()
 
 
+func set_auto_hints(value: bool) -> void:
+	auto_hints = value
+	save()
+
+
 func apply_settings() -> void:
 	_set_bus_volume("Music", music_volume)
 	_set_bus_volume("SFX", sound_volume)
@@ -184,3 +224,4 @@ func _set_defaults() -> void:
 	music_volume = 0.8
 	sound_volume = 0.8
 	fullscreen = false
+	auto_hints = false

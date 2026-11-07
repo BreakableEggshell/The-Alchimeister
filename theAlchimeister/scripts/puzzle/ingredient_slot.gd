@@ -2,7 +2,8 @@ class_name IngredientSlot
 extends Control
 ## One box in the crafting book: an ingredient stack in storage, one ingredient
 ## on the crafting table, or the brewed result. It only reports taps and drops;
-## the book decides what they do.
+## the book decides what they do. Keyboard: it takes focus (arrow keys move
+## between slots) and Enter/Space taps it.
 
 signal tapped(slot: IngredientSlot)
 signal dropped(target: IngredientSlot, source: IngredientSlot)
@@ -32,7 +33,9 @@ func _init(slot_role: Role = Role.STORAGE, slot_index := 0, slot_size := Vector2
 	index = slot_index
 	size = slot_size
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	focus_mode = Control.FOCUS_NONE
+	focus_mode = Control.FOCUS_ALL
+	focus_entered.connect(queue_redraw)
+	focus_exited.connect(queue_redraw)
 	mouse_entered.connect(func() -> void:
 		_hover = true
 		queue_redraw())
@@ -49,6 +52,10 @@ func show_contents(new_kind: StringName, new_count := 0, is_locked := false) -> 
 
 
 func _gui_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_accept"):
+		tapped.emit(self)
+		accept_event()
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_press_inside = true
@@ -86,8 +93,10 @@ func _drop_data(_at: Vector2, data: Variant) -> void:
 func _draw() -> void:
 	var box := Rect2(Vector2.ZERO, size)
 	draw_rect(box, FILL)
-	var lit := _hover and (role != Role.STORAGE or kind != &"")
+	var lit := (_hover and (role != Role.STORAGE or kind != &"")) or has_focus()
 	draw_rect(box.grow(-0.5), HOVER_BORDER if lit else BORDER, false)
+	if has_focus():
+		draw_rect(box.grow(-1.5), Color(HOVER_BORDER, 0.5), false)
 	var center := size / 2.0
 	if locked:
 		PotionData.draw_lock_icon(self, center + Vector2(0, 1), BORDER.lightened(0.4))

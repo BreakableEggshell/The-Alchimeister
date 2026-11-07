@@ -1,6 +1,6 @@
 extends "res://scripts/puzzle/puzzle_level.gd"
-## Tutorial 1-3: knockback, then three guards you can only sneak past by
-## throwing a translucent potion at your own feet. A cleansing portal then
+## Stage 2-2 (was tutorial 1-3): knockback, then three guards you can only sneak past by
+## throwing a translucent potion at your own feet. Cleansing water then
 ## washes the effect off before two more guards, so the second potion has to
 ## go on yourself too. Sheldon drops hints:
 ## - running out of translucent potions without ever turning translucent
@@ -30,7 +30,7 @@ func _on_stage_start(attempt: int) -> void:
 	if attempt == 0:
 		super(attempt)
 	elif attempt >= WINK_AFTER_RESTARTS and attempt < BLUNT_AFTER_RESTARTS:
-		hud.dialogue.play(PackedStringArray([WINK_LINE]))
+		hud.dialogue.play(PackedStringArray([WINK_LINE]), &"hint")
 
 
 func _physics_process(_delta: float) -> void:
@@ -49,4 +49,4 @@ func _check_run_out() -> void:
 	if _was_translucent or _over:
 		return
 	var line := BLUNT_LINE if restart_count() >= BLUNT_AFTER_RESTARTS else RUN_OUT_LINE
-	hud.dialogue.interrupt(PackedStringArray([line]), player)
+	hud.dialogue.interrupt(PackedStringArray([line]), player, &"hint")

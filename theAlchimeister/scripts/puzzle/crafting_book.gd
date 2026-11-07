@@ -1,8 +1,12 @@
 extends Control
 ## The recipe book, which is also the game's pause menu. Opening it pauses
 ## the game (B, Esc or the book icon).
+## MENU / SETTINGS / LOG / GIVE HINT buttons and the AUTO HINT toggle sit just
+## above the book's top-right corner. GIVE HINT asks the stage for Sheldon's
+## hint (hint_requested); the dialogue dims and covers the book while he talks.
+## AUTO HINT (saved) makes him give it by himself every few restarts.
 ## Left page: a 2x2 crafting table pointing at a result box, the potions you
-## hold, the ingredient storage, and MENU / SETTINGS / LOG buttons.
+## hold, and the ingredient storage.
 ## Right page: a scrolling list of every recipe. Hovering (or tapping) an
 ## ingredient shows its name; hovering (or tapping) the potion shows its
 ## description. A tapped tip stays until you tap somewhere else. Potions not
@@ -11,11 +15,22 @@ extends Control
 ## Ingredients move by dragging or tapping, one per table box. Recipes are
 ## shapeless, and a table holding several copies of a recipe brews that many
 ## potions. Any other mix brews a Death potion. Tap the result to brew.
+## Keyboard: arrow keys / Tab move between everything (slots, page arrows,
+## buttons), Enter or Space presses, Page Up / Page Down turn pages, B or
+## Esc closes (Esc backs out of SETTINGS first).
+## Arrows at the bottom corners turn the pages. Spread 2 lists what every
+## potion (and cleansing water) does, with a SPECIAL section for the Death
+## and secret potions (locked until discovered). Spread 3 shows brewing in
+## bulk: several copies of a recipe on the table brew that many potions.
+## Spread 4 is a checklist of the story's goals (flavour only for now), with a
+## WANTED poster of the Demon King beside it.
 
 signal opened
 signal closed
 ## The player asked to see the dialogue log.
 signal log_requested
+## The player asked Sheldon for this stage's hint.
+signal hint_requested
 
 const BOOK_SIZE := Vector2(360, 186)
 const PAGE_SIZE := Vector2(174, 176)
@@ -31,7 +46,34 @@ const RESULT_AT := Vector2(113, 28)
 const STATUS_Y := 76.0
 const COUNTS_Y := 88.0
 const STORAGE_AT := Vector2(16, 100)
-const BUTTONS_Y := 154.0
+## Gap between the top buttons and the book.
+const BUTTONS_GAP := 2.0
+const PAGE_ARROW_SIZE := Vector2(20, 12)
+const CHECKLIST := ["Meet the Demon Lord", "Use ??? potion on the Demon Lord", "Remove the curse"]
+const CHECKLIST_TOP := 26.0
+const CHECKLIST_SPACING := 30.0
+const CHECKBOX := 7.0
+const LAST_PAGE := 3
+## Page numbers of the spreads.
+const PAGE_BREWING := 0
+const PAGE_EFFECTS := 1
+const PAGE_BULK := 2
+const PAGE_CHECKLIST := 3
+## The bulk brewing spread: examples on each page (ingredient, how many).
+const BULK_LEFT := [[PotionData.EMBER, 1], [PotionData.EMBER, 2], [PotionData.EMBER, 4]]
+const BULK_RIGHT := [[PotionData.FROST_SHARD, 3], [PotionData.GHOST_WISP, 2]]
+const BULK_ROW_HEIGHT := 34.0
+const BULK_BOX := 12.0
+## The WANTED poster on the checklist spread.
+const POSTER_COLOR := Color(0.86, 0.74, 0.52)
+const POSTER_INK := Color(0.45, 0.1, 0.08)
+## Seconds the AUTO HINT on/off note stays up.
+const NOTE_TIME := 2.0
+## The effects spread: first entry's top, and each entry's height.
+const EFFECTS_TOP := 22.0
+const EFFECT_HEIGHT := 27.0
+const CLEANSING_WATER := &"cleansing_water"
+const CLEANSING_WATER_TEXT := "WASHES OFF ANY EFFECT"
 ## Top of the recipe list on the right page.
 const RECIPES_TOP := 22.0
 const RECIPE_ROW_HEIGHT := 18.0
@@ -47,9 +89,23 @@ const PAGE_COLOR := Color(0.94, 0.88, 0.74)
 const INK := Color(0.35, 0.22, 0.14)
 
 @export var inventory: Inventory
-## False while dialogue plays or once the stage is over.
-var enabled := true
+## False while dialogue plays or once the stage is over. The buttons above
+## the book step away meanwhile (dialogue has its own in that corner).
+var enabled := true:
+	set(value):
+		enabled = value
+		if _buttons:
+			_buttons.visible = value
+			_note.visible = value
 var is_open := false
+## Whether this stage has a hint to give (shows the GIVE HINT button).
+var has_hint := true:
+	set(value):
+		has_hint = value
+		if _hint_button:
+			_hint_button.visible = value
+			_auto_hint.visible = value
+			_place_buttons()
 
 var _table: Array[StringName] = [&"", &"", &"", &""]
 var _book: Control
@@ -74,6 +130,23 @@ var _tip_layer: Control
 var _tip := {}
 ## A tapped tooltip stays until the next tap elsewhere.
 var _tip_pinned := false
+## See PAGE_BREWING, PAGE_EFFECTS, PAGE_BULK and PAGE_CHECKLIST.
+var _page := PAGE_BREWING
+## Everything on the brewing/recipes spread, hidden on the other one.
+var _crafting_nodes: Array[Control] = []
+var _checklist: Control
+var _next_page: Button
+var _previous_page: Button
+var _buttons: HBoxContainer
+var _settings_button: Button
+var _first_setting: Control
+## Red while hovered or focused: the X and the page arrows.
+const ACTIVE_INK := Color(0.75, 0.25, 0.2)
+var _hint_button: Button
+var _auto_hint: Button
+## A short note above the buttons, after toggling AUTO HINT.
+var _note: Label
+var _note_tween: Tween
 
 
 func _ready() -> void:
@@ -93,14 +166,55 @@ func _exit_tree() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_book") or event.is_action_pressed("ui_cancel"):
 		if _settings.visible:
-			_settings.hide()
+			_close_settings()
 		else:
 			toggle()
+			if is_open:
+				_focus_default()
+		get_viewport().set_input_as_handled()
+		return
+	if not is_open or not enabled:
+		return
+	if event.is_action_pressed("ui_page_down") and not _settings.visible:
+		_set_page(_page + 1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_page_up") and not _settings.visible:
+		_set_page(_page - 1)
+		get_viewport().set_input_as_handled()
+	elif _is_nav(event) and not get_viewport().gui_get_focus_owner():
+		# Opened with the mouse: the first arrow key press picks something.
+		_focus_default()
 		get_viewport().set_input_as_handled()
 
 
+func _is_nav(event: InputEvent) -> bool:
+	for action in ["ui_up", "ui_down", "ui_left", "ui_right", "ui_focus_next", "ui_focus_prev"]:
+		if event.is_action_pressed(action):
+			return true
+	return false
+
+
+## What keyboard focus starts on: the first storage box on the brewing
+## spread, otherwise the page arrow (or the X).
+func _focus_default() -> void:
+	if _settings.visible:
+		_first_setting.grab_focus()
+	elif _page == PAGE_BREWING:
+		_storage_slots[0].grab_focus()
+	elif _next_page.visible:
+		_next_page.grab_focus()
+	else:
+		_previous_page.grab_focus()
+
+
+func _close_settings() -> void:
+	_settings.hide()
+	_settings_button.grab_focus()
+
+
 func _input(event: InputEvent) -> void:
-	if not is_open:
+	# Nothing in the book reacts while Sheldon talks over it.
+	if not is_open or not enabled:
 		return
 	if event is InputEventMouseMotion:
 		var part := _recipe_part_at(event.position)
@@ -126,6 +240,7 @@ func open() -> void:
 	is_open = true
 	show()
 	_settings.hide()
+	_set_page(PAGE_BREWING)
 	get_tree().paused = true
 	_refresh()
 	var viewport := get_viewport_rect().size
@@ -279,20 +394,24 @@ func _build() -> void:
 	# The X is drawn by hand so it sits on the same baseline as "RECIPES".
 	var close_button := Button.new()
 	close_button.flat = true
-	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.focus_mode = Control.FOCUS_ALL
+	close_button.tooltip_text = "CLOSE (B)"
+	close_button.focus_entered.connect(close_button.queue_redraw)
+	close_button.focus_exited.connect(close_button.queue_redraw)
 	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
 		close_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	close_button.position = RIGHT_PAGE + Vector2(PAGE_SIZE.x - 18, TITLE_BASELINE - 10)
 	close_button.size = Vector2(14, 13)
 	close_button.pressed.connect(close)
 	close_button.draw.connect(func() -> void:
-		var color := Color(0.75, 0.25, 0.2) if close_button.is_hovered() else INK
+		var color := ACTIVE_INK if close_button.is_hovered() or close_button.has_focus() else INK
 		close_button.draw_string(get_theme_font("font", "Label"), Vector2(0, 10), "X", HORIZONTAL_ALIGNMENT_CENTER, close_button.size.x, 8, color))
 	_book.add_child(close_button)
 
 	_recipe_scroll = ScrollContainer.new()
 	_recipe_scroll.position = RIGHT_PAGE + Vector2(8, RECIPES_TOP)
-	_recipe_scroll.size = Vector2(PAGE_SIZE.x - 12, PAGE_SIZE.y - RECIPES_TOP - 4)
+	# Room at the bottom for the page arrow.
+	_recipe_scroll.size = Vector2(PAGE_SIZE.x - 12, PAGE_SIZE.y - RECIPES_TOP - PAGE_ARROW_SIZE.y - 6)
 	_recipe_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_recipe_scroll.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	var bar := _recipe_scroll.get_v_scroll_bar()
@@ -315,16 +434,43 @@ func _build() -> void:
 	_recipe_list.draw.connect(_draw_recipes)
 	_recipe_scroll.add_child(_recipe_list)
 
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 4)
-	buttons.position = LEFT_PAGE + Vector2(8, BUTTONS_Y)
-	_book.add_child(buttons)
-	var menu := _page_button("MENU", buttons)
+	_crafting_nodes.append_array(_table_slots)
+	_crafting_nodes.append_array(_storage_slots)
+	_crafting_nodes.append(_result_slot)
+	_crafting_nodes.append(_recipe_scroll)
+
+	_next_page = _page_arrow(1, RIGHT_PAGE + PAGE_SIZE - PAGE_ARROW_SIZE - Vector2(6, 3))
+	_previous_page = _page_arrow(-1, LEFT_PAGE + Vector2(6, PAGE_SIZE.y - PAGE_ARROW_SIZE.y - 3))
+	_checklist = _build_checklist()
+
+	# Above the book, lined up with its right edge; they slide with it.
+	_buttons = HBoxContainer.new()
+	_buttons.add_theme_constant_override("separation", 4)
+	_book.add_child(_buttons)
+	var menu := _page_button("MENU", _buttons)
 	menu.pressed.connect(SaveGame.go_to.bind(SaveGame.START_MENU))
-	var settings := _page_button("SETTINGS", buttons)
-	settings.pressed.connect(func() -> void: _settings.show())
-	var log_button := _page_button("LOG", buttons)
+	_settings_button = _page_button("SETTINGS", _buttons)
+	_settings_button.pressed.connect(func() -> void:
+		_settings.show()
+		_first_setting.grab_focus())
+	var log_button := _page_button("LOG", _buttons)
 	log_button.pressed.connect(log_requested.emit)
+	_hint_button = _page_button("GIVE HINT", _buttons)
+	_hint_button.tooltip_text = "ASK SHELDON FOR A HINT"
+	_hint_button.pressed.connect(func() -> void:
+		_settings.hide()
+		hint_requested.emit())
+	_auto_hint = _build_auto_hint()
+	_note = Label.new()
+	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_note.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.08))
+	_note.add_theme_constant_override("outline_size", 3)
+	_note.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_note.modulate.a = 0.0
+	_book.add_child(_note)
+	_hint_button.visible = has_hint
+	_auto_hint.visible = has_hint
+	_place_buttons()
 
 	_settings = _build_settings()
 	_settings.visibility_changed.connect(func() -> void:
@@ -349,6 +495,46 @@ func _build() -> void:
 	add_child(cycle)
 
 
+## The AUTO HINT toggle: a button with a tick box drawn at its left.
+func _build_auto_hint() -> Button:
+	var button := _page_button("   AUTO HINT", _buttons)
+	button.toggle_mode = true
+	button.button_pressed = SaveGame.auto_hints
+	button.tooltip_text = "SHELDON GIVES A HINT EVERY %d RETRIES" % SaveGame.AUTO_HINT_EVERY
+	button.draw.connect(func() -> void:
+		var box := Rect2(5, roundf(button.size.y / 2.0) - 4, 7, 7)
+		button.draw_rect(box.grow(-0.5), Color.WHITE, false, 1.0)
+		if button.button_pressed:
+			button.draw_rect(box.grow(-2.0), Color(0.6, 0.95, 0.85)))
+	button.toggled.connect(func(on: bool) -> void:
+		SaveGame.set_auto_hints(on)
+		if on:
+			_show_note("HINT EVERY %d RETRIES: ON" % SaveGame.AUTO_HINT_EVERY, Color(0.6, 0.95, 0.85))
+		else:
+			_show_note("AUTO HINT: OFF", Color(1, 1, 1, 0.8)))
+	return button
+
+
+## Lines the button row up with the book's right edge, just above it.
+func _place_buttons() -> void:
+	_buttons.reset_size()
+	_buttons.position = Vector2(BOOK_SIZE.x - _buttons.size.x, -_buttons.size.y - BUTTONS_GAP)
+
+
+## A note just above the buttons that fades after a moment.
+func _show_note(text: String, color: Color) -> void:
+	_note.text = text
+	_note.add_theme_color_override("font_color", color)
+	_note.size = Vector2(BOOK_SIZE.x, 10)
+	_note.position = Vector2(0, _buttons.position.y - 12)
+	_note.modulate.a = 1.0
+	if _note_tween:
+		_note_tween.kill()
+	_note_tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_note_tween.tween_interval(NOTE_TIME)
+	_note_tween.tween_property(_note, "modulate:a", 0.0, 0.4)
+
+
 func _add_slot(role: IngredientSlot.Role, index: int, at: Vector2, side: float) -> IngredientSlot:
 	var slot := IngredientSlot.new(role, index, Vector2(side, side))
 	slot.position = at
@@ -358,10 +544,74 @@ func _add_slot(role: IngredientSlot.Role, index: int, at: Vector2, side: float) 
 	return slot
 
 
+## A hand-drawn page-turn arrow; `direction` 1 points right, -1 left.
+func _page_arrow(direction: int, at: Vector2) -> Button:
+	var button := Button.new()
+	button.flat = true
+	button.focus_mode = Control.FOCUS_ALL
+	button.focus_entered.connect(button.queue_redraw)
+	button.focus_exited.connect(button.queue_redraw)
+	button.tooltip_text = "NEXT PAGE (PG DN)" if direction > 0 else "PREVIOUS PAGE (PG UP)"
+	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+		button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	button.position = at
+	button.size = PAGE_ARROW_SIZE
+	button.pressed.connect(func() -> void: _set_page(_page + direction))
+	button.draw.connect(func() -> void:
+		var color := ACTIVE_INK if button.is_hovered() or button.has_focus() else INK
+		var y := button.size.y / 2.0
+		var tip := button.size.x - 2.0 if direction > 0 else 2.0
+		var tail := 2.0 if direction > 0 else button.size.x - 2.0
+		button.draw_line(Vector2(tail, y), Vector2(tip - 3.0 * direction, y), color, 2.0)
+		button.draw_colored_polygon(PackedVector2Array([Vector2(tip, y), Vector2(tip - 5.0 * direction, y - 4), Vector2(tip - 5.0 * direction, y + 4)]), color))
+	_book.add_child(button)
+	return button
+
+
+## The last spread: the story's goals as an unticked checklist on the left
+## page. Flavour only for now.
+func _build_checklist() -> Control:
+	var page := Control.new()
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.position = LEFT_PAGE
+	page.size = PAGE_SIZE
+	page.hide()
+	_book.add_child(page)
+	for i in CHECKLIST.size():
+		var y := CHECKLIST_TOP + i * CHECKLIST_SPACING
+		var label := _ink_label(CHECKLIST[i], Vector2(24, y), PAGE_SIZE.x - 34)
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		page.add_child(label)
+		# Sized once in the tree; before that it stretches to fit its text.
+		label.set_deferred("size", Vector2(PAGE_SIZE.x - 34, CHECKLIST_SPACING - 4))
+	page.draw.connect(func() -> void:
+		for i in CHECKLIST.size():
+			var box := Rect2(12, CHECKLIST_TOP + i * CHECKLIST_SPACING + 2, CHECKBOX, CHECKBOX)
+			page.draw_rect(box.grow(-0.5), INK, false, 1.0))
+	return page
+
+
+func _set_page(page: int) -> void:
+	_page = clampi(page, 0, LAST_PAGE)
+	var focused := get_viewport().gui_get_focus_owner()
+	for node in _crafting_nodes:
+		node.visible = _page == PAGE_BREWING
+	_checklist.visible = _page == PAGE_CHECKLIST
+	_next_page.visible = _page < LAST_PAGE
+	_previous_page.visible = _page > 0
+	# Keep keyboard focus on the page: the arrow that turned it if it's still
+	# there, else something on the new spread.
+	if focused and is_open and (not is_instance_valid(focused) or not focused.is_visible_in_tree()):
+		_focus_default()
+	_tip_pinned = false
+	_set_tip({})
+	_book.queue_redraw()
+
+
 func _page_button(text: String, parent: Control) -> Button:
 	var button := Button.new()
 	button.text = " %s " % text
-	button.focus_mode = Control.FOCUS_NONE
+	button.focus_mode = Control.FOCUS_ALL
 	parent.add_child(button)
 	return button
 
@@ -382,13 +632,19 @@ func _build_settings() -> Control:
 	var rows := [["MUSIC", SaveGame.music_volume, SaveGame.set_music_volume], ["SOUND", SaveGame.sound_volume, SaveGame.set_sound_volume]]
 	for i in rows.size():
 		var y := 46.0 + i * 30.0
-		panel.add_child(_ink_label(rows[i][0], Vector2(70, y), 60))
+		var label := _ink_label(rows[i][0], Vector2(70, y), 60)
+		panel.add_child(label)
 		var slider := HSlider.new()
 		slider.min_value = 0.0
 		slider.max_value = 1.0
 		slider.step = 0.05
 		slider.value = rows[i][1]
-		slider.focus_mode = Control.FOCUS_NONE
+		slider.focus_mode = Control.FOCUS_ALL
+		# Sliders have no focus ring, so the label lights up instead.
+		slider.focus_entered.connect(label.add_theme_color_override.bind("font_color", ACTIVE_INK))
+		slider.focus_exited.connect(label.add_theme_color_override.bind("font_color", INK))
+		if not _first_setting:
+			_first_setting = slider
 		slider.position = Vector2(140, y - 2)
 		slider.size = Vector2(150, 14)
 		slider.value_changed.connect(rows[i][2])
@@ -396,7 +652,8 @@ func _build_settings() -> Control:
 	var fullscreen := CheckBox.new()
 	fullscreen.text = "FULLSCREEN"
 	fullscreen.button_pressed = SaveGame.fullscreen
-	fullscreen.focus_mode = Control.FOCUS_NONE
+	fullscreen.focus_mode = Control.FOCUS_ALL
+	fullscreen.add_theme_color_override("font_focus_color", ACTIVE_INK)
 	fullscreen.add_theme_color_override("font_color", INK)
 	fullscreen.add_theme_color_override("font_hover_color", INK)
 	fullscreen.add_theme_color_override("font_pressed_color", INK)
@@ -418,7 +675,7 @@ func _build_settings() -> Control:
 	back_row.position = Vector2(156, 148)
 	panel.add_child(back_row)
 	var back := _page_button("BACK", back_row)
-	back.pressed.connect(panel.hide)
+	back.pressed.connect(_close_settings)
 	return panel
 
 
@@ -441,6 +698,17 @@ func _draw_book() -> void:
 	_book.draw_rect(Rect2(LEFT_PAGE + Vector2(PAGE_SIZE.x - 4, 0), Vector2(4, PAGE_SIZE.y)), PAGE_COLOR.darkened(0.1))
 	_book.draw_rect(Rect2(RIGHT_PAGE, Vector2(4, PAGE_SIZE.y)), PAGE_COLOR.darkened(0.1))
 
+	if _page == PAGE_EFFECTS:
+		_draw_effects(font)
+		return
+	if _page == PAGE_BULK:
+		_draw_bulk(font)
+		return
+	if _page == PAGE_CHECKLIST:
+		_page_text(font, "CHECKLIST", LEFT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+		_draw_wanted(font)
+		return
+
 	# Left page: crafting.
 	_page_text(font, "BREWING", LEFT_PAGE + Vector2(0, 12), INK)
 	var arrow_y := LEFT_PAGE.y + TABLE_AT.y + SLOT + GAP / 2.0
@@ -451,6 +719,143 @@ func _draw_book() -> void:
 
 	# Right page: the title; the list draws itself (_draw_recipes).
 	_page_text(font, "RECIPES", RIGHT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+
+
+# --- Effects spread
+
+## Left page: the four everyday potions and cleansing water. Right page: the
+## SPECIAL ones, the Death potion and the secret potion, shown as a lock and
+## "???" until discovered.
+func _draw_effects(font: Font) -> void:
+	_page_text(font, "EFFECTS", LEFT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+	var y := LEFT_PAGE.y + EFFECTS_TOP
+	for kind in [PotionData.FIRE, PotionData.KNOCKBACK, PotionData.FREEZE, PotionData.TRANSLUCENT, CLEANSING_WATER]:
+		_draw_effect(font, kind, Vector2(LEFT_PAGE.x + 8, y))
+		y += EFFECT_HEIGHT
+	_page_text(font, "----- SPECIAL -----", RIGHT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+	y = RIGHT_PAGE.y + EFFECTS_TOP
+	for kind in [PotionData.DEATH, PotionData.SECRET]:
+		_draw_effect(font, kind, Vector2(RIGHT_PAGE.x + 12, y))
+		y += EFFECT_HEIGHT
+
+
+## One entry: icon and name, and the hover description underneath.
+func _draw_effect(font: Font, kind: StringName, at: Vector2) -> void:
+	var known := kind == CLEANSING_WATER or (kind != PotionData.SECRET and SaveGame.is_potion_known(kind))
+	var box := Rect2(at, Vector2(14, 14))
+	_book.draw_rect(box, IngredientSlot.FILL)
+	var icon_at := box.get_center() + Vector2(0, 1)
+	var name := "???"
+	var text := "???"
+	if kind == CLEANSING_WATER:
+		CleansingWater.draw_icon(_book, box.get_center())
+		name = "CLEANSING WATER"
+		text = CLEANSING_WATER_TEXT
+	elif known:
+		PotionData.draw_potion(_book, kind, icon_at)
+		name = PotionData.NAMES[kind]
+		text = PotionData.DESCRIPTIONS[kind]
+	else:
+		PotionData.draw_lock_icon(_book, icon_at, IngredientSlot.BORDER.lightened(0.4))
+	var ink := INK if known else Color(INK, 0.6)
+	_book.draw_string(font, at + Vector2(22, 11), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
+	_book.draw_string(font, at + Vector2(0, 22), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(ink, ink.a * 0.75))
+
+
+# --- Bulk brewing spread
+
+## Left page: one, two and four embers on the table brew one, two and four
+## fire potions. Right page: the same works for any recipe, and one tap on
+## the result brews them all.
+func _draw_bulk(font: Font) -> void:
+	_page_text(font, "BULK BREWING", LEFT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+	_page_text(font, "MORE OF ONE INGREDIENT,", LEFT_PAGE + Vector2(0, 30), Color(INK, 0.8))
+	_page_text(font, "MORE OF ITS POTION.", LEFT_PAGE + Vector2(0, 41), Color(INK, 0.8))
+	var y := LEFT_PAGE.y + 52.0
+	for example in BULK_LEFT:
+		_draw_bulk_row(font, example[0], example[1], Vector2(LEFT_PAGE.x + 34, y))
+		y += BULK_ROW_HEIGHT
+	_page_text(font, "ANY RECIPE WORKS", RIGHT_PAGE + Vector2(0, TITLE_BASELINE), INK)
+	y = RIGHT_PAGE.y + 30.0
+	for example in BULK_RIGHT:
+		_draw_bulk_row(font, example[0], example[1], Vector2(RIGHT_PAGE.x + 34, y))
+		y += BULK_ROW_HEIGHT
+	_page_text(font, "ONE TAP ON THE RESULT", RIGHT_PAGE + Vector2(0, 112), Color(INK, 0.8))
+	_page_text(font, "BREWS THEM ALL.", RIGHT_PAGE + Vector2(0, 123), Color(INK, 0.8))
+
+
+## A small 2x2 table holding `count` of `ingredient`, an arrow, and the
+## potion it brews with "xN". `at` is the table's top-left.
+func _draw_bulk_row(font: Font, ingredient: StringName, count: int, at: Vector2) -> void:
+	for i in 4:
+		var cell := Rect2(at + Vector2(i % 2, floori(i / 2.0)) * (BULK_BOX + 1.0), Vector2(BULK_BOX, BULK_BOX))
+		_book.draw_rect(cell, IngredientSlot.FILL)
+		if i < count:
+			PotionData.draw_ingredient(_book, ingredient, cell.get_center())
+	var mid_y := at.y + BULK_BOX + 0.5
+	var table_end := at.x + 2.0 * BULK_BOX + 1.0
+	_draw_arrow(_book, table_end + 6.0, table_end + 26.0, mid_y)
+	var result := Rect2(table_end + 32.0, mid_y - 9.0, 18.0, 18.0)
+	_book.draw_rect(result, IngredientSlot.FILL)
+	var potion := _potion_from(ingredient)
+	PotionData.draw_potion(_book, potion, result.get_center() + Vector2(0, 1))
+	_book.draw_string(font, Vector2(result.end.x + 4.0, mid_y + 4.0), "x%d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, INK)
+
+
+## The potion whose recipe is just this one ingredient.
+func _potion_from(ingredient: StringName) -> StringName:
+	for potion in PotionData.KINDS:
+		var recipe: Dictionary = inventory.recipes.get(potion, {})
+		if recipe.size() == 1 and recipe.has(ingredient):
+			return potion
+	return &""
+
+
+# --- WANTED poster
+
+## On the checklist spread's right page: the Demon King, dead or alive.
+func _draw_wanted(font: Font) -> void:
+	var poster := Rect2(RIGHT_PAGE + Vector2(24, 10), Vector2(126, 150))
+	# A slight tilt would blur the pixel font, so it hangs straight from a pin.
+	_book.draw_rect(poster.grow(1), POSTER_COLOR.darkened(0.35))
+	_book.draw_rect(poster, POSTER_COLOR)
+	for corner in [poster.position, Vector2(poster.end.x - 6, poster.position.y), Vector2(poster.position.x, poster.end.y - 6), poster.end - Vector2(6, 6)]:
+		_book.draw_rect(Rect2(corner, Vector2(6, 6)), POSTER_COLOR.darkened(0.12))
+	_book.draw_circle(Vector2(poster.get_center().x, poster.position.y + 4), 2.0, Color(0.55, 0.15, 0.12))
+	var center_x := poster.position.x
+	var width := poster.size.x
+	_book.draw_string(font, Vector2(center_x, poster.position.y + 26), "WANTED", HORIZONTAL_ALIGNMENT_CENTER, width, 16, POSTER_INK)
+	_book.draw_string(font, Vector2(center_x, poster.position.y + 40), "DEAD OR ALIVE", HORIZONTAL_ALIGNMENT_CENTER, width, 8, INK)
+	var frame := Rect2(poster.get_center().x - 30, poster.position.y + 46, 60, 50)
+	_book.draw_rect(frame, Color(0.22, 0.16, 0.2))
+	_book.draw_rect(frame.grow(-0.5), INK, false, 1.0)
+	_draw_demon_king(frame)
+	_book.draw_string(font, Vector2(center_x, poster.position.y + 110), "DEMON KING", HORIZONTAL_ALIGNMENT_CENTER, width, 8, INK)
+	_book.draw_string(font, Vector2(center_x, poster.position.y + 126), "REWARD", HORIZONTAL_ALIGNMENT_CENTER, width, 8, Color(INK, 0.75))
+	# Drawn twice, a pixel apart, to look bold.
+	for dx in [0.0, 1.0]:
+		_book.draw_string(font, Vector2(center_x + dx, poster.position.y + 140), "10,000,000 GOLD", HORIZONTAL_ALIGNMENT_CENTER, width, 8, POSTER_INK)
+
+
+## A horned, crowned silhouette with glowing eyes, inside `frame`.
+func _draw_demon_king(frame: Rect2) -> void:
+	var c := frame.get_center() + Vector2(0, 4)
+	var skin := Color(0.1, 0.07, 0.1)
+	# Shoulders and cape.
+	_book.draw_colored_polygon(PackedVector2Array([c + Vector2(-24, 21), c + Vector2(-14, 8), c + Vector2(14, 8), c + Vector2(24, 21)]), Color(0.35, 0.06, 0.08))
+	# Horns.
+	_book.draw_colored_polygon(PackedVector2Array([c + Vector2(-9, -8), c + Vector2(-19, -20), c + Vector2(-5, -12)]), Color(0.8, 0.75, 0.65))
+	_book.draw_colored_polygon(PackedVector2Array([c + Vector2(9, -8), c + Vector2(19, -20), c + Vector2(5, -12)]), Color(0.8, 0.75, 0.65))
+	# Head.
+	_book.draw_circle(c, 11.0, skin)
+	# Crown.
+	var gold := Color(0.95, 0.78, 0.25)
+	_book.draw_colored_polygon(PackedVector2Array([c + Vector2(-8, -9), c + Vector2(-8, -16), c + Vector2(-4, -12), c + Vector2(0, -18), c + Vector2(4, -12), c + Vector2(8, -16), c + Vector2(8, -9)]), gold)
+	# Eyes and a grin.
+	var eye := Color(1, 0.2, 0.15)
+	_book.draw_rect(Rect2(c + Vector2(-6, -2), Vector2(4, 2)), eye)
+	_book.draw_rect(Rect2(c + Vector2(2, -2), Vector2(4, 2)), eye)
+	_book.draw_line(c + Vector2(-4, 5), c + Vector2(4, 5), Color(0.85, 0.85, 0.8), 1.0)
 
 
 ## "[potion] x N" for each potion held, greyed out at 0.
@@ -545,7 +950,7 @@ func _draw_recipes() -> void:
 ## The recipe part at a viewport position (from an input event), as
 ## {row, part}, or empty.
 func _recipe_part_at(viewport_position: Vector2) -> Dictionary:
-	if _settings.visible:
+	if _settings.visible or _page != PAGE_BREWING:
 		return {}
 	var in_view := _recipe_scroll.get_global_transform_with_canvas().affine_inverse() * viewport_position
 	if not Rect2(Vector2.ZERO, _recipe_scroll.size).has_point(in_view):

@@ -2,66 +2,141 @@
 class_name Gate
 extends StaticBody2D
 ## A portcullis linked to pressure plates. Normally it opens while any linked
-## plate is pressed; with open_when_pressed off it opens only while none are.
-## It only lets things through once fully raised, but blocks again the moment
-## it starts to close. Origin is the top-left corner.
+## plate is pressed (every one, with needs_all); with open_when_pressed off
+## it opens only while none are.
+## It rises and drops at the same slow speed, and blocks exactly what it
+## shows: the bars that are down are solid, the gap under them is free. If
+## something is in the way as it drops, it waits above it.
+## Origin is the top-left corner. Keep doorways low (a wall above the gate),
+## so a closing gate shuts the gap before anyone can dash under it.
+## A wire runs from each linked button through the floor or wall to the
+## gate, lit in the button's colour (green while free, red while pressed).
 
-@export var size := Vector2(12, 192):
+@export var size := Vector2(12, 24):
 	set(value):
 		size = value
 		queue_redraw()
 @export var plates: Array[PressurePlate] = []
 @export var open_when_pressed := true
-## Seconds to rise fully. Slow enough that a half-raised gate doesn't look passable.
+## Open only while every linked plate is pressed, not just any one.
+@export var needs_all := false
+## Seconds to rise or drop fully.
 @export var travel_time := 1.2
-## Seconds to drop fully. Quicker than rising, so a plate that's only pressed
-## briefly and repeatedly can't ratchet the gate open bit by bit.
-@export var close_time := 0.25
 
-var _is_open := false
+## What a dropping gate stops for instead of crushing.
+const BLOCKERS := PotionData.LAYER_PLAYER | PotionData.LAYER_ENEMIES | PotionData.LAYER_PROPS
+
 var _open_amount := 0.0
 var _shape: CollisionShape2D
-var _tween: Tween
+var _wires: Node2D
+## Plates learn what's on them during the first physics frames; until then
+## the gate stays shut.
+var _settle_frames := 2
+
+const WIRE_OUTLINE := Color(0.08, 0.07, 0.11)
+const WIRE_ALPHA := 0.9
+## How deep into the floor or wall the wires run; each further button's wire
+## runs a little deeper, so wires sharing a path stay apart.
+const WIRE_DEPTH := 6.0
+const WIRE_SPACING := 4.0
 
 
 func _ready() -> void:
+	_wires = Node2D.new()
+	# In front of walls and floors, which the wires run through.
+	_wires.z_index = 1
+	_wires.draw.connect(_draw_wires)
+	add_child(_wires)
 	if Engine.is_editor_hint():
 		return
 	_shape = CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = size
-	_shape.shape = rect
-	_shape.position = size / 2.0
+	_shape.shape = RectangleShape2D.new()
 	add_child(_shape)
+	_fit_shape()
 	for plate in plates:
-		plate.toggled.connect(_update.unbind(1))
-	# Plates learn what's on them during the first physics frames. Gates start
-	# closed; if something already holds one open, it opens at normal speed.
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	_update()
+		plate.toggled.connect(_wires.queue_redraw.unbind(1))
 
 
-func _update() -> void:
-	var any_pressed := plates.any(func(plate: PressurePlate) -> bool: return plate.pressed)
-	var should_open := any_pressed == open_when_pressed
-	if should_open == _is_open:
+func _physics_process(delta: float) -> void:
+	if Engine.is_editor_hint():
 		return
-	_is_open = should_open
-	if _tween:
-		_tween.kill()
-	if not should_open:
-		_shape.set_deferred("disabled", false)
-	var target := 1.0 if should_open else 0.0
-	_tween = create_tween()
-	var full_time := travel_time if should_open else close_time
-	_tween.tween_method(_set_open_amount, _open_amount, target, full_time * absf(target - _open_amount))
-	if should_open:
-		_tween.tween_callback(_shape.set_deferred.bind("disabled", true))
+	if _settle_frames > 0:
+		_settle_frames -= 1
+		return
+	var is_pressed := func(plate: PressurePlate) -> bool: return plate.pressed
+	var active := plates.all(is_pressed) if needs_all else plates.any(is_pressed)
+	var target := 1.0 if active == open_when_pressed else 0.0
+	if _open_amount == target:
+		return
+	var next := move_toward(_open_amount, target, delta / travel_time)
+	# Dropping onto someone: hold here until they've moved.
+	if next < _open_amount and _blocked_at(next):
+		return
+	_set_open_amount(next)
+
+
+## How far down the bars reach at an open amount.
+func _bars_height(amount: float) -> float:
+	return size.y * (1.0 - amount)
+
+
+## Whether a body would be inside the bars at this open amount.
+func _blocked_at(amount: float) -> bool:
+	var height := _bars_height(amount)
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(size.x, height)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = rect
+	query.transform = global_transform * Transform2D(0.0, Vector2(size.x / 2.0, height / 2.0))
+	query.collision_mask = BLOCKERS
+	query.exclude = [get_rid()]
+	return not get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## The solid part is just the bars that are down.
+func _fit_shape() -> void:
+	var height := _bars_height(_open_amount)
+	(_shape.shape as RectangleShape2D).size = Vector2(size.x, maxf(height, 0.5))
+	_shape.position = Vector2(size.x / 2.0, height / 2.0)
+	_shape.disabled = height < 0.5
+
+
+func _process(_delta: float) -> void:
+	# In the editor, follow buttons and the gate as they're moved around.
+	if Engine.is_editor_hint() and _wires:
+		_wires.queue_redraw()
+
+
+## Each button's wire: down into the floor (or wall) under the button, along
+## inside it, then out into the middle of the gate's nearest edge.
+func _draw_wires() -> void:
+	var gate_rect := Rect2(Vector2.ZERO, size)
+	for i in plates.size():
+		var plate := plates[i]
+		if not is_instance_valid(plate):
+			continue
+		var up := Vector2.UP.rotated(plate.global_rotation)
+		var surface := to_local(plate.global_position)
+		var buried := to_local(plate.global_position - up * (WIRE_DEPTH + i * WIRE_SPACING))
+		if gate_rect.has_point(buried):
+			continue
+		# The middle of whichever gate edge faces the wire.
+		var end := Vector2(clampf(buried.x, 0.0, size.x), clampf(buried.y, 0.0, size.y))
+		if buried.y > size.y or buried.y < 0.0:
+			end.x = size.x / 2.0
+		else:
+			end.y = size.y / 2.0
+		var along := Vector2.RIGHT.rotated(plate.global_rotation)
+		var corner := Vector2(end.x, buried.y) if absf(along.x) >= absf(along.y) else Vector2(buried.x, end.y)
+		var points := PackedVector2Array([surface.round(), buried.round(), corner.round(), end.round()])
+		var color: Color = plate.PRESSED_COLOR if plate.pressed else plate.FREE_COLOR
+		_wires.draw_polyline(points, WIRE_OUTLINE, 3.0)
+		_wires.draw_polyline(points, Color(color, WIRE_ALPHA), 1.0)
 
 
 func _set_open_amount(amount: float) -> void:
 	_open_amount = amount
+	_fit_shape()
 	queue_redraw()
 
 

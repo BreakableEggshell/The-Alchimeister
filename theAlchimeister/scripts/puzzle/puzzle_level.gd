@@ -5,6 +5,11 @@ extends Node2D
 ## Once the player is out of potions with no way to get more, and hasn't yet
 ## got past the parts that need them, a red "PRESS R" line stays up.
 ## Each stage starts from its own inventory; nothing carries over.
+## Hints: Sheldon gives `hint_lines` when asked from the notebook (GIVE HINT),
+## and by himself every SaveGame.AUTO_HINT_EVERY restarts with auto hints on.
+## With them off, once the NUDGE_AT_RESTART-th retry starts he reminds the
+## player (above the knight's head, not a conversation) that they can ask.
+## Hints a stage cues itself (see level_2_2.gd) play as well.
 
 ## Restarts per stage this session. Static, so it survives scene reloads.
 static var _restarts := {}
@@ -17,6 +22,12 @@ static var _restarts := {}
 @export var show_potion_bar := true
 ## "SPEAKER: text" lines played when the stage is first entered.
 @export var intro_lines: PackedStringArray
+## What the intro teaches, so skipping it warns the player.
+@export_enum("none", "hint", "tutorial") var intro_teaches := "none"
+## "SPEAKER: text" lines Sheldon gives as this stage's hint.
+@export var hint_lines: PackedStringArray
+## "SPEAKER: text" lines played on reaching the exit, before the banner.
+@export var exit_lines: PackedStringArray
 @export var player: CharacterBody2D
 @export var thrower: Node2D
 @export var hud: Control
@@ -32,6 +43,11 @@ static var _restarts := {}
 @export var potions_needed_until_x := 0.0
 
 const NEAR_EXIT := 48.0
+## With auto hints off, the retry at whose start Sheldon reminds the player
+## that the notebook has hints.
+const NUDGE_AT_RESTART := 11
+const NUDGE_LINE := "You know, you can always ask for a hint in the notebook."
+const NUDGE_TIME := 6.0
 ## Seconds between checks for being stuck without potions.
 const STUCK_CHECK_TIME := 0.25
 
@@ -65,12 +81,19 @@ func _ready() -> void:
 	hud.restart_pressed.connect(restart)
 	hud.next_pressed.connect(_go_next)
 	hud.levels_pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
-	_on_stage_start.call_deferred(restart_count())
+	hud.book.has_hint = not hint_lines.is_empty()
+	hud.book.hint_requested.connect(show_hint)
+	_begin_attempt.call_deferred(restart_count())
 
 
 ## How many times this stage has been restarted since it was last cleared.
 func restart_count() -> int:
 	return _restarts.get(stage_id, 0)
+
+
+## Sheldon gives this stage's hint (queued after anything already playing).
+func show_hint() -> void:
+	hud.dialogue.play(hint_lines, &"hint")
 
 
 func restart() -> void:
@@ -116,10 +139,38 @@ func _no_potions_needed_x() -> float:
 	return exit.global_position.x - NEAR_EXIT if exit else INF
 
 
+func _begin_attempt(attempt: int) -> void:
+	_on_stage_start(attempt)
+	_offer_hint(attempt)
+
+
 ## Called once the stage is ready; `attempt` is 0 on the first try.
+## Stages override this for their own cued lines; hints are offered after.
 func _on_stage_start(attempt: int) -> void:
 	if attempt == 0:
-		hud.dialogue.play(intro_lines)
+		hud.dialogue.play(intro_lines, _teaches(intro_teaches))
+
+
+## Auto hints on: the hint every AUTO_HINT_EVERY restarts. Off: one reminder
+## that the notebook has hints, as the NUDGE_AT_RESTART-th retry starts.
+func _offer_hint(attempt: int) -> void:
+	if attempt == 0 or hint_lines.is_empty():
+		return
+	if SaveGame.auto_hints:
+		if attempt % SaveGame.AUTO_HINT_EVERY == 0:
+			show_hint()
+	elif attempt == NUDGE_AT_RESTART:
+		player.say("SHELDON", NUDGE_LINE, hud.dialogue.color_of("SHELDON"), NUDGE_TIME)
+
+
+## "none" / "hint" / "tutorial" (from an export) as the dialogue box wants it.
+static func _teaches(kind: String) -> StringName:
+	return &"" if kind == "none" else StringName(kind)
+
+
+## Lines for Sheldon at the exit; stages can override to pick them on the fly.
+func _exit_lines() -> PackedStringArray:
+	return exit_lines
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -129,9 +180,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_go_next()
 
 
-func _on_player_died() -> void:
+func _on_player_died(cause: StringName) -> void:
 	_stop_play()
-	hud.show_banner("CAUGHT!", "RESTARTING...", Color(1, 0.45, 0.45))
+	hud.set_potions_enabled(false)
+	var message := GameOver.message_of(cause)
+	var subtitle := "%s\nRESTARTING..." % message if message != "" else "RESTARTING..."
+	hud.show_banner(GameOver.title_of(cause), subtitle, GameOver.COLOR)
 	await get_tree().create_timer(restart_delay).timeout
 	restart()
 
@@ -143,11 +197,16 @@ func _on_exit_reached() -> void:
 	_restarts.erase(stage_id)
 	var next := SaveGame.next_stage(stage_id)
 	SaveGame.unlock(next)
-	if next != "":
-		hud.show_banner("STAGE CLEAR", "", Color(0.95, 0.85, 0.55))
+	var lines := _exit_lines()
+	if not lines.is_empty():
+		await hud.dialogue.interrupt(lines, player)
+	var level_done := SaveGame.is_last_in_level(stage_id)
+	if level_done:
+		var title: String = SaveGame.LEVELS[SaveGame.level_of(stage_id)].title
+		hud.show_banner("%s COMPLETE" % (title if title != "" else "LEVEL"), "", Color(0.95, 0.85, 0.55))
 	else:
-		hud.show_banner("TUTORIAL COMPLETE", "", Color(0.95, 0.85, 0.55))
-	hud.show_end_buttons(next != "")
+		hud.show_banner("STAGE CLEAR", "", Color(0.95, 0.85, 0.55))
+	hud.show_end_buttons(next != "", "NEXT LEVEL" if level_done else "NEXT STAGE")
 
 
 func _go_next() -> void:

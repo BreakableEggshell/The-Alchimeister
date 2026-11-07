@@ -46,9 +46,22 @@ border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.95, 0.85, 0.55, 1)
 
+[sub_resource type="StyleBoxFlat" id="StyleBox_focus"]
+draw_center = false
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.85, 0.55, 1)
+expand_margin_left = 1.0
+expand_margin_top = 1.0
+expand_margin_right = 1.0
+expand_margin_bottom = 1.0
+
 [sub_resource type="Theme" id="Theme_hud"]
 default_font = ExtResource("8_font")
 default_font_size = 8
+Button/styles/focus = SubResource("StyleBox_focus")
 Button/styles/hover = SubResource("StyleBox_slot_hover")
 Button/styles/hover_pressed = SubResource("StyleBox_slot_selected")
 Button/styles/normal = SubResource("StyleBox_slot")
@@ -171,7 +184,7 @@ offset_top = -6.0
 offset_right = 150.0
 offset_bottom = 4.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 1
 theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
 theme_override_constants/outline_size = 4
 horizontal_alignment = 1

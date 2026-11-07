@@ -1,0 +1,55 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/puzzle/level_7.gd" id="level7"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/dialogue_trigger.gd" id="trigger"]
+
+[node name="Level7" instance=ExtResource("base") node_paths=PackedStringArray("chest")]
+script = ExtResource("level7")
+stage_id = "7"
+stage_size = Vector2(420, 216)
+potions_needed_until_x = 2000.0
+chest = NodePath("Level/Chest")
+intro_lines = PackedStringArray("SHELDON: The last stretch! The exit's right over there.")
+hint_lines = PackedStringArray("SHELDON: There's no climbing out of here. Trust me, I've looked.", "SHELDON: The only way out is... the other way out. You know. The permanent one.", "SHELDON: Set yourself on fire with no water around, or brew a Death potion by mixing two different ingredients. Sorry, buddy.")
+exit_lines = PackedStringArray("SHELDON: ...Huh. You actually did it.", "SHELDON: Well, that's one way out. See you on the other side, buddy.")
+
+[node name="Knight" parent="."]
+position = Vector2(24, 96)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="StartLedge" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 96)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 200, 0, 200, 120, 0, 120)
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(200, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 140, 0, 140, 24, 0, 24)
+
+[node name="ExitLedge" type="StaticBody2D" parent="Level"]
+position = Vector2(340, 96)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 80, 0, 80, 120, 0, 120)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(390, 96)
+script = ExtResource("exit")
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(270, 192)
+script = ExtResource("chest")
+contents = "ember"
+amount = 1
+open_lines = PackedStringArray("SHELDON: Random junk. Of course it's random junk.")
+
+[node name="StuckTalk" type="Area2D" parent="Level"]
+position = Vector2(204, 188)
+script = ExtResource("trigger")
+size = Vector2(132, 4)
+lines = PackedStringArray("SHELDON: ...Okay. That was a long way down.", "SHELDON: And those walls are way too high to climb. We're stuck.")
