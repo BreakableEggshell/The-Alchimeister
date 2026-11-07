@@ -28,7 +28,7 @@ const DESCRIPTIONS := {
 	FIRE: "BURNS FOES TO ASH",
 	KNOCKBACK: "BLASTS THINGS AWAY",
 	FREEZE: "FREEZES FOES SOLID",
-	TRANSLUCENT: "WALK THROUGH FOES",
+	TRANSLUCENT: "LETS THINGS PASS THROUGH",
 	DEATH: "SLAYS ANYTHING IT HITS",
 }
 const COLORS := {
@@ -66,8 +66,11 @@ const BURN_TIME := 3.0
 ## Seconds a burning player has before dying (unless washed off in
 ## cleansing water). Longer than monsters, so there's time to get to it.
 const PLAYER_BURN_TIME := 10.0
-## Burning things run this many times faster until they die.
+## Burning monsters run this many times faster until they burn up.
 const FIRE_SPEED_BOOST := 1.6
+## A burning player runs this many times faster (so jumps much further)
+## until the fire is washed off or burns them up.
+const PLAYER_FIRE_SPEED_BOOST := 2.0
 const FREEZE_TIME := 6.0
 const TRANSLUCENT_TIME := 6.0
 ## Seconds the player is frozen in place by a freeze splash (monsters use

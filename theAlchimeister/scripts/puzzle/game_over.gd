@@ -6,6 +6,7 @@ extends RefCounted
 const CAUGHT := &"caught"
 const BURNED := &"burned"
 const DEATH_POTION := &"death_potion"
+const CRUSHED := &"crushed"
 
 const COLOR := Color(1, 0.45, 0.45)
 
@@ -14,6 +15,7 @@ const SCREENS := {
 	CAUGHT: ["CAUGHT!", "A MONSTER GOT YOU."],
 	BURNED: ["BURNT TO A CRISP!", "YOU SET YOURSELF ON FIRE."],
 	DEATH_POTION: ["STRUCK DOWN!", "THE DEATH POTION SPARES NO ONE."],
+	CRUSHED: ["CRUSHED!", "DON'T STAND UNDER FALLING ROCKS."],
 }
 
 

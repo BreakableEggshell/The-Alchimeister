@@ -1,7 +1,7 @@
 extends Control
 ## Level select: a grid of the 7 levels. Levels with no unlocked stages show a
 ## padlock and can't be picked. Picking a level opens its stage panel, where
-## each unlocked stage can be played.
+## each unlocked stage can be played; a level with a single stage just starts.
 
 const CARD_SIZE := Vector2(84, 52)
 const GOLD := Color(0.95, 0.85, 0.55)
@@ -31,6 +31,9 @@ func open_level(index: int) -> void:
 	if not SaveGame.is_level_unlocked(index):
 		return
 	var level: Dictionary = SaveGame.LEVELS[index]
+	if level.stages.size() == 1:
+		SaveGame.play_stage(level.stages[0])
+		return
 	_stage_title.text = "LEVEL %d  %s" % [index + 1, level.title]
 	for child in _stage_row.get_children():
 		child.queue_free()

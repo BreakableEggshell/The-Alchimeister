@@ -17,6 +17,7 @@ script = ExtResource("2_stage")
 stage_id = "2-2"
 stage_size = Vector2(1080, 216)
 potions_needed_until_x = 960.0
+hint_lines = PackedStringArray("SHELDON: Knock that purple slime out of the way. It's carrying ghost wisps.", "SHELDON: Brew them, then throw a translucent potion at your own feet to sneak past the guards.", "SHELDON: The water washes it off, so save the second one for the last two guards.")
 
 [node name="Level" type="Node2D" parent="."]
 

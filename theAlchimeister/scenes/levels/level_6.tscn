@@ -1,0 +1,108 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/heavy_button.gd" id="heavy"]
+[ext_resource type="Script" path="res://scripts/puzzle/jelly.gd" id="jelly"]
+[ext_resource type="Script" path="res://scripts/puzzle/pressure_plate.gd" id="plate"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+
+[node name="Level6" instance=ExtResource("base")]
+stage_id = "6"
+stage_size = Vector2(1000, 216)
+potions_needed_until_x = 770.0
+intro_lines = PackedStringArray("SHELDON: Ooh, jelly! Potions bounce right off that stuff. Watch your aim line.")
+hint_lines = PackedStringArray("SHELDON: You can't reach that slime under the roof directly. Bounce a freeze potion off the green jelly instead.", "SHELDON: Throw it over the roof so it hits the jelly's side, and it'll come right back in at the slime. The aim line shows the bounce.", "SHELDON: The red jelly throws potions back much harder. Bounce a knockback potion off it to reach that slime way up high.")
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="FloorA" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 560, 0, 560, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(50, 192)
+script = ExtResource("chest")
+contents = "frost_shard"
+amount = 2
+extra_contents = "gust_feather"
+extra_amount = 2
+
+[node name="PocketWall" type="StaticBody2D" parent="Level"]
+position = Vector2(220, 120)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 48, 0, 48)
+
+[node name="Gate1" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(220, 168)
+script = ExtResource("gate")
+size = Vector2(12, 24)
+plates = [NodePath("../PocketButton")]
+
+[node name="PocketRoof" type="StaticBody2D" parent="Level"]
+position = Vector2(232, 120)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 68, 0, 68, 16, 0, 16)
+
+[node name="PocketButton" type="Area2D" parent="Level"]
+position = Vector2(270, 192)
+script = ExtResource("heavy")
+width = 40.0
+cap_height = 12.0
+press_time = 1.0
+
+[node name="GreenJelly" type="StaticBody2D" parent="Level"]
+position = Vector2(324, 96)
+script = ExtResource("jelly")
+size = Vector2(16, 72)
+
+[node name="RedJelly" type="StaticBody2D" parent="Level"]
+position = Vector2(560, 192)
+script = ExtResource("jelly")
+size = Vector2(40, 24)
+strength = 1.6
+
+[node name="FloorB" type="StaticBody2D" parent="Level"]
+position = Vector2(600, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 400, 0, 400, 24, 0, 24)
+
+[node name="Tower" type="StaticBody2D" parent="Level"]
+position = Vector2(740, 30)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 82, 0, 82)
+
+[node name="TowerTop" type="StaticBody2D" parent="Level"]
+position = Vector2(730, 24)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 32, 0, 32, 6, 0, 6)
+
+[node name="TowerPlate" type="Area2D" parent="Level"]
+position = Vector2(746, 24)
+script = ExtResource("plate")
+
+[node name="Gate2" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(740, 112)
+script = ExtResource("gate")
+size = Vector2(12, 80)
+plates = [NodePath("../TowerPlate")]
+open_when_pressed = false
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(960, 192)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="PocketSlime" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(270, 180)
+speed = 15.0
+patrol_distance = 8.0
+
+[node name="TowerSlime" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(746, 24)
+speed = 0.0

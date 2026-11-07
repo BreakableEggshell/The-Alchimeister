@@ -12,6 +12,8 @@ extends Area2D
 		queue_redraw()
 ## "SPEAKER: text" lines to play.
 @export var lines: PackedStringArray
+## What they teach, so skipping them warns the player.
+@export_enum("none", "hint", "tutorial") var teaches := "none"
 ## Only on the stage's first attempt, not again after a restart.
 @export var first_attempt_only := true
 
@@ -41,7 +43,7 @@ func _on_body_entered(body: Node) -> void:
 	_done = true
 	var dialogue := get_tree().get_first_node_in_group("dialogue")
 	if dialogue:
-		dialogue.interrupt(lines, body)
+		dialogue.interrupt(lines, body, &"" if teaches == "none" else StringName(teaches))
 
 
 func _draw() -> void:

@@ -1,7 +1,7 @@
 class_name Potion
 extends Node2D
-## A thrown potion: flies on a ballistic arc, spinning, and shatters on the
-## first solid it hits. A potion with a kind applies its effect to every body
+## A thrown potion: flies on a ballistic arc, spinning, through planks, and shatters on the
+## first solid it hits; off jelly (Jelly) it bounces instead. A potion with a kind applies its effect to every body
 ## within PotionData.SPLASH_RADIUS that has an apply_potion(kind, origin) method.
 
 const GLASS_COLOR := Color(0.85, 0.9, 1.0)
@@ -27,17 +27,35 @@ var _ring := 0.0
 
 ## Advances a potion one physics tick. Shared by real potions and the aim
 ## preview so the preview always matches the real flight.
-## Returns {position, velocity, hit (bool), normal}.
+## Returns {position, velocity, hit (bool), normal}, plus "collider" (what it
+## hit) on a hit, or "bounced" (the Jelly) when it bounced this tick.
 static func step(space: PhysicsDirectSpaceState2D, from: Vector2, vel: Vector2, grav: float, delta: float, excluded: Array[RID], mask: int) -> Dictionary:
 	vel.y += grav * delta
 	var to := from + vel * delta
-	var query := PhysicsRayQueryParameters2D.create(from, to, mask, excluded)
-	# Enemies' potion hitboxes are areas.
-	query.collide_with_areas = true
-	var hit := space.intersect_ray(query)
-	if hit:
-		return {"position": hit.position, "velocity": vel, "hit": true, "normal": hit.normal}
+	var skip := excluded.duplicate()
+	# A few tries: each plank in the way is skipped and the ray cast again.
+	for i in 4:
+		var query := PhysicsRayQueryParameters2D.create(from, to, mask, skip)
+		# Enemies' potion hitboxes are areas.
+		query.collide_with_areas = true
+		var hit := space.intersect_ray(query)
+		if not hit:
+			break
+		if _flies_through(hit.collider):
+			skip.append(hit.rid)
+			continue
+		if hit.collider is Jelly:
+			# Mirrored off the face it hit, faster off springy jelly.
+			var bounced: Vector2 = vel.bounce(hit.normal) * hit.collider.strength
+			return {"position": hit.position + hit.normal * 0.5, "velocity": bounced, "hit": false, "normal": hit.normal, "bounced": hit.collider}
+		return {"position": hit.position, "velocity": vel, "hit": true, "normal": hit.normal, "collider": hit.collider}
 	return {"position": to, "velocity": vel, "hit": false, "normal": Vector2.ZERO}
+
+
+## Planks (one-way platforms) don't stop potions, from above or below. A
+## wooden platform that potions can fade (WoodenPlatform) still catches them.
+static func _flies_through(collider: Object) -> bool:
+	return collider is Solid and collider.one_way and not collider is WoodenPlatform
 
 
 func _enter_tree() -> void:
@@ -54,6 +72,8 @@ func _physics_process(delta: float) -> void:
 	var result := Potion.step(get_world_2d().direct_space_state, global_position, velocity, gravity, delta, exclude, hit_mask)
 	global_position = result.position
 	velocity = result.velocity
+	if result.has("bounced"):
+		result.bounced.wobble()
 	rotation += spin_speed * delta * signf(velocity.x)
 	if result.hit:
 		_shatter(result.normal)

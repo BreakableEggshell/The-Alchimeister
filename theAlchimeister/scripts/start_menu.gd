@@ -8,12 +8,15 @@ extends Control
 @onready var _exit: Button = %ExitButton
 
 var _confirm: Control
+var _confirm_no: Button
 
 
 func _ready() -> void:
 	_start.pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
 	_continue.pressed.connect(func() -> void: SaveGame.play_stage(SaveGame.last_stage))
-	_reset.pressed.connect(func() -> void: _confirm.show())
+	_reset.pressed.connect(func() -> void:
+		_confirm.show()
+		_confirm_no.grab_focus())
 	_exit.pressed.connect(get_tree().quit)
 	for button in [_start, _continue, _reset, _exit]:
 		button.mouse_entered.connect(button.grab_focus)
@@ -25,6 +28,7 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _confirm.visible and event.is_action_pressed("ui_cancel"):
 		_confirm.hide()
+		_reset.grab_focus()
 		get_viewport().set_input_as_handled()
 
 
@@ -72,4 +76,5 @@ func _build_confirm() -> Control:
 		modal.hide()
 		_reset.grab_focus())
 	panel.add_child(no)
+	_confirm_no = no
 	return modal

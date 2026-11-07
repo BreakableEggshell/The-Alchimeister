@@ -1,0 +1,116 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/wooden_platform.gd" id="wood"]
+[ext_resource type="Script" path="res://scripts/puzzle/rock.gd" id="rock"]
+[ext_resource type="Script" path="res://scripts/puzzle/heavy_button.gd" id="heavy"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+
+[node name="Level5" instance=ExtResource("base")]
+stage_id = "5"
+stage_size = Vector2(860, 216)
+potions_needed_until_x = 800.0
+intro_lines = PackedStringArray("SHELDON: These wooden floors look flimsy. And suspicious.")
+hint_lines = PackedStringArray("SHELDON: A translucent potion turns a wooden platform see-through for a bit, and it drops whatever's on it.", "SHELDON: Drop the slime into its hole. Then hit the shelf under that rock, so it falls onto the button. Just don't stand under it!", "SHELDON: And that last floor up top? Stand on it and drop yourself.")
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor1" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 212, 0, 212, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(50, 192)
+script = ExtResource("chest")
+contents = "ghost_wisp"
+amount = 4
+
+[node name="TunnelRoof" type="StaticBody2D" parent="Level"]
+position = Vector2(150, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 140, 0, 140, 168, 0, 168)
+
+[node name="Trapdoor" type="StaticBody2D" parent="Level"]
+position = Vector2(212, 192)
+script = ExtResource("wood")
+points = PackedVector2Array(0, 0, 24, 0, 24, 5, 0, 5)
+
+[node name="Hole" type="StaticBody2D" parent="Level"]
+position = Vector2(212, 214)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 24, 0, 24, 10, 0, 10)
+
+[node name="Floor2" type="StaticBody2D" parent="Level"]
+position = Vector2(236, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 564, 0, 564, 24, 0, 24)
+
+[node name="Shelf" type="StaticBody2D" parent="Level"]
+position = Vector2(400, 112)
+script = ExtResource("wood")
+points = PackedVector2Array(0, 0, 48, 0, 48, 5, 0, 5)
+
+[node name="Rock" type="CharacterBody2D" parent="Level"]
+position = Vector2(424, 112)
+script = ExtResource("rock")
+collision_layer = 8
+collision_mask = 9
+size = Vector2(32, 32)
+
+[node name="RockButton" type="Area2D" parent="Level"]
+position = Vector2(424, 192)
+script = ExtResource("heavy")
+press_time = 0.15
+
+[node name="GateWall" type="StaticBody2D" parent="Level"]
+position = Vector2(520, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 48, 0, 48, 168, 0, 168)
+
+[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(520, 168)
+script = ExtResource("gate")
+size = Vector2(12, 24)
+plates = [NodePath("../RockButton")]
+
+[node name="Plank1" type="StaticBody2D" parent="Level"]
+position = Vector2(600, 160)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 40, 0, 40, 6, 0, 6)
+one_way = true
+
+[node name="Plank2" type="StaticBody2D" parent="Level"]
+position = Vector2(632, 128)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 40, 0, 40, 6, 0, 6)
+one_way = true
+
+[node name="Pillar" type="StaticBody2D" parent="Level"]
+position = Vector2(680, 96)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 40, 0, 40, 96, 0, 96)
+
+[node name="FalseFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(720, 96)
+script = ExtResource("wood")
+points = PackedVector2Array(0, 0, 80, 0, 80, 5, 0, 5)
+
+[node name="RightWall" type="StaticBody2D" parent="Level"]
+position = Vector2(800, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 60, 0, 60, 216, 0, 216)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(760, 192)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="TunnelSlime" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(224, 192)
+speed = 0.0

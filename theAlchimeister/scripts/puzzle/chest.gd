@@ -6,6 +6,9 @@ extends Area2D
 ## over the player's head and plays that conversation.
 ## Origin is the floor surface at its centre.
 
+## Emitted once it has been opened and its conversation (if any) is over.
+signal opened
+
 const FONT := preload("res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf")
 const OUTLINE := Color.WHITE
 
@@ -22,6 +25,8 @@ const OUTLINE := Color.WHITE
 @export var third_amount := 1
 ## "SPEAKER: text" lines played after opening. Empty for none.
 @export var open_lines: PackedStringArray
+## What those lines teach, so skipping them warns the player.
+@export_enum("none", "hint", "tutorial") var open_lines_teach := "none"
 
 var _opened := false
 var _player_near := false
@@ -73,7 +78,8 @@ func open() -> void:
 		_float_icon(StringName(gifts[i][0]), (i - (gifts.size() - 1) / 2.0) * 10.0)
 	var dialogue := get_tree().get_first_node_in_group("dialogue")
 	if dialogue and not open_lines.is_empty():
-		dialogue.interrupt(open_lines, _player)
+		await dialogue.interrupt(open_lines, _player, &"" if open_lines_teach == "none" else StringName(open_lines_teach))
+	opened.emit()
 
 
 func _on_body_moved(body: Node, entered: bool) -> void:

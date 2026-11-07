@@ -6,7 +6,9 @@ extends Control
 ## lines are "SPEAKER: text". Playing a conversation pauses the game. A tap/click,
 ## Enter, Space or E finishes the current line, then moves to the next.
 ## Top-right while playing: fast-forward (asks "SKIP DIALOGUE?", also on Esc)
-## and log (also on L), with their keys shown underneath.
+## and log (also on L), with their keys shown underneath. Conversations can be
+## marked as teaching something (HINT or TUTORIAL); if any of the lines still to
+## come do, the skip question warns about it in red.
 ## The log (chat history for this stage, skipped lines included) can also be
 ## opened from elsewhere with show_log().
 ## Mid-gameplay conversations go through interrupt(): the game pauses, a speech
@@ -38,6 +40,12 @@ const SHIFT_TIME := 0.15
 const ENTER_TIME := 0.2
 ## Characters slide up from this far below as a conversation starts.
 const ENTER_DROP := 24.0
+## What a conversation teaches, for the skip warning (see play()).
+const HINT := &"hint"
+const TUTORIAL := &"tutorial"
+const WARNING_COLOR := Color(1, 0.4, 0.4)
+const CONFIRM_WIDTH := 168.0
+const CONFIRM_BUTTON_SIZE := Vector2(48, 16)
 
 ## Everyone who can talk. Lines naming someone not in here still play, with
 ## a white name and no portrait.
@@ -51,7 +59,7 @@ var history: Array[Dictionary] = []
 
 var _lines: Array[Dictionary] = []
 ## Lines asked for while the speech bubble was up; played right after it.
-var _queued := PackedStringArray()
+var _queued: Array[Dictionary] = []
 var _index := 0
 var _paused_by_me := false
 var _type_tween: Tween
@@ -68,8 +76,13 @@ var _text: Label
 var _skip_button: Button
 var _log_button: Button
 var _confirm: Control
+var _confirm_warning: Label
+var _confirm_buttons: Array[Button] = []
 var _log: Control
 var _log_text: RichTextLabel
+var _log_close: Button
+## Whatever had keyboard focus when the conversation began (given back after).
+var _focus_before: Control
 
 
 func _ready() -> void:
@@ -79,9 +92,14 @@ func _ready() -> void:
 	_set_playing_visible(false)
 
 
-## Plays "SPEAKER: text" lines. If a conversation is already playing, they're queued after it.
-func play(lines: PackedStringArray) -> void:
-	var parsed := _parse(lines)
+## Plays "SPEAKER: text" lines. If a conversation is already playing, they're
+## queued after it. `teaches` (HINT, TUTORIAL or none) marks what they teach,
+## so skipping them warns the player.
+func play(lines: PackedStringArray, teaches := &"") -> void:
+	_play_parsed(_parse(lines, teaches))
+
+
+func _play_parsed(parsed: Array[Dictionary]) -> void:
 	if parsed.is_empty():
 		return
 	if is_playing:
@@ -90,6 +108,11 @@ func play(lines: PackedStringArray) -> void:
 	_lines = parsed
 	_index = 0
 	is_playing = true
+	# Enter advances the dialogue, so it mustn't also press a focused button
+	# underneath (the notebook's GIVE HINT, say).
+	_focus_before = get_viewport().gui_get_focus_owner()
+	if _focus_before:
+		_focus_before.release_focus()
 	_paused_by_me = not get_tree().paused
 	get_tree().paused = true
 	_set_playing_visible(true)
@@ -100,12 +123,12 @@ func play(lines: PackedStringArray) -> void:
 
 ## For conversations in the middle of gameplay: pauses the game, shows a
 ## speech bubble over `talker` (anything with set_talking()), then plays the
-## lines. Returns once the conversation is over.
-func interrupt(lines: PackedStringArray, talker: Node = null) -> void:
+## lines. Returns once the conversation is over. `teaches` as for play().
+func interrupt(lines: PackedStringArray, talker: Node = null, teaches := &"") -> void:
 	if lines.is_empty():
 		return
 	if is_playing or is_waiting:
-		_queue_after_bubble(lines)
+		_queue_after_bubble(lines, teaches)
 		return
 	var paused_here := not get_tree().paused
 	get_tree().paused = true
@@ -115,8 +138,10 @@ func interrupt(lines: PackedStringArray, talker: Node = null) -> void:
 		talker.set_talking(true)
 	await get_tree().create_timer(BUBBLE_TIME, true).timeout
 	is_waiting = false
-	play(lines + _queued)
-	_queued = PackedStringArray()
+	var parsed := _parse(lines, teaches)
+	parsed.append_array(_queued)
+	_queued.clear()
+	_play_parsed(parsed)
 	if is_playing:
 		await finished
 	if is_instance_valid(talker):
@@ -125,11 +150,11 @@ func interrupt(lines: PackedStringArray, talker: Node = null) -> void:
 		get_tree().paused = false
 
 
-func _queue_after_bubble(lines: PackedStringArray) -> void:
+func _queue_after_bubble(lines: PackedStringArray, teaches: StringName) -> void:
 	if is_playing:
-		play(lines)
+		play(lines, teaches)
 	else:
-		_queued.append_array(lines)
+		_queued.append_array(_parse(lines, teaches))
 
 
 func advance() -> void:
@@ -165,6 +190,7 @@ func show_log() -> void:
 	_log_text.text = bbcode if bbcode else "[color=#888888]NOTHING SAID YET.[/color]"
 	_log.show()
 	move_to_front()
+	_log_text.grab_focus()
 	_log_text.scroll_to_line(maxi(_log_text.get_line_count() - 1, 0))
 
 
@@ -185,7 +211,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		advance()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_cancel"):
-		_confirm.show()
+		_show_confirm()
 		get_viewport().set_input_as_handled()
 	elif _is_log_key(event):
 		show_log()
@@ -221,7 +247,12 @@ func _finish() -> void:
 	_set_playing_visible(false)
 	if _paused_by_me:
 		get_tree().paused = false
+	var restore := _focus_before
+	_focus_before = null
 	finished.emit()
+	# After `finished`, so whatever was hidden for the talk is back first.
+	if is_instance_valid(restore) and restore.is_visible_in_tree():
+		restore.grab_focus()
 
 
 func _set_playing_visible(playing: bool) -> void:
@@ -238,6 +269,12 @@ func _set_playing_visible(playing: bool) -> void:
 
 
 # --- Characters on stage
+
+## A speaker's name colour (white for anyone not in `speakers`).
+func color_of(id: String) -> Color:
+	var speaker := _speaker(id.to_upper())
+	return speaker.name_color if speaker else Color.WHITE
+
 
 func _speaker(id: String) -> DialogueSpeaker:
 	for speaker in speakers:
@@ -320,15 +357,55 @@ func _fit_box() -> void:
 	_box.offset_top = -BOX_MARGIN - height
 
 
-func _parse(lines: PackedStringArray) -> Array[Dictionary]:
+func _parse(lines: PackedStringArray, teaches := &"") -> Array[Dictionary]:
 	var parsed: Array[Dictionary] = []
 	for raw in lines:
 		var split := raw.find(":")
 		if split < 0:
-			parsed.append({"speaker": "SHELDON", "text": raw.strip_edges()})
+			parsed.append({"speaker": "SHELDON", "text": raw.strip_edges(), "teaches": teaches})
 		else:
-			parsed.append({"speaker": raw.substr(0, split).strip_edges().to_upper(), "text": raw.substr(split + 1).strip_edges()})
+			parsed.append({"speaker": raw.substr(0, split).strip_edges().to_upper(), "text": raw.substr(split + 1).strip_edges(), "teaches": teaches})
 	return parsed
+
+
+## What the lines from the current one on teach (HINT first, then TUTORIAL),
+## or nothing.
+func teaches_ahead() -> Array[StringName]:
+	var found: Array[StringName] = []
+	for kind in [HINT, TUTORIAL]:
+		for i in range(_index, _lines.size()):
+			if _lines[i].get("teaches", &"") == kind:
+				found.append(kind)
+				break
+	return found
+
+
+## "SKIP DIALOGUE?", with a red warning when a hint or tutorial is still to come.
+func _show_confirm() -> void:
+	var names := {HINT: "A HINT", TUTORIAL: "A TUTORIAL"}
+	var parts: PackedStringArray = []
+	for teaches in teaches_ahead():
+		parts.append(names[teaches])
+	_confirm_warning.visible = not parts.is_empty()
+	_confirm_warning.text = "IT HAS %s!" % " AND ".join(parts) if _confirm_warning.visible else ""
+	var warning_lines := 0
+	if _confirm_warning.visible:
+		var font := _confirm_warning.get_theme_font("font")
+		var width := font.get_string_size(_confirm_warning.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+		warning_lines = ceili(width / (CONFIRM_WIDTH - 16.0))
+	var warning_height := warning_lines * 10.0 + (4.0 if warning_lines > 0 else 0.0)
+	_confirm_warning.size = Vector2(CONFIRM_WIDTH - 16.0, warning_lines * 10.0)
+	# Sized here, in the tree: a size set before then doesn't stick.
+	for button in _confirm_buttons:
+		button.size = CONFIRM_BUTTON_SIZE
+		button.position.y = 30.0 + warning_height
+	var panel: Control = _confirm.get_child(1)
+	var height := 30.0 + warning_height + CONFIRM_BUTTON_SIZE.y + 10.0
+	panel.offset_top = -height / 2.0
+	panel.offset_bottom = height / 2.0
+	_confirm.show()
+	# With a hint or tutorial at stake, NO is the safe default.
+	_confirm_buttons[1 if _confirm_warning.visible else 0].grab_focus()
 
 
 func _blocker_input(event: InputEvent) -> void:
@@ -393,23 +470,31 @@ func _build() -> void:
 	_box.add_child(_text)
 
 	_skip_button = _icon_button(_draw_skip_icon, "SKIP", 4.0, "ESC")
-	_skip_button.pressed.connect(func() -> void: _confirm.show())
+	_skip_button.pressed.connect(_show_confirm)
 	_log_button = _icon_button(_draw_log_icon, "LOG", 32.0, "L")
 	_log_button.pressed.connect(show_log)
 
-	_confirm = _modal(Vector2(168, 56))
+	_confirm = _modal(Vector2(CONFIRM_WIDTH, 56))
 	var question := Label.new()
 	question.text = "SKIP DIALOGUE?"
 	question.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	question.position = Vector2(0, 10)
-	question.size = Vector2(168, 10)
+	question.size = Vector2(CONFIRM_WIDTH, 10)
 	_confirm.get_child(1).add_child(question)
+	_confirm_warning = Label.new()
+	_confirm_warning.add_theme_color_override("font_color", WARNING_COLOR)
+	_confirm_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_confirm_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_confirm_warning.position = Vector2(8, 24)
+	_confirm_warning.hide()
+	_confirm.get_child(1).add_child(_confirm_warning)
 	var yes := _text_button("YES", Vector2(28, 30), Vector2(48, 16))
 	yes.pressed.connect(skip_all)
 	_confirm.get_child(1).add_child(yes)
 	var no := _text_button("NO", Vector2(92, 30), Vector2(48, 16))
 	no.pressed.connect(_confirm.hide)
 	_confirm.get_child(1).add_child(no)
+	_confirm_buttons.assign([yes, no])
 
 	_log = _modal(Vector2(320, 176))
 	var log_panel: Control = _log.get_child(1)
@@ -423,12 +508,14 @@ func _build() -> void:
 	_log_text = RichTextLabel.new()
 	_log_text.bbcode_enabled = true
 	_log_text.scroll_active = true
+	# Focused while open, so Up/Down scroll it.
+	_log_text.focus_mode = Control.FOCUS_ALL
 	_log_text.position = Vector2(10, 20)
 	_log_text.size = Vector2(300, 130)
 	log_panel.add_child(_log_text)
-	var close := _text_button("CLOSE", Vector2(130, 154), Vector2(60, 16))
-	close.pressed.connect(_log.hide)
-	log_panel.add_child(close)
+	_log_close = _text_button("CLOSE", Vector2(130, 154), Vector2(60, 16))
+	_log_close.pressed.connect(_log.hide)
+	log_panel.add_child(_log_close)
 
 
 ## A full-screen dimmer holding a centred panel (child 1). Hidden at first.
@@ -476,7 +563,7 @@ func _icon_button(draw_icon: Callable, tip: String, from_right: float, key: Stri
 func _text_button(text: String, at: Vector2, button_size: Vector2) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.focus_mode = Control.FOCUS_NONE
+	button.focus_mode = Control.FOCUS_ALL
 	button.position = at
 	button.size = button_size
 	return button

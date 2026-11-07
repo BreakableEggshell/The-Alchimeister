@@ -9,9 +9,16 @@ extends PressurePlate
 ## the way, carrying whatever is on top down with it; if the weight comes off
 ## first, it rises back at the same speed. Once fully down it stays down for
 ## good (latches) and goes flat, so it can be walked over.
+## With `needs` above 1 it only sinks while that many heavy things are on it
+## at once; a row of marks on its face lights up one per heavy thing.
 ## Green while up, red once pressed. Origin is the floor at its centre.
 
 @export var press_time := 1.5
+## Heavy things that must be on it at the same time.
+@export var needs := 1:
+	set(value):
+		needs = maxi(value, 1)
+		queue_redraw()
 ## How far the top stands above the floor when up.
 @export var cap_height := 14.0:
 	set(value):
@@ -27,6 +34,8 @@ const TOO_LIGHT_COOLDOWN := 1.5
 ## 0 when up, 1 when fully pressed.
 var progress := 0.0
 var _weighed := false
+## Heavy things on it right now.
+var _heavy_count := 0
 var _too_light_at := -INF
 ## The solid top; it moves with the button so riders go up and down with it.
 var _cap: AnimatableBody2D
@@ -67,8 +76,12 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint() or pressed:
 		return
-	var heavy := get_overlapping_bodies().any(_is_heavy)
+	var heavy_count := get_overlapping_bodies().filter(_is_heavy).size()
+	var heavy := heavy_count >= needs
 	var now_weighed := has_overlapping_bodies()
+	if heavy_count != _heavy_count:
+		_heavy_count = heavy_count
+		queue_redraw()
 	var next := move_toward(progress, 1.0 if heavy else 0.0, delta / press_time)
 	if next != progress or now_weighed != _weighed:
 		progress = next
@@ -120,3 +133,12 @@ func _draw() -> void:
 	draw_rect(cap, color)
 	draw_rect(Rect2(cap.position, Vector2(width, 1.0)), color.lightened(0.35))
 	draw_rect(cap, color.darkened(0.45), false, 1.0)
+	if needs > 1:
+		# One mark per heavy thing needed, lit (ice blue) per one on it.
+		var mark := 4.0
+		var gap := 3.0
+		var row := needs * mark + (needs - 1) * gap
+		for i in needs:
+			var at := Vector2(-row / 2.0 + i * (mark + gap), cap.get_center().y - mark / 2.0)
+			var lit := pressed or i < _heavy_count
+			draw_rect(Rect2(at, Vector2(mark, mark)), Color(0.75, 0.95, 1.0) if lit else color.darkened(0.35))

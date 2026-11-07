@@ -9,6 +9,10 @@ extends Node2D
 signal aiming_changed(aiming: bool)
 ## Emitted when a potion actually leaves the hand.
 signal thrown
+## Emitted when the player pulled back to aim, then let go over the cancel
+## zone (`on_cancel_zone`) or back at the start, so nothing was thrown. Plain
+## taps don't count.
+signal throw_cancelled(on_cancel_zone: bool)
 
 @export var thrower: CharacterBody2D
 @export var cancel_zone: Control
@@ -26,6 +30,11 @@ signal thrown
 @export var band_color := Color(0.95, 0.85, 0.55, 0.6)
 @export var dot_color := Color(1, 1, 1, 0.9)
 
+## How far ahead (seconds of flight) the preview looks for a jelly bounce,
+## and how much of the bounced path it then shows.
+const BOUNCE_LOOKAHEAD := 1.5
+const AFTER_BOUNCE_TIME := 0.5
+
 var _aiming := false
 ## Where the press started, in viewport (screen) space, so a scrolling camera
 ## doesn't drag the anchor along with the world.
@@ -33,6 +42,8 @@ var _anchor_screen := Vector2.ZERO
 ## Latest pointer position from input events, in viewport (screen) space.
 var _pointer_screen := Vector2.ZERO
 var _preview := PackedVector2Array()
+## Longest pull during the current aim.
+var _max_pull := 0.0
 
 
 func _ready() -> void:
@@ -52,6 +63,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				inventory.take_selected()  # Reports "none left".
 				return
 			_aiming = true
+			_max_pull = 0.0
 			_anchor_screen = _pointer_screen
 			cancel_zone.show()
 			aiming_changed.emit(true)
@@ -74,6 +86,7 @@ func _physics_process(_delta: float) -> void:
 	_preview.clear()
 	if not _aiming:
 		return
+	_max_pull = maxf(_max_pull, _pull().length())
 	var over_cancel := _over_cancel_zone()
 	cancel_zone.modulate.a = 1.0 if over_cancel else 0.5
 	if over_cancel or _pull().length() < min_pull:
@@ -86,13 +99,25 @@ func _physics_process(_delta: float) -> void:
 	var position_now := _hand_position()
 	var velocity_now := launch
 	var dt := 1.0 / Engine.physics_ticks_per_second
-	for i in int(preview_time / dt):
+	# Normally preview_time of flight; but if the potion would bounce off jelly
+	# within BOUNCE_LOOKAHEAD, show up to the bounce and a bit beyond it.
+	var shown := int(preview_time / dt)
+	var limit := int(BOUNCE_LOOKAHEAD / dt)
+	var bounced := false
+	var i := 0
+	while i < limit:
 		var result := Potion.step(space, position_now, velocity_now, potion_gravity, dt, [thrower.get_rid()], PotionData.POTION_HIT_MASK)
 		position_now = result.position
 		velocity_now = result.velocity
 		_preview.append(position_now)
+		if result.has("bounced") and not bounced:
+			bounced = true
+			limit = i + 1 + int(AFTER_BOUNCE_TIME / dt)
 		if result.hit:
 			break
+		i += 1
+	if not bounced and _preview.size() > shown:
+		_preview.resize(shown)
 	queue_redraw()
 
 
@@ -128,10 +153,13 @@ func _over_cancel_zone() -> bool:
 
 
 func _release() -> void:
-	var cancelled := _over_cancel_zone() or _pull().length() < min_pull
+	var on_cancel_zone := _over_cancel_zone()
+	var cancelled := on_cancel_zone or _pull().length() < min_pull
 	var launch := _launch_velocity()
 	cancel()
 	if cancelled:
+		if maxf(_max_pull, _pull().length()) >= min_pull:
+			throw_cancelled.emit(on_cancel_zone)
 		return
 	var potion := Potion.new()
 	if inventory:

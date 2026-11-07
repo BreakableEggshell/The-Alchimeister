@@ -15,6 +15,7 @@ stage_size = Vector2(560, 216)
 throwing_enabled = false
 show_potion_bar = false
 highlight_slots_after_misses = 0
+hint_lines = PackedStringArray("SHELDON: Stay off the floor, that slime will get you. Hop up the planks with W instead.", "SHELDON: Then push the crate onto the button. That opens the gate.")
 
 [node name="Level" type="Node2D" parent="."]
 

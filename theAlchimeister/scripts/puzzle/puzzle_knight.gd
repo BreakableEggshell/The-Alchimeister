@@ -2,7 +2,7 @@ extends "res://scripts/platformer/platformer_knight.gd"
 ## The platformer knight plus what the puzzle stages need: potion effects on
 ## the player, pushing crates, floating text above the head, and dying when
 ## caught.
-## Fire: burns, runs faster (FIRE_SPEED_BOOST), and dies after
+## Fire: burns, runs much faster (PLAYER_FIRE_SPEED_BOOST, so jumps further), and dies after
 ## PotionData.PLAYER_BURN_TIME unless washed off in cleansing water.
 ## Freeze: can't move, jump or throw for PotionData.PLAYER_FREEZE_TIME.
 ## Knockback: flung away. Translucent: monsters pass through. Death: dies.
@@ -12,6 +12,9 @@ extends "res://scripts/platformer/platformer_knight.gd"
 signal died(cause: StringName)
 
 const FONT := preload("res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf")
+
+## Width of a remark above the head (see say()).
+const REMARK_WIDTH := 170.0
 
 ## Speed the knight pushes crates at, in pixels per second.
 @export var push_speed := 45.0
@@ -24,6 +27,8 @@ var _dead := false
 var _talking := false
 var _float_label: Label
 var _float_tween: Tween
+var _remark: RichTextLabel
+var _remark_tween: Tween
 var _chat_icon: Node2D
 var _ice: Node2D
 ## max_speed before any fire boost.
@@ -109,6 +114,49 @@ func float_text(text: String, color: Color) -> void:
 	_float_tween.tween_property(_float_label, "modulate:a", 0.0, 0.5).set_delay(0.5)
 
 
+## A remark (not a conversation) above the head for `seconds`: "SPEAKER:" in
+## `color`, then `text`, wrapped. The game carries on meanwhile.
+func say(speaker: String, text: String, color: Color, seconds := 5.0) -> void:
+	if not _remark:
+		_remark = RichTextLabel.new()
+		_remark.bbcode_enabled = true
+		_remark.fit_content = true
+		_remark.scroll_active = false
+		_remark.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_remark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_remark.add_theme_font_override("normal_font", FONT)
+		_remark.add_theme_font_size_override("normal_font_size", 8)
+		_remark.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.08))
+		_remark.add_theme_constant_override("outline_size", 3)
+		_remark.z_index = 10
+		add_child(_remark)
+	_remark.text = "[center][color=#%s]%s:[/color] %s[/center]" % [color.to_html(false), speaker, text]
+	_remark.size = Vector2(REMARK_WIDTH, 0)
+	_remark.modulate.a = 1.0
+	_remark.show()
+	# Sit it just above the head once its height is known.
+	await get_tree().process_frame
+	if not is_instance_valid(_remark):
+		return
+	_remark.position = Vector2(-REMARK_WIDTH / 2.0, -30.0 - _remark.get_content_height())
+	_keep_remark_on_screen()
+	if _remark_tween:
+		_remark_tween.kill()
+	_remark_tween = create_tween()
+	_remark_tween.tween_interval(seconds)
+	_remark_tween.tween_property(_remark, "modulate:a", 0.0, 0.5)
+	_remark_tween.tween_callback(_remark.hide)
+
+
+## Slides the remark sideways so it stays inside the screen near its edges.
+func _keep_remark_on_screen() -> void:
+	var to_world := get_viewport().get_canvas_transform().affine_inverse()
+	var left := (to_world * Vector2(4, 0)).x
+	var right := (to_world * Vector2(get_viewport_rect().size.x - 4, 0)).x
+	var x := clampf(global_position.x - REMARK_WIDTH / 2.0, left, right - REMARK_WIDTH)
+	_remark.position.x = x - global_position.x
+
+
 ## Holds the knight still with a speech bubble over its head (during a chat).
 func set_talking(talking: bool) -> void:
 	_talking = talking
@@ -146,7 +194,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if _base_max_speed < 0.0:
 		_base_max_speed = max_speed
-	max_speed = _base_max_speed * (PotionData.FIRE_SPEED_BOOST if is_burning() else 1.0)
+	max_speed = _base_max_speed * (PotionData.PLAYER_FIRE_SPEED_BOOST if is_burning() else 1.0)
 	if _talking:
 		velocity.x = 0.0
 		if not is_on_floor():
@@ -171,6 +219,8 @@ func _push_crates() -> void:
 
 
 func _process(delta: float) -> void:
+	if _remark and _remark.visible:
+		_keep_remark_on_screen()
 	if _dead:
 		return
 	_translucent_left = maxf(_translucent_left - delta, 0.0)
