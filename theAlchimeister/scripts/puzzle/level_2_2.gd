@@ -7,9 +7,9 @@ extends "res://scripts/puzzle/puzzle_level.gd"
 ##   yourself gets a nudge (blunt from the 7th attempt on);
 ## - from the 3rd attempt, a wink at the start.
 
-const RUN_OUT_LINE := "SHELDON: Darn, we don't have that much potions. If only we can be translucent ourselves."
-const WINK_LINE := "SHELDON: I wonder if we can use the potion on ourselves. Why not try throwing it on your feet? *Wink* *Wink*"
-const BLUNT_LINE := "SHELDON: Throw. The. Translucent. Potion. To. Your. Feet."
+const RUN_OUT_LINE := "SHELDON (squint): Darn, we don't have that much potions. If only we can be translucent ourselves."
+const WINK_LINE := "SHELDON (squint): I wonder if we can use the potion on ourselves. Why not try throwing it on your feet? *Wink* *Wink*"
+const BLUNT_LINE := "SHELDON (glasses): Throw. The. Translucent. Potion. To. Your. Feet."
 ## Attempts (restarts) before each hint kicks in.
 const WINK_AFTER_RESTARTS := 2
 const BLUNT_AFTER_RESTARTS := 6

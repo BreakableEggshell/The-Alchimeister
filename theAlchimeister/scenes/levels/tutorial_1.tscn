@@ -11,79 +11,94 @@
 
 [node name="Tutorial1" instance=ExtResource("1_base")]
 stage_id = "1-1"
-stage_size = Vector2(560, 216)
+stage_size = Vector2(814, 216)
 throwing_enabled = false
 show_potion_bar = false
 highlight_slots_after_misses = 0
-hint_lines = PackedStringArray("SHELDON: Stay off the floor, that slime will get you. Hop up the planks with W instead.", "SHELDON: Then push the crate onto the button. That opens the gate.")
+hint_lines = PackedStringArray("SHELDON (glasses): Run at the hole and jump it with {jump}. Don't touch the slime down there.", "SHELDON (glasses): Then hop up the planks and push the crate onto the button. That opens the gate.")
 
 [node name="Level" type="Node2D" parent="."]
 
 [node name="Floor" type="StaticBody2D" parent="Level"]
 position = Vector2(0, 192)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 256, 0, 256, 24, 0, 24)
+points = PackedVector2Array(0, 0, 250, 0, 250, 24, 0, 24)
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(250, 208)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 44, 0, 44, 8, 0, 8)
+
+[node name="FloorB" type="StaticBody2D" parent="Level"]
+position = Vector2(294, 192)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 216, 0, 216, 24, 0, 24)
 
 [node name="Cliff" type="StaticBody2D" parent="Level"]
-position = Vector2(256, 96)
+position = Vector2(510, 96)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 304, 0, 304, 120, 0, 120)
 
-[node name="ControlsHint" type="Node2D" parent="Level"]
-position = Vector2(56, 96)
+[node name="MoveHint" type="Node2D" parent="Level"]
+position = Vector2(70, 150)
 script = ExtResource("8_controls")
 
+[node name="JumpHint" type="Node2D" parent="Level"]
+position = Vector2(205, 150)
+script = ExtResource("8_controls")
+shows = 1
+
 [node name="Plank1" type="StaticBody2D" parent="Level"]
-position = Vector2(72, 160)
+position = Vector2(330, 160)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 48, 0, 48, 6, 0, 6)
 one_way = true
 
 [node name="Plank2" type="StaticBody2D" parent="Level"]
-position = Vector2(126, 128)
+position = Vector2(384, 128)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 48, 0, 48, 6, 0, 6)
 one_way = true
 
 [node name="Plank3" type="StaticBody2D" parent="Level"]
-position = Vector2(180, 96)
+position = Vector2(438, 96)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 48, 0, 48, 6, 0, 6)
 one_way = true
 
 [node name="Crate" type="CharacterBody2D" parent="Level"]
-position = Vector2(360, 96)
+position = Vector2(614, 96)
 collision_layer = 8
 collision_mask = 9
 script = ExtResource("5_crate")
 
 [node name="Plate" type="Area2D" parent="Level"]
-position = Vector2(420, 96)
+position = Vector2(674, 96)
 script = ExtResource("3_plate")
 width = 24.0
 
 [node name="Curb" type="StaticBody2D" parent="Level"]
-position = Vector2(440, 88)
+position = Vector2(694, 88)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 10, 0, 10, 8, 0, 8)
 
 [node name="Lintel" type="StaticBody2D" parent="Level"]
-position = Vector2(462, 0)
+position = Vector2(716, 0)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 28, 0, 28, 72, 0, 72)
 
 [node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(470, 72)
+position = Vector2(724, 72)
 script = ExtResource("4_gate")
 size = Vector2(12, 24)
 plates = [NodePath("../Plate")]
 
 [node name="Exit" type="Area2D" parent="Level"]
-position = Vector2(520, 96)
+position = Vector2(774, 96)
 script = ExtResource("6_exit")
 
 [node name="Enemies" type="Node2D" parent="."]
 
-[node name="HallwaySlime" parent="Enemies" instance=ExtResource("7_slime")]
-position = Vector2(190, 192)
-patrol_distance = 58.0
+[node name="PitSlime" parent="Enemies" instance=ExtResource("7_slime")]
+position = Vector2(272, 208)
+patrol_distance = 10.0

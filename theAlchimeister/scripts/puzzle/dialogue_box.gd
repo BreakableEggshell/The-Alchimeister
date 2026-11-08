@@ -3,7 +3,8 @@ extends Control
 ## at either side (whoever is talking lit up, the listener darkened and
 ## pushed back into their corner) and a text box at the bottom centre types
 ## out the line. Characters are DialogueSpeaker resources in `speakers`;
-## lines are "SPEAKER: text". Playing a conversation pauses the game. A tap/click,
+## lines are "SPEAKER: text", or "SPEAKER (expression): text" to show one of
+## their expressions (see DialogueSpeaker). Playing a conversation pauses the game. A tap/click,
 ## Enter, Space or E finishes the current line, then moves to the next.
 ## Top-right while playing: fast-forward (asks "SKIP DIALOGUE?", also on Esc)
 ## and log (also on L), with their keys shown underneath. Conversations can be
@@ -222,7 +223,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _is_log_key(event: InputEvent) -> bool:
-	return event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_L
+	return event.is_action_pressed("open_log")
 
 
 func _show_line(shift_time := SHIFT_TIME) -> void:
@@ -233,7 +234,7 @@ func _show_line(shift_time := SHIFT_TIME) -> void:
 	_name.add_theme_color_override("font_color", speaker.name_color if speaker else Color.WHITE)
 	_text.text = line.text
 	_fit_box()
-	_spotlight(speaker, shift_time)
+	_spotlight(speaker, shift_time, line.get("expression", ""))
 	_text.visible_ratio = 0.0
 	if _type_tween:
 		_type_tween.kill()
@@ -291,15 +292,19 @@ func _set_stage() -> void:
 	for speaker in speakers:
 		if speaker and speaker.always_on_stage and speaker.portrait and not _standing.has(speaker.side):
 			_standing[speaker.side] = speaker
+	# Each starts with the face of their first line.
+	var first_faces := {}
 	for line in _lines:
 		var speaker := _speaker(line.speaker)
 		if speaker and speaker.portrait and not _standing.has(speaker.side):
 			_standing[speaker.side] = speaker
+		if speaker and not first_faces.has(speaker):
+			first_faces[speaker] = line.get("expression", "")
 	for side in _portraits:
 		var portrait: TextureRect = _portraits[side]
 		portrait.visible = _standing.has(side)
 		if portrait.visible:
-			_dress(portrait, _standing[side])
+			_dress(portrait, _standing[side], first_faces.get(_standing[side], ""))
 			portrait.position = _portrait_position(_standing[side], false) + Vector2(0, ENTER_DROP)
 			portrait.modulate = LISTENER_TINT
 	_dim.modulate.a = 0.0
@@ -311,11 +316,15 @@ func _set_stage() -> void:
 
 ## Lights up `speaker` (stepping them in if someone else stood on their side)
 ## and darkens and pushes back everyone else.
-func _spotlight(speaker: DialogueSpeaker, time: float) -> void:
-	if speaker and speaker.portrait and _standing.get(speaker.side) != speaker:
+## The listener keeps whatever face they last had; the talker shows
+## `expression`.
+func _spotlight(speaker: DialogueSpeaker, time: float, expression := "") -> void:
+	if speaker and speaker.portrait and _standing.get(speaker.side) == speaker:
+		_dress(_portraits[speaker.side], speaker, expression)
+	elif speaker and speaker.portrait:
 		_standing[speaker.side] = speaker
 		var portrait: TextureRect = _portraits[speaker.side]
-		_dress(portrait, speaker)
+		_dress(portrait, speaker, expression)
 		portrait.position = _portrait_position(speaker, false) + Vector2(0, ENTER_DROP)
 		portrait.modulate = LISTENER_TINT
 		portrait.show()
@@ -332,8 +341,8 @@ func _spotlight(speaker: DialogueSpeaker, time: float) -> void:
 		_portrait_tweens[side] = tween
 
 
-func _dress(portrait: TextureRect, speaker: DialogueSpeaker) -> void:
-	portrait.texture = speaker.portrait
+func _dress(portrait: TextureRect, speaker: DialogueSpeaker, expression := "") -> void:
+	portrait.texture = speaker.portrait_for(expression)
 	portrait.flip_h = speaker.flip_h
 	portrait.size = speaker.portrait.get_size() * speaker.portrait_scale
 
@@ -359,12 +368,21 @@ func _fit_box() -> void:
 
 func _parse(lines: PackedStringArray, teaches := &"") -> Array[Dictionary]:
 	var parsed: Array[Dictionary] = []
-	for raw in lines:
+	for line in lines:
+		# Key names follow the player's bindings: "Press {toggle_book}".
+		var raw := Controls.fill(line)
 		var split := raw.find(":")
 		if split < 0:
-			parsed.append({"speaker": "SHELDON", "text": raw.strip_edges(), "teaches": teaches})
-		else:
-			parsed.append({"speaker": raw.substr(0, split).strip_edges().to_upper(), "text": raw.substr(split + 1).strip_edges(), "teaches": teaches})
+			parsed.append({"speaker": "SHELDON", "expression": "", "text": raw.strip_edges(), "teaches": teaches})
+			continue
+		# "SHELDON (happy)" -> speaker SHELDON, expression happy.
+		var who := raw.substr(0, split).strip_edges()
+		var expression := ""
+		var open := who.find("(")
+		if open >= 0 and who.ends_with(")"):
+			expression = who.substr(open + 1, who.length() - open - 2).strip_edges().to_lower()
+			who = who.substr(0, open).strip_edges()
+		parsed.append({"speaker": who.to_upper(), "expression": expression, "text": raw.substr(split + 1).strip_edges(), "teaches": teaches})
 	return parsed
 
 
@@ -471,7 +489,7 @@ func _build() -> void:
 
 	_skip_button = _icon_button(_draw_skip_icon, "SKIP", 4.0, "ESC")
 	_skip_button.pressed.connect(_show_confirm)
-	_log_button = _icon_button(_draw_log_icon, "LOG", 32.0, "L")
+	_log_button = _icon_button(_draw_log_icon, "LOG", 32.0, "", &"open_log")
 	_log_button.pressed.connect(show_log)
 
 	_confirm = _modal(Vector2(CONFIRM_WIDTH, 56))
@@ -543,7 +561,8 @@ func _modal(panel_size: Vector2) -> Control:
 
 ## A 24x20 button in the top-right corner, `from_right` pixels in from the
 ## edge, with its keyboard key written underneath.
-func _icon_button(draw_icon: Callable, tip: String, from_right: float, key: String) -> Button:
+## Under the icon: `key`, or the key bound to `action` if there is one.
+func _icon_button(draw_icon: Callable, tip: String, from_right: float, key: String, action := &"") -> Button:
 	var button := Button.new()
 	button.focus_mode = Control.FOCUS_NONE
 	button.tooltip_text = tip
@@ -555,7 +574,9 @@ func _icon_button(draw_icon: Callable, tip: String, from_right: float, key: Stri
 	button.offset_bottom = 24.0
 	button.draw.connect(draw_icon.bind(button))
 	button.draw.connect(func() -> void:
-		button.draw_string(button.get_theme_font("font"), Vector2(0, button.size.y + 9), key, HORIZONTAL_ALIGNMENT_CENTER, button.size.x, 8, KEY_COLOR))
+		var shown := Controls.key_name(action) if action != &"" else key
+		button.draw_string(button.get_theme_font("font"), Vector2(0, button.size.y + 9), shown, HORIZONTAL_ALIGNMENT_CENTER, button.size.x, 8, KEY_COLOR))
+	SaveGame.controls_changed.connect(button.queue_redraw)
 	add_child(button)
 	return button
 

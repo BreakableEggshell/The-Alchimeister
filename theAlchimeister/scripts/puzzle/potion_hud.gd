@@ -4,7 +4,7 @@ extends Control
 ## number underneath (and "B" under the book button),
 ## short-lived messages, the recipe book button, the dialogue box, the
 ## out-of-potions restart hint (tap it to restart), and the end-of-stage banner with its buttons
-## (the stage dims behind them; arrow keys move between them, Enter picks).
+## (the stage dims behind them; WASD moves between them, Enter picks).
 ## While dialogue plays, the potion slots and book button are hidden.
 
 signal next_pressed
@@ -47,7 +47,8 @@ func _ready() -> void:
 	_book_button.pressed.connect(book.toggle)
 	_book_button.draw.connect(func() -> void:
 		PotionData.draw_book_icon(_book_button, _book_button.size / 2.0)
-		_draw_key(_book_button, "B"))
+		_draw_key(_book_button, Controls.key_name(&"toggle_book")))
+	SaveGame.controls_changed.connect(_on_controls_changed)
 	thrower.aiming_changed.connect(func(aiming: bool) -> void:
 		_aiming = aiming
 		_update_visibility())
@@ -87,7 +88,7 @@ func _ready() -> void:
 	blink.start()
 	# A flat button, so touch players can tap it instead of pressing R.
 	_restart_hint = Button.new()
-	_restart_hint.text = "PRESS R TO RESTART THE LEVEL"
+	_restart_hint.text = _restart_text()
 	_restart_hint.flat = true
 	_restart_hint.focus_mode = Control.FOCUS_NONE
 	_restart_hint.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -232,10 +233,21 @@ func _draw_slot(slot: Button, kind: StringName) -> void:
 	var count := inventory.count(kind)
 	var color := Color.WHITE if count > 0 else Color(1, 1, 1, 0.5)
 	slot.draw_string(font, Vector2(16, 14), str(count), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, color)
-	_draw_key(slot, str(PotionData.KINDS.find(kind) + 1))
+	_draw_key(slot, Controls.key_name("potion_%d" % (PotionData.KINDS.find(kind) + 1)))
 
 
 ## The keyboard key for a button, centred just below it.
+func _restart_text() -> String:
+	return "PRESS %s TO RESTART THE LEVEL" % Controls.key_name(&"restart")
+
+
+func _on_controls_changed() -> void:
+	_book_button.queue_redraw()
+	for kind in _slots:
+		_slots[kind].queue_redraw()
+	_restart_hint.text = _restart_text()
+
+
 func _draw_key(button: Control, key: String) -> void:
 	var font := button.get_theme_font("font")
 	button.draw_string(font, Vector2(0, button.size.y + 9), key, HORIZONTAL_ALIGNMENT_CENTER, button.size.x, 8, KEY_COLOR)

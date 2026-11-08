@@ -7,7 +7,7 @@ extends Node2D
 ## Place it in a stage whose root is a puzzle level (it reads owner.thrower
 ## and owner.inventory).
 
-const FONT := preload("res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf")
+const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
 const SIZE := Vector2(112, 64)
 const PANEL_COLOR := Color(0.1, 0.09, 0.14, 0.82)
 const TEXT_COLOR := Color(0.95, 0.9, 0.8)

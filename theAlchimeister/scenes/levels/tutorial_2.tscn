@@ -9,13 +9,14 @@
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="7_slime"]
 [ext_resource type="Script" uid="uid://bfk1ff0h8ik6e" path="res://scripts/puzzle/throw_hint.gd" id="8_hint"]
 [ext_resource type="Script" path="res://scripts/puzzle/tutorial_2.gd" id="9_stage"]
+[ext_resource type="Script" path="res://scripts/puzzle/dialogue_trigger.gd" id="10_trigger"]
 
 [node name="Tutorial2" unique_id=759354436 instance=ExtResource("1_base")]
 script = ExtResource("9_stage")
 stage_id = "1-2"
 stage_size = Vector2(760, 216)
 potions_needed_until_x = 612.0
-hint_lines = PackedStringArray("SHELDON: See that slime crawling on the wall? It keeps walking over the button.", "SHELDON: Freeze it while it's on the button, and it'll hold the gate open for us.", "SHELDON: Past that, the slime on the floor button is keeping the next gate shut. Knock it off with a good, hard throw!")
+hint_lines = PackedStringArray("SHELDON: See that slime crawling on the wall? It keeps walking over the button.", "SHELDON (glasses): Freeze it while it's on the button, and it'll hold the gate open for us.", "SHELDON (glasses): Past that, the slime on the floor button is keeping the next gate shut. Knock it off with a good, hard throw!")
 
 [node name="Level" type="Node2D" parent="." index="5" unique_id=1724762320]
 
@@ -34,7 +35,7 @@ position = Vector2(168, 192)
 script = ExtResource("5_chest")
 contents = "frost_shard"
 amount = 4
-open_lines = PackedStringArray("SHELDON: This chest just has a bunch of junk. But looks like we can make something with this.", "SHELDON: Press [B] to see what you can make.")
+open_lines = PackedStringArray("SHELDON (squint): This chest just has a bunch of junk.", "SHELDON: But looks like we can make something with this.", "SHELDON (glasses): Press [{toggle_book}] to see what you can make.")
 open_lines_teach = "tutorial"
 
 [node name="WallButton" type="Area2D" parent="Level" index="3" unique_id=2050312468]
@@ -57,6 +58,11 @@ script = ExtResource("8_hint")
 [node name="Exit" type="Area2D" parent="Level" index="6" unique_id=346118849]
 position = Vector2(730, 192)
 script = ExtResource("6_exit")
+
+[node name="ThroughGate" type="Area2D" parent="Level"]
+position = Vector2(316, 130)
+script = ExtResource("10_trigger")
+size = Vector2(8, 62)
 
 [node name="FeatherChest" type="Area2D" parent="Level"]
 position = Vector2(350, 192)

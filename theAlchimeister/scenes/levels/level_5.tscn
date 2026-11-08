@@ -14,8 +14,6 @@
 stage_id = "5"
 stage_size = Vector2(860, 216)
 potions_needed_until_x = 800.0
-intro_lines = PackedStringArray("SHELDON: These wooden floors look flimsy. And suspicious.")
-hint_lines = PackedStringArray("SHELDON: A translucent potion turns a wooden platform see-through for a bit, and it drops whatever's on it.", "SHELDON: Drop the slime into its hole. Then hit the shelf under that rock, so it falls onto the button. Just don't stand under it!", "SHELDON: And that last floor up top? Stand on it and drop yourself.")
 
 [node name="Level" type="Node2D" parent="."]
 

@@ -11,8 +11,6 @@
 stage_id = "4"
 stage_size = Vector2(1000, 216)
 potions_needed_until_x = 880.0
-intro_lines = PackedStringArray("SHELDON: Is that water all the way over there? And look at those gaps...")
-hint_lines = PackedStringArray("SHELDON: Those gaps are way too wide to jump... unless you're on fire. Burning makes you run really fast.", "SHELDON: Throw an ember potion at your own feet, then sprint and jump! Get to the water before you burn up.", "SHELDON: Careful: a burning slime runs fast too, and it's still dangerous until it burns out.")
 
 [node name="Knight" parent="."]
 position = Vector2(24, 150)

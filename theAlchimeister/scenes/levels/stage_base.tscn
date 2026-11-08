@@ -4,10 +4,10 @@
 [ext_resource type="Script" uid="uid://decaxrq438krk" path="res://scripts/board.gd" id="2_board"]
 [ext_resource type="Script" path="res://scripts/puzzle/inventory.gd" id="3_inventory"]
 [ext_resource type="Script" path="res://scripts/puzzle/puzzle_knight.gd" id="4_knight"]
-[ext_resource type="Texture2D" uid="uid://fm1lbymsju6c" path="res://assets/brackeys_platformer_assets/sprites/knight.png" id="5_knight_tex"]
+[ext_resource type="Texture2D" uid="uid://fm1lbymsju6c" path="res://assets/sprites/characters/knight.png" id="5_knight_tex"]
 [ext_resource type="Script" path="res://scripts/platformer/potion_thrower.gd" id="6_thrower"]
 [ext_resource type="Script" path="res://scripts/puzzle/potion_hud.gd" id="7_hud"]
-[ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf" id="8_font"]
+[ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/fonts/PixelOperator8.ttf" id="8_font"]
 [ext_resource type="PackedScene" path="res://scenes/ui/crafting_book.tscn" id="9_book"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="10_dialogue"]
 

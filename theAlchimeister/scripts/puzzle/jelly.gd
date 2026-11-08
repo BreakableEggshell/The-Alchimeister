@@ -6,7 +6,8 @@ extends StaticBody2D
 ## (see Potion.step, which the aim preview uses too, so the dotted arc shows
 ## the bounce). `strength` scales how fast it comes back: 1 for plain green
 ## jelly, more for the springy red kind, which flings potions much further.
-## It wobbles when hit. Origin is the top-left corner.
+## The knight bounces off it too, as hard as they hit it (see
+## PuzzleKnight._slide). It wobbles when hit. Origin is the top-left corner.
 
 @export var size := Vector2(16, 48):
 	set(value):
@@ -20,6 +21,14 @@ extends StaticBody2D
 
 const PLAIN_COLOR := Color(0.45, 0.9, 0.5, 0.75)
 const SPRINGY_COLOR := Color(1.0, 0.4, 0.45, 0.8)
+## The knight: slowest hit that bounces off the top or bottom, and off a
+## side (walking into a side doesn't bounce; a burning sprint does).
+const MIN_BOUNCE_SPEED := 80.0
+const MIN_SIDE_BOUNCE_SPEED := 100.0
+## Share of the hit speed a plain jelly gives back, so bounces die down.
+const KEEP := 0.85
+## Fastest the knight is ever flung.
+const MAX_BOUNCE_SPEED := 420.0
 ## Seconds a wobble takes to settle.
 const WOBBLE_TIME := 0.5
 

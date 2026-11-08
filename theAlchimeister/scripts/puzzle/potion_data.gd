@@ -25,11 +25,11 @@ const NAMES := {
 }
 ## Short lines for the recipe book.
 const DESCRIPTIONS := {
-	FIRE: "BURNS FOES TO ASH",
+	FIRE: "BURNS THINGS TO ASH",
 	KNOCKBACK: "BLASTS THINGS AWAY",
-	FREEZE: "FREEZES FOES SOLID",
+	FREEZE: "ENCLOSES THINGS IN ICE FOR A WHILE",
 	TRANSLUCENT: "LETS THINGS PASS THROUGH",
-	DEATH: "SLAYS ANYTHING IT HITS",
+	DEATH: "KILLS ANYTHING IT TOUCHES",
 }
 const COLORS := {
 	FIRE: Color(1.0, 0.45, 0.15),
@@ -156,3 +156,23 @@ static func draw_ingredient(canvas: CanvasItem, kind: StringName, at: Vector2) -
 			canvas.draw_colored_polygon(PackedVector2Array([at + Vector2(-3, -1), at + Vector2(3, -1), at + Vector2(1, 5), at + Vector2(0, 2), at + Vector2(-1, 5)]), color)
 			canvas.draw_rect(Rect2(at + Vector2(-2, -2), Vector2(1, 1)), Color(0.2, 0.15, 0.3))
 			canvas.draw_rect(Rect2(at + Vector2(1, -2), Vector2(1, 1)), Color(0.2, 0.15, 0.3))
+
+
+## A rough "how long it lasts" for the notebook, e.g. "5-8 SEC", so it reads
+## as an estimate rather than a promise. Empty for instant potions. Fire shows
+## how long a burning player has to reach water (monsters burn up sooner).
+static func duration_estimate(kind: StringName) -> String:
+	var seconds := 0.0
+	match kind:
+		FIRE:
+			seconds = PLAYER_BURN_TIME
+		FREEZE:
+			seconds = FREEZE_TIME
+		TRANSLUCENT:
+			seconds = TRANSLUCENT_TIME
+	if seconds <= 0.0:
+		return ""
+	for bucket in [[2.5, "1-3"], [4.5, "3-5"], [7.5, "5-8"], [12.0, "8-12"]]:
+		if seconds <= bucket[0]:
+			return "%s SEC" % bucket[1]
+	return "12+ SEC"

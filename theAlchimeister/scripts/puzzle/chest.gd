@@ -9,7 +9,7 @@ extends Area2D
 ## Emitted once it has been opened and its conversation (if any) is over.
 signal opened
 
-const FONT := preload("res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf")
+const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
 const OUTLINE := Color.WHITE
 
 @export_enum("ember", "gust_feather", "frost_shard", "ghost_wisp") var contents := "ember"
@@ -50,6 +50,7 @@ func _ready() -> void:
 	body_exited.connect(_on_body_moved.bind(false))
 	_prompt = _make_prompt()
 	add_child(_prompt)
+	SaveGame.controls_changed.connect(_label_prompt)
 	_place_prompt.call_deferred()
 
 
@@ -93,7 +94,7 @@ func _on_body_moved(body: Node, entered: bool) -> void:
 ## be tapped on touch screens.
 func _make_prompt() -> Button:
 	var prompt := Button.new()
-	prompt.text = "[E]Open"
+	prompt.text = _prompt_text()
 	prompt.focus_mode = Control.FOCUS_NONE
 	prompt.z_index = 5
 	prompt.add_theme_font_override("font", FONT)
@@ -119,6 +120,15 @@ func _make_prompt() -> Button:
 
 ## Shrinks the prompt to its text and centres it just above the lid. Runs once
 ## it's in the tree, when its small font is actually in effect.
+func _prompt_text() -> String:
+	return "[%s]Open" % Controls.key_name(&"interact")
+
+
+func _label_prompt() -> void:
+	_prompt.text = _prompt_text()
+	_place_prompt()
+
+
 func _place_prompt() -> void:
 	_prompt.size = Vector2.ZERO
 	_prompt.position = Vector2(-roundf(_prompt.size.x / 2.0), -14.0 - _prompt.size.y)
