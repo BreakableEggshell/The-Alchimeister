@@ -83,6 +83,7 @@ func take_selected() -> bool:
 func add_ingredient(kind: StringName, amount := 1) -> void:
 	for i in amount:
 		_store(kind)
+	Sfx.play(Sfx.PICKUP, self)
 	message.emit("+%d %s" % [amount, PotionData.INGREDIENT_NAMES[kind]], PotionData.INGREDIENT_COLORS[kind])
 	changed.emit()
 

@@ -57,12 +57,18 @@ func _physics_process(delta: float) -> void:
 		_jump_buffer_timer -= delta
 
 	if _jump_buffer_timer > 0.0 and _coyote_timer > 0.0:
-		velocity.y = -sqrt(2.0 * gravity * jump_height)
+		# A jump never cuts short a bigger upward push (a jelly bounce).
+		velocity.y = minf(velocity.y, -sqrt(2.0 * gravity * jump_height))
 		_jump_buffer_timer = 0.0
 		_coyote_timer = 0.0
 
-	move_and_slide()
+	_slide()
 	_animate(delta, direction)
+
+
+## move_and_slide(), as a hook: subclasses react to what was hit.
+func _slide() -> void:
+	move_and_slide()
 
 
 ## Turns the knight left (negative) or right (positive); zero keeps its facing.

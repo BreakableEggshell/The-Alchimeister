@@ -14,7 +14,6 @@
 stage_id = "6"
 stage_size = Vector2(1000, 216)
 potions_needed_until_x = 770.0
-hint_lines = PackedStringArray("SHELDON: You can't reach that slime under the roof directly. Bounce a freeze potion off the green jelly instead.", "SHELDON: Throw it over the roof so it hits the jelly's side, and it'll come right back in at the slime. The aim line shows the bounce.", "SHELDON: The red jelly throws potions back much harder. Bounce a knockback potion off it to reach that slime way up high.")
 
 [node name="Level" type="Node2D" parent="."]
 

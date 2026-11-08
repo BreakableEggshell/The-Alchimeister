@@ -8,7 +8,6 @@
 [ext_resource type="Script" path="res://scripts/puzzle/rock.gd" id="6_rock"]
 [ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="7_exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="8_slime"]
-[ext_resource type="Texture2D" uid="uid://ddpp2uphq2wt3" path="res://assets/brackeys_platformer_assets/sprites/slime_purple.png" id="9_purple"]
 [ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="10_chest"]
 [ext_resource type="Script" path="res://scripts/puzzle/cleansing_water.gd" id="11_water"]
 
@@ -17,7 +16,7 @@ script = ExtResource("2_stage")
 stage_id = "2-2"
 stage_size = Vector2(1080, 216)
 potions_needed_until_x = 960.0
-hint_lines = PackedStringArray("SHELDON: Knock that purple slime out of the way. It's carrying ghost wisps.", "SHELDON: Brew them, then throw a translucent potion at your own feet to sneak past the guards.", "SHELDON: The water washes it off, so save the second one for the last two guards.")
+hint_lines = PackedStringArray("SHELDON (glasses): Knock that shining slime out of the way. It's carrying ghost wisps.", "SHELDON (glasses): Brew them, then throw a translucent potion at your own feet to sneak past the guards.", "SHELDON (squint): The water washes it off, so save the second one for the last two guards.")
 
 [node name="Level" type="Node2D" parent="."]
 
@@ -80,9 +79,6 @@ position = Vector2(360, 192)
 speed = 0.0
 drop = &"ghost_wisp"
 drop_count = 2
-
-[node name="Sprite" parent="Enemies/Blocker"]
-texture = ExtResource("9_purple")
 
 [node name="Guard1" parent="Enemies" instance=ExtResource("8_slime")]
 position = Vector2(600, 192)

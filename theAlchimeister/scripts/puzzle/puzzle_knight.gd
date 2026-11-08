@@ -11,7 +11,7 @@ extends "res://scripts/platformer/platformer_knight.gd"
 ## `cause` is one of GameOver's causes; it picks the game over message.
 signal died(cause: StringName)
 
-const FONT := preload("res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf")
+const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
 
 ## Width of a remark above the head (see say()).
 const REMARK_WIDTH := 170.0
@@ -190,7 +190,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = 0.0
 		if not is_on_floor():
 			velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
-		move_and_slide()
+		_slide()
 		return
 	if _base_max_speed < 0.0:
 		_base_max_speed = max_speed
@@ -199,11 +199,37 @@ func _physics_process(delta: float) -> void:
 		velocity.x = 0.0
 		if not is_on_floor():
 			velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
-		move_and_slide()
+		_slide()
 		_animate(delta, 0.0)
 		return
 	super(delta)
 	_push_crates()
+
+
+## Moves, then bounces off any jelly that was hit hard enough: the push back
+## is the speed going into it (so falling from higher bounces higher) times
+## the jelly's strength, minus a little so bounces die down on green jelly.
+func _slide() -> void:
+	var incoming := velocity
+	move_and_slide()
+	var bounced := false
+	for i in get_slide_collision_count():
+		var collision := get_slide_collision(i)
+		var jelly := collision.get_collider() as Jelly
+		if not jelly or bounced:
+			continue
+		var normal := collision.get_normal()
+		var into := -incoming.dot(normal)
+		# Walking into a jelly wall just stops you; only a fast hit (a fall,
+		# a knockback, a burning sprint) bounces.
+		var needed := Jelly.MIN_BOUNCE_SPEED if absf(normal.y) > 0.5 else Jelly.MIN_SIDE_BOUNCE_SPEED
+		if into < needed:
+			continue
+		var out := minf(into * Jelly.KEEP * jelly.strength, Jelly.MAX_BOUNCE_SPEED)
+		# Swap the part of the velocity going into the jelly for the bounce.
+		velocity = incoming + normal * (into + out)
+		jelly.wobble()
+		bounced = true
 
 
 ## Pushes anything with a push() method that the knight walked into sideways.

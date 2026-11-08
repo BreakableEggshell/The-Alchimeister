@@ -4,6 +4,9 @@ extends Node
 ## brewing them, and settings (including auto hints). Everything
 ## is saved to user://save.cfg as soon as it changes.
 
+## A key binding changed (update anything showing a key's name).
+signal controls_changed
+
 const START_MENU := "res://scenes/menu/start_menu.tscn"
 const LEVEL_SELECT := "res://scenes/menu/level_select.tscn"
 ## Seven levels. Levels 1 and 2 have stages; levels 3-7 are a single stage
@@ -45,6 +48,9 @@ var fullscreen := false
 ## Sheldon gives the stage's hint by himself after every
 ## AUTO_HINT_EVERY restarts.
 var auto_hints := false
+## Action name -> physical keycodes, for the actions in Controls.REMAPPABLE
+## (see Controls). Empty until the player remaps something.
+var key_bindings := {}
 
 
 func _ready() -> void:
@@ -70,7 +76,9 @@ func load_save() -> void:
 		sound_volume = file.get_value("settings", "sound_volume", sound_volume)
 		fullscreen = file.get_value("settings", "fullscreen", fullscreen)
 		auto_hints = file.get_value("settings", "auto_hints", auto_hints)
+		key_bindings = file.get_value("controls", "bindings", key_bindings)
 	apply_settings()
+	Controls.apply(key_bindings)
 
 
 func save() -> void:
@@ -82,6 +90,7 @@ func save() -> void:
 	file.set_value("settings", "sound_volume", sound_volume)
 	file.set_value("settings", "fullscreen", fullscreen)
 	file.set_value("settings", "auto_hints", auto_hints)
+	file.set_value("controls", "bindings", key_bindings)
 	file.save(save_path)
 
 
@@ -90,6 +99,8 @@ func reset_all() -> void:
 	_set_defaults()
 	save()
 	apply_settings()
+	Controls.apply(key_bindings)
+	controls_changed.emit()
 
 
 # --- Progress
@@ -202,6 +213,21 @@ func set_auto_hints(value: bool) -> void:
 	save()
 
 
+## Binds `action` to `key` and saves (see Controls.rebind).
+func rebind(action: StringName, key: int) -> void:
+	Controls.rebind(action, key)
+	key_bindings = Controls.current()
+	save()
+	controls_changed.emit()
+
+
+func reset_controls() -> void:
+	key_bindings = {}
+	Controls.apply(key_bindings)
+	save()
+	controls_changed.emit()
+
+
 func apply_settings() -> void:
 	_set_bus_volume("Music", music_volume)
 	_set_bus_volume("SFX", sound_volume)
@@ -225,3 +251,4 @@ func _set_defaults() -> void:
 	sound_volume = 0.8
 	fullscreen = false
 	auto_hints = false
+	key_bindings = {}

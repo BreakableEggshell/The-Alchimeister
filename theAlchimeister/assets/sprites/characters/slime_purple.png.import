@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cxr82fq2jv83u"
-path="res://.godot/imported/sheldon_talk.png-e46b6c732392c39e026f191723332155.ctex"
+uid="uid://ddpp2uphq2wt3"
+path="res://.godot/imported/slime_purple.png-54bd52be103b6091a653f139472699ab.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sheldon_talk.png"
-dest_files=["res://.godot/imported/sheldon_talk.png-e46b6c732392c39e026f191723332155.ctex"]
+source_file="res://assets/sprites/characters/slime_purple.png"
+dest_files=["res://.godot/imported/slime_purple.png-54bd52be103b6091a653f139472699ab.ctex"]
 
 [params]
 

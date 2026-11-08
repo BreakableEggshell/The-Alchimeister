@@ -1,6 +1,6 @@
 [gd_resource type="Theme" format=3 uid="uid://bxf1h7w00v5rm"]
 
-[ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/brackeys_platformer_assets/fonts/PixelOperator8.ttf" id="1_font"]
+[ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/fonts/PixelOperator8.ttf" id="1_font"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_disabled"]
 content_margin_left = 8.0

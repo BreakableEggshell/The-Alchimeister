@@ -118,6 +118,8 @@ func _shatter(normal: Vector2) -> void:
 func _apply_splash() -> void:
 	if kind == &"":
 		return
+	if kind == PotionData.KNOCKBACK:
+		Sfx.play(Sfx.KNOCKBACK, self, global_position)
 	var circle := CircleShape2D.new()
 	circle.radius = PotionData.SPLASH_RADIUS
 	var query := PhysicsShapeQueryParameters2D.new()

@@ -2,7 +2,7 @@ class_name IngredientSlot
 extends Control
 ## One box in the crafting book: an ingredient stack in storage, one ingredient
 ## on the crafting table, or the brewed result. It only reports taps and drops;
-## the book decides what they do. Keyboard: it takes focus (arrow keys move
+## the book decides what they do. Keyboard: it takes focus (WASD moves
 ## between slots) and Enter/Space taps it.
 
 signal tapped(slot: IngredientSlot)

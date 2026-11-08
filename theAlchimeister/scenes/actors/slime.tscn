@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/puzzle/slime.gd" id="1_slime"]
-[ext_resource type="Texture2D" uid="uid://dhhffus51f0j7" path="res://assets/brackeys_platformer_assets/sprites/slime_green.png" id="2_tex"]
+[ext_resource type="Texture2D" uid="uid://dhhffus51f0j7" path="res://assets/sprites/characters/slime_green.png" id="2_tex"]
 
 [sub_resource type="RectangleShape2D" id="Shape_body"]
 size = Vector2(12, 10)

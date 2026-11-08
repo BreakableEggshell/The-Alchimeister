@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dhhffus51f0j7"
-path="res://.godot/imported/slime_green.png-7537a22022111bb8764aa544858b4d35.ctex"
+uid="uid://ca5l5h5hfcgn0"
+path="res://.godot/imported/sheldon_default.png-775c1204c0ce0900c2a23e309a2f956a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/brackeys_platformer_assets/sprites/slime_green.png"
-dest_files=["res://.godot/imported/slime_green.png-7537a22022111bb8764aa544858b4d35.ctex"]
+source_file="res://assets/portraits/sheldon/sheldon_default.png"
+dest_files=["res://.godot/imported/sheldon_default.png-775c1204c0ce0900c2a23e309a2f956a.ctex"]
 
 [params]
 
