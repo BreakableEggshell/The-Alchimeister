@@ -33,12 +33,12 @@ extra_amount = 2
 [node name="PocketWall" type="StaticBody2D" parent="Level"]
 position = Vector2(220, 120)
 script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 12, 0, 12, 48, 0, 48)
+points = PackedVector2Array(0, 0, 12, 0, 12, 36, 0, 36)
 
 [node name="Gate1" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(220, 168)
+position = Vector2(220, 156)
 script = ExtResource("gate")
-size = Vector2(12, 24)
+size = Vector2(12, 36)
 plates = [NodePath("../PocketButton")]
 
 [node name="PocketRoof" type="StaticBody2D" parent="Level"]
@@ -54,7 +54,7 @@ cap_height = 12.0
 press_time = 1.0
 
 [node name="GreenJelly" type="StaticBody2D" parent="Level"]
-position = Vector2(324, 96)
+position = Vector2(324, 84)
 script = ExtResource("jelly")
 size = Vector2(16, 72)
 

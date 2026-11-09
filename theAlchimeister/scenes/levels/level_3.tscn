@@ -57,12 +57,12 @@ points = PackedVector2Array(0, 0, 180, 0, 180, 88, 0, 88)
 [node name="GateWall" type="StaticBody2D" parent="Level"]
 position = Vector2(380, 0)
 script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 48, 0, 48, 104, 0, 104)
+points = PackedVector2Array(0, 0, 48, 0, 48, 92, 0, 92)
 
 [node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(380, 104)
+position = Vector2(380, 92)
 script = ExtResource("gate")
-size = Vector2(12, 24)
+size = Vector2(12, 36)
 plates = [NodePath("../CrowdButton")]
 
 [node name="Exit" type="Area2D" parent="Level"]

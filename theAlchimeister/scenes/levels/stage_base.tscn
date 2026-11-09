@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://decaxrq438krk" path="res://scripts/board.gd" id="2_board"]
 [ext_resource type="Script" path="res://scripts/puzzle/inventory.gd" id="3_inventory"]
 [ext_resource type="Script" path="res://scripts/puzzle/puzzle_knight.gd" id="4_knight"]
-[ext_resource type="Texture2D" uid="uid://fm1lbymsju6c" path="res://assets/sprites/characters/knight.png" id="5_knight_tex"]
+[ext_resource type="Texture2D" uid="uid://boc1lwrisusa6" path="res://assets/sprites/characters/knight_idle_sheet.png" id="5_knight_tex"]
 [ext_resource type="Script" path="res://scripts/platformer/potion_thrower.gd" id="6_thrower"]
 [ext_resource type="Script" path="res://scripts/puzzle/potion_hud.gd" id="7_hud"]
 [ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/fonts/PixelOperator8.ttf" id="8_font"]
@@ -12,7 +12,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="10_dialogue"]
 
 [sub_resource type="RectangleShape2D" id="Shape_knight"]
-size = Vector2(10, 16)
+size = Vector2(12, 28)
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_cancel"]
 bg_color = Color(0.8, 0.2, 0.25, 0.35)
@@ -90,13 +90,13 @@ floor_constant_speed = true
 script = ExtResource("4_knight")
 
 [node name="Sprite" type="Sprite2D" parent="Knight"]
+scale = Vector2(0.8, 0.8)
 texture = ExtResource("5_knight_tex")
-offset = Vector2(0, -12)
-hframes = 8
-vframes = 8
+offset = Vector2(0, -20)
+hframes = 3
 
 [node name="Body" type="CollisionShape2D" parent="Knight"]
-position = Vector2(0, -8)
+position = Vector2(0, -14)
 shape = SubResource("Shape_knight")
 
 [node name="Camera" type="Camera2D" parent="Knight"]

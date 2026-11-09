@@ -86,7 +86,6 @@ func die(cause: StringName = GameOver.CAUGHT) -> void:
 		_flames.emitting = false
 	set_physics_process(false)
 	_sprite.modulate = Color(1.0, 0.35, 0.35)
-	_sprite.frame = 58  # Death row of the sheet.
 	died.emit(cause)
 
 
@@ -104,7 +103,7 @@ func float_text(text: String, color: Color) -> void:
 		add_child(_float_label)
 	_float_label.text = text
 	_float_label.add_theme_color_override("font_color", color)
-	_float_label.position = Vector2(-60, -34)
+	_float_label.position = Vector2(-60, -46)
 	_float_label.modulate.a = 1.0
 	_float_label.show()
 	if _float_tween:
@@ -138,7 +137,7 @@ func say(speaker: String, text: String, color: Color, seconds := 5.0) -> void:
 	await get_tree().process_frame
 	if not is_instance_valid(_remark):
 		return
-	_remark.position = Vector2(-REMARK_WIDTH / 2.0, -30.0 - _remark.get_content_height())
+	_remark.position = Vector2(-REMARK_WIDTH / 2.0, -40.0 - _remark.get_content_height())
 	_keep_remark_on_screen()
 	if _remark_tween:
 		_remark_tween.kill()
@@ -162,7 +161,7 @@ func set_talking(talking: bool) -> void:
 	_talking = talking
 	if not _chat_icon:
 		_chat_icon = Node2D.new()
-		_chat_icon.position = Vector2(0, -26)
+		_chat_icon.position = Vector2(0, -38)
 		_chat_icon.z_index = 10
 		_chat_icon.draw.connect(_draw_chat_icon)
 		add_child(_chat_icon)
@@ -282,9 +281,9 @@ func _make_flames() -> CPUParticles2D:
 	flames.emitting = false
 	flames.amount = 12
 	flames.lifetime = 0.45
-	flames.position = Vector2(0, -9)
+	flames.position = Vector2(0, -14)
 	flames.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	flames.emission_rect_extents = Vector2(5, 7)
+	flames.emission_rect_extents = Vector2(6, 13)
 	flames.direction = Vector2.UP
 	flames.spread = 20.0
 	flames.gravity = Vector2(0, -60)

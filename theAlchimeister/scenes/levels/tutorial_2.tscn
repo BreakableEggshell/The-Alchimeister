@@ -28,7 +28,7 @@ points = PackedVector2Array(0, 0, 760, 0, 760, 24, 0, 24)
 [node name="Overhang" type="StaticBody2D" parent="Level" index="1" unique_id=1421679315]
 position = Vector2(264, 0)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 48, 0, 48, 168, 0, 168)
+points = PackedVector2Array(0, 0, 48, 0, 48, 156, 0, 156)
 
 [node name="Chest" type="Area2D" parent="Level" index="2" unique_id=1863033841]
 position = Vector2(168, 192)
@@ -46,9 +46,9 @@ script = ExtResource("3_plate")
 width = 16.0
 
 [node name="Gate" type="StaticBody2D" parent="Level" index="4" unique_id=205015946 node_paths=PackedStringArray("plates")]
-position = Vector2(264, 168)
+position = Vector2(264, 156)
 script = ExtResource("4_gate")
-size = Vector2(12, 24)
+size = Vector2(12, 36)
 plates = [NodePath("../WallButton")]
 
 [node name="ThrowHint" type="Node2D" parent="Level" index="5" unique_id=524140518]
@@ -77,12 +77,12 @@ script = ExtResource("3_plate")
 [node name="DoorWall" type="StaticBody2D" parent="Level"]
 position = Vector2(600, 0)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 48, 0, 48, 168, 0, 168)
+points = PackedVector2Array(0, 0, 48, 0, 48, 156, 0, 156)
 
 [node name="SlimeGate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(600, 168)
+position = Vector2(600, 156)
 script = ExtResource("4_gate")
-size = Vector2(12, 24)
+size = Vector2(12, 36)
 plates = [NodePath("../SlimeButton")]
 open_when_pressed = false
 

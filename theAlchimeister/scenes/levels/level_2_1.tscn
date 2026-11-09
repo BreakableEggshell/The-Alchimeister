@@ -48,7 +48,7 @@ travel_time = 2.0
 [node name="Hallway" type="StaticBody2D" parent="Level"]
 position = Vector2(284, 0)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 136, 0, 136, 168, 0, 168)
+points = PackedVector2Array(0, 0, 136, 0, 136, 156, 0, 156)
 
 [node name="Exit" type="Area2D" parent="Level"]
 position = Vector2(470, 192)

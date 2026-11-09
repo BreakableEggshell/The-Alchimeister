@@ -31,7 +31,7 @@ amount = 4
 [node name="TunnelRoof" type="StaticBody2D" parent="Level"]
 position = Vector2(150, 0)
 script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 140, 0, 140, 168, 0, 168)
+points = PackedVector2Array(0, 0, 140, 0, 140, 156, 0, 156)
 
 [node name="Trapdoor" type="StaticBody2D" parent="Level"]
 position = Vector2(212, 192)
@@ -68,12 +68,12 @@ press_time = 0.15
 [node name="GateWall" type="StaticBody2D" parent="Level"]
 position = Vector2(520, 0)
 script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 48, 0, 48, 168, 0, 168)
+points = PackedVector2Array(0, 0, 48, 0, 48, 156, 0, 156)
 
 [node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(520, 168)
+position = Vector2(520, 156)
 script = ExtResource("gate")
-size = Vector2(12, 24)
+size = Vector2(12, 36)
 plates = [NodePath("../RockButton")]
 
 [node name="Plank1" type="StaticBody2D" parent="Level"]
