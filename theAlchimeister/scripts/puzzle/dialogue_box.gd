@@ -76,6 +76,8 @@ var _name: Label
 var _text: Label
 var _skip_button: Button
 var _log_button: Button
+## The level being played, top left while talking.
+var _level_label: Label
 var _confirm: Control
 var _confirm_warning: Label
 var _confirm_buttons: Array[Button] = []
@@ -88,9 +90,14 @@ var _focus_before: Control
 
 func _ready() -> void:
 	add_to_group("dialogue")
+	add_to_group(UiFocus.SCREENS)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build()
 	_set_playing_visible(false)
+
+
+func set_level_label(text: String) -> void:
+	_level_label.text = text
 
 
 ## Plays "SPEAKER: text" lines. If a conversation is already playing, they're
@@ -222,6 +229,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## See UiFocus.
+func focus_first() -> bool:
+	if _confirm.visible:
+		_confirm_buttons[1 if _confirm_warning.visible else 0].grab_focus()
+	elif _log.visible:
+		_log_text.grab_focus()
+	else:
+		return false
+	return true
+
+
 func _is_log_key(event: InputEvent) -> bool:
 	return event.is_action_pressed("open_log")
 
@@ -265,6 +283,7 @@ func _set_playing_visible(playing: bool) -> void:
 			_portraits[side].hide()
 	_skip_button.visible = playing
 	_log_button.visible = playing
+	_level_label.visible = playing
 	if not playing:
 		_confirm.hide()
 
@@ -487,6 +506,14 @@ func _build() -> void:
 	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_child(_text)
 
+	_level_label = Label.new()
+	_level_label.add_theme_color_override("font_color", Color.WHITE)
+	_level_label.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.08))
+	_level_label.add_theme_constant_override("outline_size", 3)
+	_level_label.position = Vector2(6, 6)
+	_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_level_label)
+
 	_skip_button = _icon_button(_draw_skip_icon, "SKIP", 4.0, "ESC")
 	_skip_button.pressed.connect(_show_confirm)
 	_log_button = _icon_button(_draw_log_icon, "LOG", 32.0, "", &"open_log")
@@ -513,6 +540,7 @@ func _build() -> void:
 	no.pressed.connect(_confirm.hide)
 	_confirm.get_child(1).add_child(no)
 	_confirm_buttons.assign([yes, no])
+	UiFocus.link_row.call_deferred([yes, no])
 
 	_log = _modal(Vector2(320, 176))
 	var log_panel: Control = _log.get_child(1)

@@ -25,8 +25,27 @@ var _freeze_left := 0.0
 var _flames: CPUParticles2D
 var _dead := false
 var _talking := false
+const FLOAT_TEXT_TIME := 0.5
+## Death messages last through the iris closing.
+const DEATH_TEXT_TIME := 1.5
+## Screen pixels kept clear between float text and the screen's edge.
+const FLOAT_MARGIN := 4.0
+const SKULL_GAP := 3.0
+const SKULL_ROWS: Array[String] = [
+	".#######.",
+	"#########",
+	"##..#..##",
+	"##..#..##",
+	"#########",
+	".###.###.",
+	"..#####..",
+	"..#.#.#..",
+]
+
 var _float_label: Label
 var _float_tween: Tween
+## Beside the float text when it's a death message.
+var _skull: Control
 var _remark: RichTextLabel
 var _remark_tween: Tween
 var _chat_icon: Node2D
@@ -86,11 +105,22 @@ func die(cause: StringName = GameOver.CAUGHT) -> void:
 		_flames.emitting = false
 	set_physics_process(false)
 	_sprite.modulate = Color(1.0, 0.35, 0.35)
+	if GameOver.TEXT.has(cause):
+		_show_float(GameOver.TEXT[cause], GameOver.TEXT_COLOR, DEATH_TEXT_TIME, SKULL_ROWS[0].length() + SKULL_GAP)
+		_show_skull()
 	died.emit(cause)
 
 
 ## Shows `text` just above the head; it drifts up and fades out.
 func float_text(text: String, color: Color) -> void:
+	# Nothing replaces a death message.
+	if not _dead:
+		_show_float(text, color, FLOAT_TEXT_TIME)
+
+
+## `hold` is how long it stays before fading; `room_left` is space to keep clear
+## to the left of the text (for the skull).
+func _show_float(text: String, color: Color, hold: float, room_left := 0.0) -> void:
 	if not _float_label:
 		_float_label = Label.new()
 		_float_label.add_theme_font_override("font", FONT)
@@ -103,14 +133,44 @@ func float_text(text: String, color: Color) -> void:
 		add_child(_float_label)
 	_float_label.text = text
 	_float_label.add_theme_color_override("font_color", color)
-	_float_label.position = Vector2(-60, -46)
+	_float_label.position = Vector2(-60.0 + _float_shift(text, room_left), -46)
 	_float_label.modulate.a = 1.0
 	_float_label.show()
 	if _float_tween:
 		_float_tween.kill()
 	_float_tween = create_tween().set_parallel()
 	_float_tween.tween_property(_float_label, "position:y", -44.0, 1.0).set_ease(Tween.EASE_OUT)
-	_float_tween.tween_property(_float_label, "modulate:a", 0.0, 0.5).set_delay(0.5)
+	_float_tween.tween_property(_float_label, "modulate:a", 0.0, 0.5).set_delay(hold)
+
+
+## How far to slide the float text so it stays on screen near the edges.
+func _float_shift(text: String, room_left: float) -> float:
+	var half := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x / 2.0
+	var to_world := get_canvas_transform().affine_inverse()
+	var left: float = (to_world * Vector2(FLOAT_MARGIN, 0)).x
+	var right: float = (to_world * Vector2(get_viewport_rect().size.x - FLOAT_MARGIN, 0)).x
+	var x := global_position.x
+	return minf(right - (x + half), maxf(left - (x - half - room_left), 0.0))
+
+
+## A little skull to the left of the float text (a child, so it fades with it).
+func _show_skull() -> void:
+	if not _skull:
+		_skull = Control.new()
+		_skull.draw.connect(_draw_skull)
+		_float_label.add_child(_skull)
+	var text_width := FONT.get_string_size(_float_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	_skull.position = Vector2(roundf((_float_label.size.x - text_width) / 2.0) - SKULL_ROWS[0].length() - SKULL_GAP, 0.0)
+
+
+func _draw_skull() -> void:
+	# The outline first, then the bone on top of it.
+	for margin in [1.0, 0.0]:
+		for y in SKULL_ROWS.size():
+			for x in SKULL_ROWS[y].length():
+				if SKULL_ROWS[y][x] == "#":
+					var color := Color(0.05, 0.05, 0.08) if margin > 0.0 else Color(0.95, 0.92, 0.82)
+					_skull.draw_rect(Rect2(x, y, 1, 1).grow(margin), color)
 
 
 ## A remark (not a conversation) above the head for `seconds`: "SPEAKER:" in

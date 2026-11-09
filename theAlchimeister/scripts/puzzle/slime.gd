@@ -1,7 +1,8 @@
 extends CharacterBody2D
-## Patrolling slime. On the floor it walks back and forth, turning at walls,
-## ledges and the edge of its patrol range; with `on_wall` it crawls up and
-## down a wall instead. Touching it kills the player unless the slime is
+## A slime. It either stays in place or patrols: left and right on the floor,
+## or up and down a wall with `on_wall`, turning back whenever it hits something
+## or reaches a ledge (it stands still if it's blocked both ways). To keep one
+## in an area, put walls or ledges around it. Touching it kills the player unless the slime is
 ## frozen, stunned or dead, or either of them is translucent.
 ## Fire: burns, patrols faster (FIRE_SPEED_BOOST), dies after a while and
 ## drops its items. Slimes still carrying drops sparkle.
@@ -17,6 +18,12 @@ extends CharacterBody2D
 ## the ice and the dizzy stars stay put until the effect ends.
 
 const FRAME_COUNT := 4
+## How far ahead of its middle it checks for walls and ledges (half its width,
+## plus a little), and the height of its middle.
+const LOOK_AHEAD := 8.0
+const BODY_CENTER := 5.0
+## The least room it needs behind it to bother turning back.
+const ROOM_TO_TURN := 12.0
 const STUNNED_ALPHA := 0.6
 const SPARKLE_COUNT := 4
 ## Twinkles per second per sparkle.
@@ -31,11 +38,11 @@ const HURRY_TIME := 1.5
 const BLINK_SLOW := 1.5
 const BLINK_FAST := 3.5
 
-## Walking speed. 0 makes an unmoving monster.
+enum Movement { STAY, PATROL }
+
+@export var movement := Movement.PATROL
+## Patrol speed.
 @export var speed := 30.0
-## How far either side of its start it may wander (up and down on a wall).
-## 0 means no limit.
-@export var patrol_distance := 0.0
 @export_enum("Back:-1", "Forward:1") var start_direction := 1
 ## Ingredient it drops. Empty for none.
 @export var drop: StringName = &""
@@ -52,7 +59,6 @@ const BLINK_FAST := 3.5
 @export var anim_fps := 6.0
 
 var _direction := 1
-var _start := Vector2.ZERO
 var _burn_left := 0.0
 var _freeze_left := 0.0
 var _translucent_left := 0.0
@@ -74,7 +80,6 @@ var _sparkles: Node2D
 func _ready() -> void:
 	add_to_group("enemies")
 	_direction = start_direction
-	_start = global_position
 	if on_wall:
 		# Rotate so the slime's feet face the wall.
 		rotation = -PI / 2.0 * wall_side
@@ -154,23 +159,16 @@ func _physics_process(delta: float) -> void:
 	_translucent_left = maxf(_translucent_left - delta, 0.0)
 	_stun_left = maxf(_stun_left - delta, 0.0)
 
-	var held := is_frozen() or is_stunned()
+	var walking := movement == Movement.PATROL and not is_frozen() and not is_stunned() and _pick_direction()
 	if on_wall:
-		if held:
-			velocity = Vector2.ZERO
-		else:
-			if patrol_distance > 0.0 and (global_position.y - _start.y) * _direction >= patrol_distance:
-				_direction = -_direction
-			velocity = Vector2(0, _direction * _speed_now())
+		velocity = Vector2(0, _direction * _speed_now()) if walking else Vector2.ZERO
 	else:
 		if not is_on_floor():
 			velocity.y += gravity * delta
-		if held:
-			velocity.x = move_toward(velocity.x, 0.0, friction * delta)
-		else:
-			if _should_turn():
-				_direction = -_direction
+		if walking:
 			velocity.x = _direction * _speed_now()
+		else:
+			velocity.x = move_toward(velocity.x, 0.0, friction * delta)
 	move_and_slide()
 	_hurt_overlapping_player()
 	_animate(delta)
@@ -180,17 +178,35 @@ func _speed_now() -> float:
 	return speed * (PotionData.FIRE_SPEED_BOOST if is_burning() else 1.0)
 
 
-func _should_turn() -> bool:
-	if is_on_wall() and get_wall_normal().x * _direction < 0.0:
+## Turns back if the way ahead is blocked. False (stand still) if there's no
+## room to walk back either, so it doesn't shuffle on the spot in a tight gap.
+func _pick_direction() -> bool:
+	if not _blocked(_direction, LOOK_AHEAD):
 		return true
-	if patrol_distance > 0.0 and (global_position.x - _start.x) * _direction >= patrol_distance:
+	if _blocked(-_direction, LOOK_AHEAD + ROOM_TO_TURN):
+		return false
+	_direction = -_direction
+	return true
+
+
+## Whether something solid is in the way in `direction` (1 or -1), or the floor
+## or wall it's walking on ends there.
+func _blocked(direction: int, reach: float) -> bool:
+	var along := Vector2(0, direction) if on_wall else Vector2(direction, 0)
+	# Towards whatever it walks on.
+	var down := Vector2(wall_side, 0) if on_wall else Vector2.DOWN
+	var center := global_position - down * BODY_CENTER
+	if _hits(center, center + along * reach):
 		return true
-	if is_on_floor():
-		var ahead := global_position + Vector2(_direction * 8.0, -2.0)
-		var query := PhysicsRayQueryParameters2D.create(ahead, ahead + Vector2(0, 8), PotionData.LAYER_WORLD | PotionData.LAYER_PROPS, [get_rid()])
-		if get_world_2d().direct_space_state.intersect_ray(query).is_empty():
-			return true
-	return false
+	if not on_wall and not is_on_floor():
+		return false
+	var ahead := global_position + along * reach
+	return not _hits(ahead - down * 2.0, ahead + down * 6.0)
+
+
+func _hits(from: Vector2, to: Vector2) -> bool:
+	var query := PhysicsRayQueryParameters2D.create(from, to, PotionData.LAYER_WORLD | PotionData.LAYER_PROPS, [get_rid()])
+	return not get_world_2d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _hurt_overlapping_player() -> void:

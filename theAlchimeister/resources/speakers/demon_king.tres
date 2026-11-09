@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DialogueSpeaker" format=3]
+
+[ext_resource type="Script" uid="uid://ytga7vgxdco1" path="res://scripts/puzzle/dialogue_speaker.gd" id="1_speaker"]
+[ext_resource type="Texture2D" path="res://assets/portraits/demonking/dk_default.png" id="2_portrait"]
+
+[resource]
+script = ExtResource("1_speaker")
+id = "DEMON KING"
+name_color = Color(1, 0.35, 0.35, 1)
+portrait = ExtResource("2_portrait")
+portrait_folder = "res://assets/portraits/demonking"
+portrait_prefix = "dk_"
+side = 1
+portrait_scale = 0.8
+portrait_center = Vector2(66, 90)

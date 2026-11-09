@@ -44,6 +44,7 @@ var _end_dim: ColorRect
 func _ready() -> void:
 	# The book button shares the top-right corner with the throw-cancel box,
 	# so it steps aside while a throw is being aimed.
+	add_to_group(UiFocus.SCREENS)
 	_book_button.pressed.connect(book.toggle)
 	_book_button.draw.connect(func() -> void:
 		PotionData.draw_book_icon(_book_button, _book_button.size / 2.0)
@@ -140,11 +141,31 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _potions_enabled:
 		return
+	if event is InputEventMouseButton and event.pressed and not book.is_open and not dialogue.is_playing:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_cycle_potion(-1)
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_cycle_potion(1)
+			get_viewport().set_input_as_handled()
+		return
 	for i in PotionData.KINDS.size():
 		var kind := PotionData.KINDS[i]
 		if inventory.is_shown(kind) and event.is_action_pressed("potion_%d" % (i + 1)):
 			inventory.select(kind)
 			get_viewport().set_input_as_handled()
+
+
+## Picks the next potion along the bar (`step` 1) or the one before (-1),
+## wrapping round. With none picked, starts from the matching end of the bar.
+func _cycle_potion(step: int) -> void:
+	var kinds := PotionData.KINDS.filter(inventory.is_shown)
+	if kinds.is_empty():
+		return
+	var at := kinds.find(inventory.selected)
+	if at < 0:
+		at = -1 if step > 0 else 0
+	inventory.select(kinds[posmod(at + step, kinds.size())])
 
 
 ## Shows or hides the potion bar (and turns its number keys on or off).
@@ -206,8 +227,19 @@ func show_end_buttons(has_next: bool, next_label := "NEXT STAGE") -> void:
 	for node in [_end_dim, _banner, _banner_sub, _end_buttons, dialogue]:
 		node.move_to_front()
 	create_tween().tween_property(_end_dim, "modulate:a", 1.0, 0.3)
+	# Clear of the line under the banner, when there is one.
+	if _banner_sub.visible:
+		_end_buttons.position.y = _banner_sub.get_rect().end.y + 2.0
 	_end_buttons.show()
 	(_next_button if has_next else _levels_button).grab_focus()
+
+
+## See UiFocus.
+func focus_first() -> bool:
+	if not _end_buttons.visible:
+		return false
+	(_next_button if _next_button.visible else _levels_button).grab_focus()
+	return true
 
 
 func _update_visibility() -> void:

@@ -111,4 +111,4 @@ script = ExtResource("exit")
 
 [node name="TunnelSlime" parent="Enemies" instance=ExtResource("slime")]
 position = Vector2(224, 192)
-speed = 0.0
+movement = 0

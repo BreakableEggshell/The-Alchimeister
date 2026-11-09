@@ -58,8 +58,8 @@ script = ExtResource("6_exit")
 
 [node name="ButtonSlime" parent="Enemies" instance=ExtResource("7_slime")]
 position = Vector2(150, 178)
-speed = 0.0
+movement = 0
 
 [node name="HallwaySlime" parent="Enemies" instance=ExtResource("7_slime")]
 position = Vector2(350, 192)
-speed = 0.0
+movement = 0

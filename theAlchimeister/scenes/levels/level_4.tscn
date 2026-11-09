@@ -67,4 +67,3 @@ script = ExtResource("exit")
 [node name="Runner" parent="Enemies" instance=ExtResource("slime")]
 position = Vector2(380, 150)
 speed = 30.0
-patrol_distance = 50.0

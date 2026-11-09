@@ -44,7 +44,7 @@ points = PackedVector2Array(0, 0, 160, 0, 160, 24, 0, 24)
 [node name="CrowdButton" type="Area2D" parent="Level"]
 position = Vector2(220, 192)
 script = ExtResource("heavy")
-width = 120.0
+width = 84.0
 cap_height = 10.0
 needs = 3
 press_time = 1.0
@@ -74,15 +74,12 @@ script = ExtResource("exit")
 [node name="SlimeA" parent="Enemies" instance=ExtResource("slime")]
 position = Vector2(220, 182)
 speed = 18.0
-patrol_distance = 24.0
 
 [node name="SlimeB" parent="Enemies" instance=ExtResource("slime")]
 position = Vector2(220, 182)
-speed = 27.0
-patrol_distance = 36.0
+speed = 36.0
 start_direction = -1
 
 [node name="SlimeC" parent="Enemies" instance=ExtResource("slime")]
 position = Vector2(220, 182)
-speed = 36.0
-patrol_distance = 48.0
+speed = 54.0

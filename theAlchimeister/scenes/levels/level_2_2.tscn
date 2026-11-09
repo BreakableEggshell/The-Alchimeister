@@ -76,26 +76,26 @@ script = ExtResource("7_exit")
 
 [node name="Blocker" parent="Enemies" instance=ExtResource("8_slime")]
 position = Vector2(360, 192)
-speed = 0.0
+movement = 0
 drop = &"ghost_wisp"
 drop_count = 2
 
 [node name="Guard1" parent="Enemies" instance=ExtResource("8_slime")]
 position = Vector2(600, 192)
-speed = 0.0
+movement = 0
 
 [node name="Guard2" parent="Enemies" instance=ExtResource("8_slime")]
 position = Vector2(660, 192)
-speed = 0.0
+movement = 0
 
 [node name="Guard3" parent="Enemies" instance=ExtResource("8_slime")]
 position = Vector2(720, 192)
-speed = 0.0
+movement = 0
 
 [node name="Guard4" parent="Enemies" instance=ExtResource("8_slime")]
 position = Vector2(868, 192)
-speed = 0.0
+movement = 0
 
 [node name="Guard5" parent="Enemies" instance=ExtResource("8_slime")]
 position = Vector2(924, 192)
-speed = 0.0
+movement = 0

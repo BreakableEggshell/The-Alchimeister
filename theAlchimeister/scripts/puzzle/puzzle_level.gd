@@ -1,7 +1,8 @@
 extends Node2D
 ## A puzzle stage. Sets up the stage bounds, plays the intro dialogue on the
-## first attempt, restarts on R or shortly after the player is caught, and on
-## reaching the exit unlocks the next stage and offers to go on.
+## first attempt, restarts on R or shortly after the player dies, and on
+## reaching the exit unlocks the next stage and offers to go on. An iris opens
+## as it starts, and closes on the knight before a restart or the next stage.
 ## Once the player is out of potions with no way to get more, and hasn't yet
 ## got past the parts that need them, a red "PRESS R" line stays up.
 ## Each stage starts from its own inventory; nothing carries over.
@@ -33,8 +34,8 @@ static var _restarts := {}
 @export var hud: Control
 @export var inventory: Inventory
 @export var backdrop: Node2D
-## Seconds to show "caught" before restarting.
-@export var restart_delay := 1.2
+## Seconds between dying and the restart's iris closing.
+@export var restart_delay := 1.0
 ## After this many tries to throw with no potion picked, the potion slots
 ## blink until one is picked. 0 turns it off.
 @export var highlight_slots_after_misses := 3
@@ -42,6 +43,7 @@ static var _restarts := {}
 ## doesn't call for a restart. 0 means NEAR_EXIT pixels before the exit.
 @export var potions_needed_until_x := 0.0
 
+const NAME_PROMPT := preload("res://scripts/puzzle/name_prompt.gd")
 const NEAR_EXIT := 48.0
 ## With auto hints off, the retry at whose start Sheldon reminds the player
 ## that the notebook has hints.
@@ -82,8 +84,26 @@ func _ready() -> void:
 	hud.next_pressed.connect(_go_next)
 	hud.levels_pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
 	hud.book.has_hint = not hint_lines.is_empty()
+	hud.book.set_level_label(SaveGame.stage_label(stage_id))
+	hud.dialogue.set_level_label(SaveGame.stage_label(stage_id))
+	hud.book.set_can_skip(SaveGame.next_stage(stage_id) != "")
+	hud.book.skip_requested.connect(_skip_level)
 	hud.book.hint_requested.connect(show_hint)
 	_begin_attempt.call_deferred(restart_count())
+	_iris_out()
+
+
+## Opens on the knight once the camera has settled on him.
+func _iris_out() -> void:
+	Iris.cover()
+	await get_tree().process_frame
+	if is_inside_tree():
+		Iris.open(_iris_focus())
+
+
+## The middle of the knight, on screen.
+func _iris_focus() -> Vector2:
+	return player.get_global_transform_with_canvas().origin + Vector2(0, -14)
 
 
 ## How many times this stage has been restarted since it was last cleared.
@@ -97,9 +117,20 @@ func show_hint() -> void:
 
 
 func restart() -> void:
+	if Iris.is_closed:
+		return
 	_restarts[stage_id] = restart_count() + 1
+	get_tree().paused = true
+	await Iris.close(_iris_focus())
+	if not is_inside_tree():
+		return
 	get_tree().paused = false
 	get_tree().reload_current_scene()
+
+
+func _skip_level() -> void:
+	_restarts.erase(stage_id)
+	SaveGame.skip_stage(stage_id, _iris_focus())
 
 
 func _on_pick_missed() -> void:
@@ -116,6 +147,8 @@ func _check_stuck() -> void:
 ## needed, and nothing still in play that could change things (a potion in
 ## the air, an effect still running on the player or a monster).
 func is_stuck() -> bool:
+	if inventory.unlimited:
+		return false
 	if player.global_position.x >= _no_potions_needed_x():
 		return false
 	if PotionData.KINDS.any(func(kind: StringName) -> bool: return inventory.count(kind) > 0):
@@ -183,11 +216,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_player_died(cause: StringName) -> void:
 	_stop_play()
 	hud.set_potions_enabled(false)
-	var message := GameOver.message_of(cause)
-	var subtitle := "%s\nRESTARTING..." % message if message != "" else "RESTARTING..."
-	hud.show_banner(GameOver.title_of(cause), subtitle, GameOver.COLOR)
 	await get_tree().create_timer(restart_delay).timeout
-	restart()
+	if is_inside_tree():
+		restart()
 
 
 func _on_exit_reached() -> void:
@@ -197,20 +228,29 @@ func _on_exit_reached() -> void:
 	_restarts.erase(stage_id)
 	var next := SaveGame.next_stage(stage_id)
 	SaveGame.unlock(next)
+	# The very end stops the secret timer.
+	var full_run := next == "" and SaveGame.finish_run()
 	var lines := _exit_lines()
 	if not lines.is_empty():
 		await hud.dialogue.interrupt(lines, player)
+	var run_time := ""
+	if full_run:
+		var prompt := NAME_PROMPT.new()
+		hud.add_child(prompt)
+		var player_name: String = await prompt.ask()
+		SaveGame.record_playtester(player_name)
+		run_time = "%s - %s" % [player_name, SaveGame.format_time(SaveGame.run_seconds)]
 	var level_done := SaveGame.is_last_in_level(stage_id)
 	if level_done:
 		var title: String = SaveGame.LEVELS[SaveGame.level_of(stage_id)].title
-		hud.show_banner("%s COMPLETE" % (title if title != "" else "LEVEL"), "", Color(0.95, 0.85, 0.55))
+		hud.show_banner("%s COMPLETE" % (title if title != "" else "LEVEL"), run_time, Color(0.95, 0.85, 0.55))
 	else:
 		hud.show_banner("STAGE CLEAR", "", Color(0.95, 0.85, 0.55))
 	hud.show_end_buttons(next != "", "NEXT LEVEL" if level_done else "NEXT STAGE")
 
 
 func _go_next() -> void:
-	SaveGame.play_stage(SaveGame.next_stage(stage_id))
+	SaveGame.play_stage(SaveGame.next_stage(stage_id), _iris_focus())
 
 
 func _stop_play() -> void:

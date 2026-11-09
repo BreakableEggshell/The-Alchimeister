@@ -13,7 +13,7 @@ stage_id = "7"
 stage_size = Vector2(420, 216)
 potions_needed_until_x = 2000.0
 chest = NodePath("Level/Chest")
-exit_lines = PackedStringArray("SHELDON (squint): ...Huh. You actually did it.", "SHELDON: Well, that's one way out. See you on the other side, buddy.")
+exit_lines = PackedStringArray("SHELDON: And that's it. These are all the levels we have for now.", "SHELDON (glasses): Look forward to our game dev presentation, where you can play the levels yourself!")
 
 [node name="Knight" parent="."]
 position = Vector2(24, 96)

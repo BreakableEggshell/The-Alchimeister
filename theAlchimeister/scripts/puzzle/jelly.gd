@@ -5,7 +5,7 @@ extends StaticBody2D
 ## hits it bounces off instead of shattering, mirrored off the face it hit
 ## (see Potion.step, which the aim preview uses too, so the dotted arc shows
 ## the bounce). `strength` scales how fast it comes back: 1 for plain green
-## jelly, more for the springy red kind, which flings potions much further.
+## jelly, more for the springy blue kind, which flings potions much further.
 ## The knight bounces off it too, as hard as they hit it (see
 ## PuzzleKnight._slide). It wobbles when hit. Origin is the top-left corner.
 
@@ -20,7 +20,7 @@ extends StaticBody2D
 		queue_redraw()
 
 const PLAIN_COLOR := Color(0.45, 0.9, 0.5, 0.75)
-const SPRINGY_COLOR := Color(1.0, 0.4, 0.45, 0.8)
+const SPRINGY_COLOR := Color(0.3, 0.55, 1.0, 0.8)
 ## The knight: slowest hit that bounces off the top or bottom, and off a
 ## side (walking into a side doesn't bounce; a burning sprint does).
 const MIN_BOUNCE_SPEED := 80.0

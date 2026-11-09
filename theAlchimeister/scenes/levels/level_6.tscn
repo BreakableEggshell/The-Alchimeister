@@ -58,7 +58,7 @@ position = Vector2(324, 84)
 script = ExtResource("jelly")
 size = Vector2(16, 72)
 
-[node name="RedJelly" type="StaticBody2D" parent="Level"]
+[node name="BlueJelly" type="StaticBody2D" parent="Level"]
 position = Vector2(560, 192)
 script = ExtResource("jelly")
 size = Vector2(40, 24)
@@ -99,8 +99,7 @@ script = ExtResource("exit")
 [node name="PocketSlime" parent="Enemies" instance=ExtResource("slime")]
 position = Vector2(270, 180)
 speed = 15.0
-patrol_distance = 8.0
 
 [node name="TowerSlime" parent="Enemies" instance=ExtResource("slime")]
 position = Vector2(746, 24)
-speed = 0.0
+movement = 0

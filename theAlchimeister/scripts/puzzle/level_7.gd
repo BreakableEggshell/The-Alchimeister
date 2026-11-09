@@ -6,8 +6,8 @@ extends "res://scripts/puzzle/puzzle_level.gd"
 ## so clears the level instead of restarting it. Being stuck any other way
 ## (potions wasted) still calls for a restart.
 
-## Seconds the game over screen shows before Sheldon catches on.
-const ESCAPE_BEAT := 1.6
+## Seconds after dying before Sheldon speaks up.
+const ESCAPE_BEAT := 1.0
 
 @export var chest: Node
 
@@ -42,6 +42,5 @@ func _on_player_died(cause: StringName) -> void:
 	# That's the way out.
 	_stop_play()
 	hud.set_potions_enabled(false)
-	hud.show_banner(GameOver.title_of(cause), GameOver.message_of(cause), GameOver.COLOR)
 	await get_tree().create_timer(ESCAPE_BEAT).timeout
 	_on_exit_reached()

@@ -83,22 +83,21 @@ script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 10, 0, 10, 8, 0, 8)
 
 [node name="Lintel" type="StaticBody2D" parent="Level"]
-position = Vector2(716, 0)
+position = Vector2(732, 0)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 28, 0, 28, 60, 0, 60)
 
 [node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(724, 60)
+position = Vector2(740, 60)
 script = ExtResource("4_gate")
 size = Vector2(12, 36)
 plates = [NodePath("../Plate")]
 
 [node name="Exit" type="Area2D" parent="Level"]
-position = Vector2(774, 96)
+position = Vector2(790, 96)
 script = ExtResource("6_exit")
 
 [node name="Enemies" type="Node2D" parent="."]
 
 [node name="PitSlime" parent="Enemies" instance=ExtResource("7_slime")]
 position = Vector2(272, 208)
-patrol_distance = 10.0

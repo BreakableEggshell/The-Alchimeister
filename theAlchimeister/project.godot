@@ -18,6 +18,8 @@ config/icon="res://icon.svg"
 [autoload]
 
 SaveGame="*res://scripts/save_game.gd"
+UiFocus="*res://scripts/ui_focus.gd"
+Iris="*res://scripts/iris.gd"
 
 [display]
 

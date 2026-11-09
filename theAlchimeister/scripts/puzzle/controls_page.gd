@@ -54,9 +54,25 @@ func build(book_size: Vector2, style: StyleBox) -> void:
 	var back := _button(Rect2(RIGHT_COLUMN, below + ROW_STEP, BUTTON_WIDTH, KEY_SIZE.y))
 	back.text = "BACK"
 	back.pressed.connect(back_requested.emit)
+	_link_keys(reset, back)
 	SaveGame.controls_changed.connect(_refresh)
 	visibility_changed.connect(_stop_waiting)
 	_refresh()
+
+
+## Two columns of seven: up and down wrap in a column, left and right swap.
+func _link_keys(reset: Button, back: Button) -> void:
+	var buttons: Array = _key_buttons.values()
+	var left := buttons.slice(0, LEFT_ROWS)
+	var right := buttons.slice(LEFT_ROWS)
+	right.append_array([reset, back])
+	UiFocus.link_column(left)
+	UiFocus.link_column(right)
+	for i in LEFT_ROWS:
+		left[i].focus_neighbor_left = right[i].get_path()
+		left[i].focus_neighbor_right = right[i].get_path()
+		right[i].focus_neighbor_left = left[i].get_path()
+		right[i].focus_neighbor_right = left[i].get_path()
 
 
 func focus_first() -> void:
