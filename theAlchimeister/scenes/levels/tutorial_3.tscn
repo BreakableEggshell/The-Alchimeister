@@ -51,7 +51,7 @@ points = PackedVector2Array(0, 0, 160, 0, 160, 8, 0, 8)
 position = Vector2(264, 96)
 script = ExtResource("4_trigger")
 size = Vector2(150, 32)
-lines = PackedStringArray("SHELDON: Wow, that one slime below us is shining! They might drop something after you knock them out or... kill them...", "SHELDON (glasses): Haha, we can always get their loot peacefully. Just freeze, or knock them back.", "SHELDON: No need for violence, right? They're monsters, but so am I.", "SHELDON (squint): If only we had the ingredients.")
+lines = PackedStringArray("SHELDON: Wow, that one slime below us is shining! They might drop something after you knock them out", "SHELDON (squint): or... kill them...", "SHELDON: Haha, we can always get their loot without murder.", "SHELDON (glasses): Just freeze or knock them out.", "SHELDON: No need for violence, right? They're monsters, but so am I.")
 teaches = "hint"
 
 [node name="LowerFloor" type="StaticBody2D" parent="Level"]
@@ -59,12 +59,22 @@ position = Vector2(260, 192)
 script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 280, 0, 280, 24, 0, 24)
 
+[node name="CurbMiddle" type="StaticBody2D" parent="Level"]
+position = Vector2(312, 184)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 6, 0, 6, 8, 0, 8)
+
+[node name="CurbRight" type="StaticBody2D" parent="Level"]
+position = Vector2(372, 184)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 6, 0, 6, 8, 0, 8)
+
 [node name="Chest" type="Area2D" parent="Level"]
 position = Vector2(470, 192)
 script = ExtResource("3_chest")
 extra_contents = "gust_feather"
 third_contents = "frost_shard"
-open_lines = PackedStringArray("SHELDON: Whoa, there's an ingredient for the fire potion. Best not to accidentally throw that, huh?", "SHELDON (glasses): If you ever pull one back by accident, just drag it onto the red X in the top right to cancel the throw.")
+open_lines = PackedStringArray("SHELDON: Whoa, there's an ingredient for the fire potion. Best not to accidentally throw that, huh?", "SHELDON (glasses): If you ever pull one back by accident, just drag it onto the red X to cancel the throw.")
 open_lines_teach = "tutorial"
 
 [node name="CancelHint" type="Node2D" parent="Level" node_paths=PackedStringArray("chest")]
@@ -125,11 +135,9 @@ script = ExtResource("5_exit")
 [node name="ShiningSlime" parent="Enemies" instance=ExtResource("6_slime")]
 position = Vector2(290, 192)
 speed = 25.0
-patrol_distance = 18.0
 drop = &"ghost_wisp"
 drop_count = 2
 
 [node name="Guard1" parent="Enemies" instance=ExtResource("6_slime")]
 position = Vector2(340, 192)
-patrol_distance = 18.0
 start_direction = -1

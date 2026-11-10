@@ -12,6 +12,10 @@ const DEATH := &"death"
 const KINDS: Array[StringName] = [FIRE, KNOCKBACK, FREEZE, TRANSLUCENT, DEATH]
 ## Potions the player must brew once before the book and HUD reveal them.
 const DISCOVERABLE: Array[StringName] = [DEATH]
+## Potions whose recipe has to be found (a note in a level) before they can be
+## brewed at all. Until then the book leaves them out of its recipes and their
+## mix shows a lock. New potions like that only need adding here.
+const RECIPE_TO_FIND: Array[StringName] = [DEATH]
 ## A recipe shown in the book whose potion can't be brewed yet. Its table mix
 ## (one of every ingredient) is reserved so it never brews a Death potion.
 const SECRET := &"secret"
@@ -40,6 +44,7 @@ const COLORS := {
 }
 ## Colour for a potion with no kind (the plain prototype potion).
 const PLAIN_COLOR := Color(0.55, 0.95, 0.45)
+const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
 
 ## Ingredient kinds, their names and colours.
 const EMBER := &"ember"
@@ -65,7 +70,7 @@ const SPLASH_RADIUS := 22.0
 const BURN_TIME := 3.0
 ## Seconds a burning player has before dying (unless washed off in
 ## cleansing water). Longer than monsters, so there's time to get to it.
-const PLAYER_BURN_TIME := 10.0
+const PLAYER_BURN_TIME := 8.0
 ## Burning monsters run this many times faster until they burn up.
 const FIRE_SPEED_BOOST := 1.6
 ## A burning player runs this many times faster (so jumps much further)
@@ -136,6 +141,12 @@ static func draw_lock_icon(canvas: CanvasItem, at: Vector2, color: Color) -> voi
 	canvas.draw_arc(at + Vector2(0, -2), 3.0, PI, TAU, 8, color, 1.5)
 	canvas.draw_rect(Rect2(at + Vector2(-4, -2), Vector2(8, 6)), color)
 	canvas.draw_rect(Rect2(at + Vector2(-0.5, 0), Vector2(1, 2)), Color(0, 0, 0, 0.5))
+
+
+## Draws a "?" centred at `at`: a potion that can be brewed but never has been.
+static func draw_unknown_icon(canvas: CanvasItem, at: Vector2, color: Color, font_size := 8) -> void:
+	var width := FONT.get_string_size("?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	canvas.draw_string(FONT, (at + Vector2(-width / 2.0, font_size / 2.0)).round(), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 
 ## Draws a small ingredient icon centred at `at`.

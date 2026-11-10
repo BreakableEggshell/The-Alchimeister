@@ -6,6 +6,7 @@ extends Control
 ## out-of-potions restart hint (tap it to restart), and the end-of-stage banner with its buttons
 ## (the stage dims behind them; WASD moves between them, Enter picks).
 ## While dialogue plays, the potion slots and book button are hidden.
+## Potion effects on the knight count down under the book button.
 
 signal next_pressed
 signal levels_pressed
@@ -17,6 +18,12 @@ const KEY_COLOR := Color(1, 1, 1, 0.75)
 ## Blinks per second of the slot highlight (see highlight_slots()).
 const BLINK_RATE := 2.5
 const END_DIM := Color(0, 0, 0, 0.55)
+## The effect timers: where the first row starts, measured from the top right
+## (just below the book button), and each row's size.
+const EFFECTS_FROM_TOP_RIGHT := Vector2(4, 42)
+const EFFECT_ROW_SIZE := Vector2(34, 14)
+const EFFECT_ROW_GAP := 2.0
+const EFFECT_ROW_COLOR := Color(0.1, 0.09, 0.14, 0.85)
 
 @export var inventory: Inventory
 @export var thrower: Node2D
@@ -30,6 +37,7 @@ var _highlight: Control
 var _potions_enabled := true
 var _restart_hint: Button
 var _end_dim: ColorRect
+var _effects: Control
 
 @onready var _slot_row: HBoxContainer = $Slots
 @onready var _messages: VBoxContainer = $Messages
@@ -42,8 +50,9 @@ var _end_dim: ColorRect
 
 
 func _ready() -> void:
-	# The book button shares the top-right corner with the throw-cancel box,
-	# so it steps aside while a throw is being aimed.
+	# The book button steps aside while a throw is being aimed, to keep the
+	# corner clear around the throw-cancel box.
+	add_to_group(UiFocus.SCREENS)
 	_book_button.pressed.connect(book.toggle)
 	_book_button.draw.connect(func() -> void:
 		PotionData.draw_book_icon(_book_button, _book_button.size / 2.0)
@@ -131,6 +140,11 @@ func _ready() -> void:
 		_slots[kind] = slot
 	inventory.changed.connect(_refresh)
 	inventory.message.connect(show_message)
+	_effects = Control.new()
+	_effects.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_effects.draw.connect(_draw_effects)
+	add_child(_effects)
+	_effects.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_banner.hide()
 	_banner_sub.hide()
 	_refresh()
@@ -140,11 +154,31 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _potions_enabled:
 		return
+	if event is InputEventMouseButton and event.pressed and not book.is_open and not dialogue.is_playing:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_cycle_potion(-1)
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_cycle_potion(1)
+			get_viewport().set_input_as_handled()
+		return
 	for i in PotionData.KINDS.size():
 		var kind := PotionData.KINDS[i]
 		if inventory.is_shown(kind) and event.is_action_pressed("potion_%d" % (i + 1)):
 			inventory.select(kind)
 			get_viewport().set_input_as_handled()
+
+
+## Picks the next potion along the bar (`step` 1) or the one before (-1),
+## wrapping round. With none picked, starts from the matching end of the bar.
+func _cycle_potion(step: int) -> void:
+	var kinds := PotionData.KINDS.filter(inventory.is_shown)
+	if kinds.is_empty():
+		return
+	var at := kinds.find(inventory.selected)
+	if at < 0:
+		at = -1 if step > 0 else 0
+	inventory.select(kinds[posmod(at + step, kinds.size())])
 
 
 ## Shows or hides the potion bar (and turns its number keys on or off).
@@ -162,6 +196,11 @@ func show_restart_hint(on: bool) -> void:
 func highlight_slots(on: bool) -> void:
 	_highlight.visible = on
 	_highlight.queue_redraw()
+
+
+func clear_messages() -> void:
+	for label in _messages.get_children():
+		label.queue_free()
 
 
 func show_message(text: String, color: Color) -> void:
@@ -206,8 +245,38 @@ func show_end_buttons(has_next: bool, next_label := "NEXT STAGE") -> void:
 	for node in [_end_dim, _banner, _banner_sub, _end_buttons, dialogue]:
 		node.move_to_front()
 	create_tween().tween_property(_end_dim, "modulate:a", 1.0, 0.3)
+	# Clear of the line under the banner, when there is one.
+	if _banner_sub.visible:
+		_end_buttons.position.y = _banner_sub.get_rect().end.y + 2.0
 	_end_buttons.show()
 	(_next_button if has_next else _levels_button).grab_focus()
+
+
+## See UiFocus.
+func focus_first() -> bool:
+	if not _end_buttons.visible:
+		return false
+	(_next_button if _next_button.visible else _levels_button).grab_focus()
+	return true
+
+
+func _process(_delta: float) -> void:
+	_effects.queue_redraw()
+
+
+## One row per potion effect on the knight: its potion, and the seconds left.
+func _draw_effects() -> void:
+	var knight: Node = thrower.thrower
+	if not knight.has_method("active_effects") or knight._dead:
+		return
+	var font := get_theme_font("font", "Label")
+	var at := Vector2(size.x - EFFECTS_FROM_TOP_RIGHT.x - EFFECT_ROW_SIZE.x, EFFECTS_FROM_TOP_RIGHT.y)
+	for effect in knight.active_effects():
+		_effects.draw_rect(Rect2(at, EFFECT_ROW_SIZE), EFFECT_ROW_COLOR)
+		PotionData.draw_potion(_effects, effect.kind, at + Vector2(7, 8))
+		var seconds := "%ds" % ceili(effect.left)
+		_effects.draw_string(font, at + Vector2(14, 10), seconds, HORIZONTAL_ALIGNMENT_RIGHT, EFFECT_ROW_SIZE.x - 16.0, 8, Color.WHITE)
+		at.y += EFFECT_ROW_SIZE.y + EFFECT_ROW_GAP
 
 
 func _update_visibility() -> void:
@@ -216,6 +285,7 @@ func _update_visibility() -> void:
 	_highlight.modulate.a = 0.0 if talking else 1.0
 	_book_button.visible = not (talking or _aiming or _stage_over or book.is_open)
 	book.enabled = not (talking or _stage_over)
+	_effects.visible = not (talking or _stage_over or book.is_open)
 
 
 func _refresh() -> void:

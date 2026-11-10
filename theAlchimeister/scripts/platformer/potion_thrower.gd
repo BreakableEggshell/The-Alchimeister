@@ -1,7 +1,7 @@
 extends Node2D
 ## Slingshot-style potion throwing. Press anywhere on screen, drag to pull back,
 ## release to throw the potion the opposite way. Releasing over the cancel
-## zone (top right) cancels the throw. Touch works through mouse emulation.
+## zone cancels the throw. Touch works through mouse emulation.
 ## With an inventory, throws its selected potion and only while any are left;
 ## without one, throws unlimited plain potions.
 

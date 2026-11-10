@@ -3,7 +3,8 @@ extends Area2D
 ## A treasure chest. When the player is close, an "[E]Open" prompt appears;
 ## pressing E or tapping the prompt opens it and gives its ingredients.
 ## With `open_lines`, opening it also pauses the game with a speech bubble
-## over the player's head and plays that conversation.
+## over the player's head and plays that conversation, the first time only: it
+## isn't repeated after a retry.
 ## Origin is the floor surface at its centre.
 
 ## Emitted once it has been opened and its conversation (if any) is over.
@@ -27,6 +28,10 @@ const OUTLINE := Color.WHITE
 @export var open_lines: PackedStringArray
 ## What those lines teach, so skipping them warns the player.
 @export_enum("none", "hint", "tutorial") var open_lines_teach := "none"
+
+## Chests whose lines have been heard, until the next new game. Static, so it
+## survives the stage reloading on a retry.
+static var _heard := {}
 
 var _opened := false
 var _player_near := false
@@ -60,6 +65,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+static func forget_heard() -> void:
+	_heard.clear()
+
+
 func is_opened() -> bool:
 	return _opened
 
@@ -78,7 +87,9 @@ func open() -> void:
 		# Icons side by side, centred over the chest.
 		_float_icon(StringName(gifts[i][0]), (i - (gifts.size() - 1) / 2.0) * 10.0)
 	var dialogue := get_tree().get_first_node_in_group("dialogue")
-	if dialogue and not open_lines.is_empty():
+	var key := String(get_path())
+	if dialogue and not open_lines.is_empty() and not _heard.has(key):
+		_heard[key] = true
 		await dialogue.interrupt(open_lines, _player, &"" if open_lines_teach == "none" else StringName(open_lines_teach))
 	opened.emit()
 

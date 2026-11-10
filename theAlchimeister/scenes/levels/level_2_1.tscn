@@ -10,9 +10,10 @@
 
 [node name="Level2_1" instance=ExtResource("1_base")]
 stage_id = "2-1"
+intro_lines = PackedStringArray("SHELDON: This puzzle seems easy enough.", "SHELDON (glasses): But if you're ever stuck, you can ask for a hint in your notebook.", "SHELDON (glasses): It's the 'HINT' button in the top right.")
 stage_size = Vector2(512, 216)
 potions_needed_until_x = 380.0
-hint_lines = PackedStringArray("SHELDON (glasses): Those big buttons only care about heavy things. And ice is heavy!", "SHELDON (glasses): Freeze the slime on one button. For the other, stand on it and throw a freeze potion at your own feet.", "SHELDON: Keep one for the slime in the hallway, too.")
+hint_lines = PackedStringArray("SHELDON (squint): Those big buttons don't budge for just anything. They want something heavy.", "SHELDON: Ever tried lifting a block of ice? Heavier than it looks.", "SHELDON (squint): Two buttons, though, and only one slime. Who else is around here?", "---", "SHELDON (squint): If only there was a way to freeze ourselves.", "---", "SHELDON (glasses): I think you can freeze yourself. Just throw the ice onto your feet.")
 
 [node name="Level" type="Node2D" parent="."]
 
@@ -48,7 +49,7 @@ travel_time = 2.0
 [node name="Hallway" type="StaticBody2D" parent="Level"]
 position = Vector2(284, 0)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 136, 0, 136, 168, 0, 168)
+points = PackedVector2Array(0, 0, 136, 0, 136, 156, 0, 156)
 
 [node name="Exit" type="Area2D" parent="Level"]
 position = Vector2(470, 192)
@@ -58,8 +59,8 @@ script = ExtResource("6_exit")
 
 [node name="ButtonSlime" parent="Enemies" instance=ExtResource("7_slime")]
 position = Vector2(150, 178)
-speed = 0.0
+movement = 0
 
 [node name="HallwaySlime" parent="Enemies" instance=ExtResource("7_slime")]
 position = Vector2(350, 192)
-speed = 0.0
+movement = 0

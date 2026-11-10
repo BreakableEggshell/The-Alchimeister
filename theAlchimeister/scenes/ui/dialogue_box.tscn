@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/puzzle/dialogue_box.gd" id="1_dialogue"]
 [ext_resource type="Resource" path="res://resources/speakers/sheldon.tres" id="2_sheldon"]
 [ext_resource type="Resource" path="res://resources/speakers/alchemist.tres" id="3_alchemist"]
+[ext_resource type="Resource" path="res://resources/speakers/demon_king.tres" id="4_demon_king"]
 
 [node name="DialogueBox" type="Control"]
 process_mode = 3
@@ -14,4 +15,4 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_dialogue")
-speakers = Array[Resource]([ExtResource("2_sheldon"), ExtResource("3_alchemist")])
+speakers = Array[Resource]([ExtResource("2_sheldon"), ExtResource("3_alchemist"), ExtResource("4_demon_king")])

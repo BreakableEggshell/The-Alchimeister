@@ -14,6 +14,8 @@ signal pick_missed
 @export var start_knockback := 0
 @export var start_freeze := 0
 @export var start_translucent := 0
+## Debug: every ingredient is always in storage and never runs out.
+@export var unlimited := false
 
 ## Potion kind -> {ingredient kind: amount needed}.
 var recipes := {
@@ -28,6 +30,9 @@ var selected: StringName = &""
 ## keep their places.
 var ingredient_order: Array[StringName] = []
 
+## What storage shows for each ingredient when `unlimited`.
+const UNLIMITED_COUNT := 99
+
 var _potions := {}
 var _ingredients := {}
 
@@ -41,6 +46,10 @@ func _ready() -> void:
 		PotionData.TRANSLUCENT: start_translucent,
 		PotionData.DEATH: 0,
 	}
+	if unlimited:
+		for kind in PotionData.INGREDIENTS:
+			ingredient_order.append(kind)
+			_ingredients[kind] = UNLIMITED_COUNT
 
 
 func count(kind: StringName) -> int:
@@ -92,7 +101,8 @@ func add_ingredient(kind: StringName, amount := 1) -> void:
 func take_ingredient(kind: StringName) -> bool:
 	if ingredient_count(kind) <= 0:
 		return false
-	_ingredients[kind] -= 1
+	if not unlimited:
+		_ingredients[kind] -= 1
 	changed.emit()
 	return true
 
@@ -135,6 +145,8 @@ func brew(potion: StringName, amount := 1) -> void:
 
 
 func _store(kind: StringName) -> void:
+	if unlimited:
+		return
 	if not ingredient_order.has(kind):
 		ingredient_order.append(kind)
 	_ingredients[kind] = ingredient_count(kind) + 1

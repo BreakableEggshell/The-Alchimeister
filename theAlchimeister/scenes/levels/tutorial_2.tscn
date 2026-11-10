@@ -8,15 +8,13 @@
 [ext_resource type="Script" uid="uid://ddxyoskuyx8fl" path="res://scripts/puzzle/exit_door.gd" id="6_exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="7_slime"]
 [ext_resource type="Script" uid="uid://bfk1ff0h8ik6e" path="res://scripts/puzzle/throw_hint.gd" id="8_hint"]
-[ext_resource type="Script" path="res://scripts/puzzle/tutorial_2.gd" id="9_stage"]
 [ext_resource type="Script" path="res://scripts/puzzle/dialogue_trigger.gd" id="10_trigger"]
 
 [node name="Tutorial2" unique_id=759354436 instance=ExtResource("1_base")]
-script = ExtResource("9_stage")
 stage_id = "1-2"
 stage_size = Vector2(760, 216)
 potions_needed_until_x = 612.0
-hint_lines = PackedStringArray("SHELDON: See that slime crawling on the wall? It keeps walking over the button.", "SHELDON (glasses): Freeze it while it's on the button, and it'll hold the gate open for us.", "SHELDON (glasses): Past that, the slime on the floor button is keeping the next gate shut. Knock it off with a good, hard throw!")
+hint_lines = PackedStringArray("SHELDON: See that slime crawling on the wall? It keeps walking over the button.", "SHELDON (glasses): Freeze it while it's on the button, and it'll hold the gate open for us.")
 
 [node name="Level" type="Node2D" parent="." index="5" unique_id=1724762320]
 
@@ -28,7 +26,17 @@ points = PackedVector2Array(0, 0, 760, 0, 760, 24, 0, 24)
 [node name="Overhang" type="StaticBody2D" parent="Level" index="1" unique_id=1421679315]
 position = Vector2(264, 0)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 48, 0, 48, 168, 0, 168)
+points = PackedVector2Array(0, 0, 48, 0, 48, 156, 0, 156)
+
+[node name="WallStopTop" type="StaticBody2D" parent="Level"]
+position = Vector2(252, 30)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 4, 0, 4)
+
+[node name="WallStopBottom" type="StaticBody2D" parent="Level"]
+position = Vector2(252, 100)
+script = ExtResource("2_solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 4, 0, 4)
 
 [node name="Chest" type="Area2D" parent="Level" index="2" unique_id=1863033841]
 position = Vector2(168, 192)
@@ -46,9 +54,9 @@ script = ExtResource("3_plate")
 width = 16.0
 
 [node name="Gate" type="StaticBody2D" parent="Level" index="4" unique_id=205015946 node_paths=PackedStringArray("plates")]
-position = Vector2(264, 168)
+position = Vector2(264, 156)
 script = ExtResource("4_gate")
-size = Vector2(12, 24)
+size = Vector2(12, 36)
 plates = [NodePath("../WallButton")]
 
 [node name="ThrowHint" type="Node2D" parent="Level" index="5" unique_id=524140518]
@@ -63,6 +71,7 @@ script = ExtResource("6_exit")
 position = Vector2(316, 130)
 script = ExtResource("10_trigger")
 size = Vector2(8, 62)
+lines = PackedStringArray("SHELDON: Fun fact, most playtesters needed that third or fourth potion.", "SHELDON (squint): Surprisingly a tough target.", "SHELDON: You'll get the hang of it though.")
 
 [node name="FeatherChest" type="Area2D" parent="Level"]
 position = Vector2(350, 192)
@@ -77,28 +86,28 @@ script = ExtResource("3_plate")
 [node name="DoorWall" type="StaticBody2D" parent="Level"]
 position = Vector2(600, 0)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 48, 0, 48, 168, 0, 168)
+points = PackedVector2Array(0, 0, 48, 0, 48, 156, 0, 156)
 
 [node name="SlimeGate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(600, 168)
+position = Vector2(600, 156)
 script = ExtResource("4_gate")
-size = Vector2(12, 24)
+size = Vector2(12, 36)
 plates = [NodePath("../SlimeButton")]
 open_when_pressed = false
 
 [node name="EmberChest" type="Area2D" parent="Level"]
 position = Vector2(690, 192)
 script = ExtResource("5_chest")
+amount = 3
 
 [node name="Enemies" type="Node2D" parent="." index="6" unique_id=1049016870]
 
 [node name="WallSlime" parent="Enemies" index="0" unique_id=623640284 instance=ExtResource("7_slime")]
 position = Vector2(263.5, 65)
 speed = 50.0
-patrol_distance = 26.0
 start_direction = -1
 on_wall = true
 
 [node name="ButtonSlime" parent="Enemies" instance=ExtResource("7_slime")]
 position = Vector2(440, 192)
-speed = 0.0
+movement = 0

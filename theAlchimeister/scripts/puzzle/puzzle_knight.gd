@@ -25,8 +25,35 @@ var _freeze_left := 0.0
 var _flames: CPUParticles2D
 var _dead := false
 var _talking := false
+const FLOAT_TEXT_TIME := 0.5
+## Death messages last through the iris closing.
+const DEATH_TEXT_TIME := 1.5
+## Screen pixels kept clear between float text and the screen's edge.
+const FLOAT_MARGIN := 4.0
+const SKULL_GAP := 3.0
+const SKULL_ROWS: Array[String] = [
+	".#######.",
+	"#########",
+	"##..#..##",
+	"##..#..##",
+	"#########",
+	".###.###.",
+	"..#####..",
+	"..#.#.#..",
+]
+
+const BURN_FLASH_A := Color(1.5, 0.75, 0.45)
+const BURN_FLASH_B := Color(1.3, 0.5, 0.3)
+## Colour changes per second.
+const BURN_FLASH_RATE := 12.0
+
+var _burn_flash_clock := 0.0
+var _held_by_dialogue := false
+var _ignore_jump := false
 var _float_label: Label
 var _float_tween: Tween
+## Beside the float text when it's a death message.
+var _skull: Control
 var _remark: RichTextLabel
 var _remark_tween: Tween
 var _chat_icon: Node2D
@@ -86,12 +113,22 @@ func die(cause: StringName = GameOver.CAUGHT) -> void:
 		_flames.emitting = false
 	set_physics_process(false)
 	_sprite.modulate = Color(1.0, 0.35, 0.35)
-	_sprite.frame = 58  # Death row of the sheet.
+	if GameOver.TEXT.has(cause):
+		_show_float(GameOver.TEXT[cause], GameOver.TEXT_COLOR, DEATH_TEXT_TIME, SKULL_ROWS[0].length() + SKULL_GAP)
+		_show_skull()
 	died.emit(cause)
 
 
 ## Shows `text` just above the head; it drifts up and fades out.
 func float_text(text: String, color: Color) -> void:
+	# Nothing replaces a death message.
+	if not _dead:
+		_show_float(text, color, FLOAT_TEXT_TIME)
+
+
+## `hold` is how long it stays before fading; `room_left` is space to keep clear
+## to the left of the text (for the skull).
+func _show_float(text: String, color: Color, hold: float, room_left := 0.0) -> void:
 	if not _float_label:
 		_float_label = Label.new()
 		_float_label.add_theme_font_override("font", FONT)
@@ -104,14 +141,44 @@ func float_text(text: String, color: Color) -> void:
 		add_child(_float_label)
 	_float_label.text = text
 	_float_label.add_theme_color_override("font_color", color)
-	_float_label.position = Vector2(-60, -34)
+	_float_label.position = Vector2(-60.0 + _float_shift(text, room_left), -46)
 	_float_label.modulate.a = 1.0
 	_float_label.show()
 	if _float_tween:
 		_float_tween.kill()
 	_float_tween = create_tween().set_parallel()
 	_float_tween.tween_property(_float_label, "position:y", -44.0, 1.0).set_ease(Tween.EASE_OUT)
-	_float_tween.tween_property(_float_label, "modulate:a", 0.0, 0.5).set_delay(0.5)
+	_float_tween.tween_property(_float_label, "modulate:a", 0.0, 0.5).set_delay(hold)
+
+
+## How far to slide the float text so it stays on screen near the edges.
+func _float_shift(text: String, room_left: float) -> float:
+	var half := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x / 2.0
+	var to_world := get_canvas_transform().affine_inverse()
+	var left: float = (to_world * Vector2(FLOAT_MARGIN, 0)).x
+	var right: float = (to_world * Vector2(get_viewport_rect().size.x - FLOAT_MARGIN, 0)).x
+	var x := global_position.x
+	return minf(right - (x + half), maxf(left - (x - half - room_left), 0.0))
+
+
+## A little skull to the left of the float text (a child, so it fades with it).
+func _show_skull() -> void:
+	if not _skull:
+		_skull = Control.new()
+		_skull.draw.connect(_draw_skull)
+		_float_label.add_child(_skull)
+	var text_width := FONT.get_string_size(_float_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	_skull.position = Vector2(roundf((_float_label.size.x - text_width) / 2.0) - SKULL_ROWS[0].length() - SKULL_GAP, 0.0)
+
+
+func _draw_skull() -> void:
+	# The outline first, then the bone on top of it.
+	for margin in [1.0, 0.0]:
+		for y in SKULL_ROWS.size():
+			for x in SKULL_ROWS[y].length():
+				if SKULL_ROWS[y][x] == "#":
+					var color := Color(0.05, 0.05, 0.08) if margin > 0.0 else Color(0.95, 0.92, 0.82)
+					_skull.draw_rect(Rect2(x, y, 1, 1).grow(margin), color)
 
 
 ## A remark (not a conversation) above the head for `seconds`: "SPEAKER:" in
@@ -138,7 +205,7 @@ func say(speaker: String, text: String, color: Color, seconds := 5.0) -> void:
 	await get_tree().process_frame
 	if not is_instance_valid(_remark):
 		return
-	_remark.position = Vector2(-REMARK_WIDTH / 2.0, -30.0 - _remark.get_content_height())
+	_remark.position = Vector2(-REMARK_WIDTH / 2.0, -40.0 - _remark.get_content_height())
 	_keep_remark_on_screen()
 	if _remark_tween:
 		_remark_tween.kill()
@@ -158,11 +225,41 @@ func _keep_remark_on_screen() -> void:
 
 
 ## Holds the knight still with a speech bubble over its head (during a chat).
+## Potion effects on the knight now, for the HUD: [{kind, left}], in seconds.
+func active_effects() -> Array[Dictionary]:
+	var effects: Array[Dictionary] = []
+	for effect in [[PotionData.FIRE, _burn_left], [PotionData.FREEZE, _freeze_left], [PotionData.TRANSLUCENT, _translucent_left]]:
+		if effect[1] > 0.0:
+			effects.append({"kind": effect[0], "left": effect[1]})
+	return effects
+
+
+## A conversation froze the game. The knight stays in it, but still falls: no
+## control and no potion timers, only gravity. (Runs while the game is paused.)
+func set_held_by_dialogue(held: bool) -> void:
+	_held_by_dialogue = held
+	process_mode = Node.PROCESS_MODE_ALWAYS if held else Node.PROCESS_MODE_INHERIT
+
+
+## A jump key still held from closing a conversation or the book doesn't count.
+func ignore_held_jump() -> void:
+	_ignore_jump = true
+	_jump_buffer_timer = 0.0
+
+
+func _jump_pressed() -> bool:
+	if _ignore_jump:
+		if not Input.is_action_pressed("jump"):
+			_ignore_jump = false
+		return false
+	return super()
+
+
 func set_talking(talking: bool) -> void:
 	_talking = talking
 	if not _chat_icon:
 		_chat_icon = Node2D.new()
-		_chat_icon.position = Vector2(0, -26)
+		_chat_icon.position = Vector2(0, -38)
 		_chat_icon.z_index = 10
 		_chat_icon.draw.connect(_draw_chat_icon)
 		add_child(_chat_icon)
@@ -178,6 +275,12 @@ func _draw_chat_icon() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _held_by_dialogue:
+		velocity.x = 0.0
+		if not is_on_floor():
+			velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
+		_slide()
+		return
 	if is_burning():
 		_burn_left -= delta
 		if _burn_left <= 0.0:
@@ -195,13 +298,6 @@ func _physics_process(delta: float) -> void:
 	if _base_max_speed < 0.0:
 		_base_max_speed = max_speed
 	max_speed = _base_max_speed * (PotionData.PLAYER_FIRE_SPEED_BOOST if is_burning() else 1.0)
-	if _talking:
-		velocity.x = 0.0
-		if not is_on_floor():
-			velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
-		_slide()
-		_animate(delta, 0.0)
-		return
 	super(delta)
 	_push_crates()
 
@@ -247,11 +343,13 @@ func _push_crates() -> void:
 func _process(delta: float) -> void:
 	if _remark and _remark.visible:
 		_keep_remark_on_screen()
-	if _dead:
+	if _dead or _held_by_dialogue:
 		return
 	_translucent_left = maxf(_translucent_left - delta, 0.0)
 	if not _flames:
 		_flames = _make_flames()
+		# Freezes with the game even while the knight is held by dialogue.
+		_flames.process_mode = Node.PROCESS_MODE_PAUSABLE
 		add_child(_flames)
 	_flames.emitting = is_burning()
 	if not _ice:
@@ -267,7 +365,9 @@ func _process(delta: float) -> void:
 	if is_frozen():
 		tint = Color(0.6, 0.85, 1.0)
 	elif is_burning():
-		tint = Color(1.0, 0.65, 0.45)
+		# The same hurt flash as a burning slime.
+		_burn_flash_clock += delta
+		tint = BURN_FLASH_A if int(_burn_flash_clock * BURN_FLASH_RATE) % 2 == 0 else BURN_FLASH_B
 	_sprite.modulate = tint
 	var alpha := 1.0
 	if is_translucent():
@@ -282,9 +382,9 @@ func _make_flames() -> CPUParticles2D:
 	flames.emitting = false
 	flames.amount = 12
 	flames.lifetime = 0.45
-	flames.position = Vector2(0, -9)
+	flames.position = Vector2(0, -14)
 	flames.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	flames.emission_rect_extents = Vector2(5, 7)
+	flames.emission_rect_extents = Vector2(6, 13)
 	flames.direction = Vector2.UP
 	flames.spread = 20.0
 	flames.gravity = Vector2(0, -60)

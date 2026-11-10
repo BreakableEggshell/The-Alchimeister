@@ -47,10 +47,20 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "CONTINUE"
 
-[node name="ResetButton" type="Button" parent="Center/Layout"]
+[node name="AllLevelsButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "RESET"
+text = "ALL LEVELS"
+
+[node name="SettingsButton" type="Button" parent="Center/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "SETTINGS"
+
+[node name="DebugButton" type="Button" parent="Center/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "DEBUG"
 
 [node name="ExitButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true

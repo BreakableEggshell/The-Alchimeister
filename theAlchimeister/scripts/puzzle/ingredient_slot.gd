@@ -21,8 +21,10 @@ var index := 0
 var kind: StringName = &""
 ## Stack size for storage slots; potions that will be brewed for the result slot.
 var count := 0
-## Result slot only: the potion is still a secret, so a lock is drawn instead.
+## Result slot only: the potion can't be brewed yet, so a lock is drawn instead.
 var locked := false
+## Result slot only: the potion can be brewed but never has been: a "?".
+var unknown := false
 
 var _hover := false
 var _press_inside := false
@@ -44,10 +46,11 @@ func _init(slot_role: Role = Role.STORAGE, slot_index := 0, slot_size := Vector2
 		queue_redraw())
 
 
-func show_contents(new_kind: StringName, new_count := 0, is_locked := false) -> void:
+func show_contents(new_kind: StringName, new_count := 0, is_locked := false, is_unknown := false) -> void:
 	kind = new_kind
 	count = new_count
 	locked = is_locked
+	unknown = is_unknown and not is_locked
 	queue_redraw()
 
 
@@ -100,6 +103,8 @@ func _draw() -> void:
 	var center := size / 2.0
 	if locked:
 		PotionData.draw_lock_icon(self, center + Vector2(0, 1), BORDER.lightened(0.4))
+	elif unknown:
+		PotionData.draw_unknown_icon(self, center, HOVER_BORDER, 16 if size.x >= 24.0 else 8)
 	elif kind != &"":
 		if role == Role.RESULT:
 			PotionData.draw_potion(self, kind, center + Vector2(0, 1))

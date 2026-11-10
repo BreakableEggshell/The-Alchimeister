@@ -14,6 +14,7 @@ stage_id = "1-1"
 stage_size = Vector2(814, 216)
 throwing_enabled = false
 show_potion_bar = false
+log_and_hint_enabled = false
 highlight_slots_after_misses = 0
 hint_lines = PackedStringArray("SHELDON (glasses): Run at the hole and jump it with {jump}. Don't touch the slime down there.", "SHELDON (glasses): Then hop up the planks and push the crate onto the button. That opens the gate.")
 
@@ -83,22 +84,21 @@ script = ExtResource("2_solid")
 points = PackedVector2Array(0, 0, 10, 0, 10, 8, 0, 8)
 
 [node name="Lintel" type="StaticBody2D" parent="Level"]
-position = Vector2(716, 0)
+position = Vector2(732, 0)
 script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 28, 0, 28, 72, 0, 72)
+points = PackedVector2Array(0, 0, 28, 0, 28, 60, 0, 60)
 
 [node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
-position = Vector2(724, 72)
+position = Vector2(740, 60)
 script = ExtResource("4_gate")
-size = Vector2(12, 24)
+size = Vector2(12, 36)
 plates = [NodePath("../Plate")]
 
 [node name="Exit" type="Area2D" parent="Level"]
-position = Vector2(774, 96)
+position = Vector2(790, 96)
 script = ExtResource("6_exit")
 
 [node name="Enemies" type="Node2D" parent="."]
 
 [node name="PitSlime" parent="Enemies" instance=ExtResource("7_slime")]
 position = Vector2(272, 208)
-patrol_distance = 10.0

@@ -1,7 +1,7 @@
 extends Node2D
 ## A "DRAG ONTO THE X / TO CANCEL" sign that acts out a cancelled throw on a
 ## loop: a finger presses and drags back (the aim appears, and so does a
-## little red X box in the top right, like the real cancel box), then moves up
+## little red X box up and to the right, like the real cancel box), then moves up
 ## onto the X (the aim goes away, the X lights up) and lets go: nothing is
 ## thrown. Same look as the "TAP AND DRAG" sign (ThrowHint).
 ## It appears once `chest` has been opened and its conversation is over, and
@@ -11,10 +11,6 @@ extends Node2D
 const ThrowHint := preload("res://scripts/puzzle/throw_hint.gd")
 const SIZE := Vector2(106, 64)
 const LOOP_TIME := 3.6
-## Seconds after the chest's conversation before the sign comes up: the
-## HUD's "+1 ..." pickup messages (paused while Sheldon talked) take this
-## long to clear (PotionHud.MESSAGE_TIME plus their fade).
-const SHOW_DELAY := 2.0
 ## The mini cancel box, in the sign's top right; colours match the HUD's.
 const BOX := Rect2(32, -18, 16, 16)
 const BOX_FILL := Color(0.8, 0.2, 0.25, 0.35)
@@ -53,9 +49,11 @@ func is_shown() -> bool:
 	return _shown
 
 
-## Waits for the "+1 ..." pickup text (held while Sheldon talked) to clear.
+## Right away; the "+1 ..." pickup text would be in the sign's way, so it goes.
 func _on_chest_opened() -> void:
-	await get_tree().create_timer(SHOW_DELAY).timeout
+	var stage := owner
+	if stage and stage.get("hud"):
+		stage.hud.clear_messages()
 	_set_shown(true)
 
 

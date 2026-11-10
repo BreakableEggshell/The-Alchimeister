@@ -4,6 +4,9 @@ extends StaticBody2D
 ## A portcullis linked to pressure plates. Normally it opens while any linked
 ## plate is pressed (every one, with needs_all); with open_when_pressed off
 ## it opens only while none are.
+## On a plain plate it waits a moment before opening, so something only passing
+## over the plate (a patrolling slime) never lifts it; it takes something that
+## stays. Heavy buttons need no wait: only real weight presses them.
 ## It rises and drops at the same slow speed, and blocks exactly what it
 ## shows: the bars that are down are solid, the gap under them is free. If
 ## something is in the way as it drops, it waits above it.
@@ -23,6 +26,9 @@ extends StaticBody2D
 ## Seconds to rise or drop fully.
 @export var travel_time := 1.2
 
+## Seconds a plain plate must stay pressed before the gate starts to rise. Longer
+## than a slime takes to walk over one.
+const OPEN_DELAY := 0.8
 ## What a dropping gate stops for instead of crushing.
 const BLOCKERS := PotionData.LAYER_PLAYER | PotionData.LAYER_ENEMIES | PotionData.LAYER_PROPS
 
@@ -32,6 +38,8 @@ var _wires: Node2D
 ## Plates learn what's on them during the first physics frames; until then
 ## the gate stays shut.
 var _settle_frames := 2
+## How long the plates have been asking for the gate to open.
+var _wanted_for := 0.0
 
 const WIRE_OUTLINE := Color(0.08, 0.07, 0.11)
 const WIRE_ALPHA := 0.9
@@ -65,7 +73,9 @@ func _physics_process(delta: float) -> void:
 		return
 	var is_pressed := func(plate: PressurePlate) -> bool: return plate.pressed
 	var active := plates.all(is_pressed) if needs_all else plates.any(is_pressed)
-	var target := 1.0 if active == open_when_pressed else 0.0
+	var wants_open := active == open_when_pressed
+	_wanted_for = _wanted_for + delta if wants_open else 0.0
+	var target := 1.0 if wants_open and _wanted_for >= _delay() else 0.0
 	if _open_amount == target:
 		return
 	var next := move_toward(_open_amount, target, delta / travel_time)
@@ -73,6 +83,13 @@ func _physics_process(delta: float) -> void:
 	if next < _open_amount and _blocked_at(next):
 		return
 	_set_open_amount(next)
+
+
+## The wait before opening: only for plates something could just be passing over.
+func _delay() -> float:
+	if not open_when_pressed:
+		return 0.0
+	return OPEN_DELAY if plates.any(func(plate: PressurePlate) -> bool: return not plate is HeavyButton) else 0.0
 
 
 ## How far down the bars reach at an open amount.
