@@ -1,6 +1,10 @@
 extends "res://scripts/puzzle/puzzle_level.gd"
-## Level 7, "The only way out": the path drops you into a pit you can't climb
-## out of, with a chest of three random ingredients. That's the softlock, on
+## The last level, "The only way out": on the way to the Demon King's lair
+## there's a gap to jump, but Sheldon always starts talking mid-jump (every
+## attempt, LedgeTalk), and a conversation stops the knight dead in the air, so
+## he drops into the pit below. That's on purpose. The pit can't be climbed
+## out of (the ledges overhang it), and holds a chest of three random
+## ingredients. That's the softlock, on
 ## purpose: the way out is to die, by setting yourself on fire with no water
 ## around or by brewing a Death potion (any mix that isn't a recipe). Doing
 ## so clears the level instead of restarting it. Being stuck any other way

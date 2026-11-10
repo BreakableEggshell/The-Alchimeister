@@ -7,6 +7,7 @@ extends "res://scripts/platformer/platformer_knight.gd"
 ## Freeze: can't move, jump or throw for PotionData.PLAYER_FREEZE_TIME.
 ## Knockback: flung away. Translucent: monsters pass through. Death: dies.
 ## Fire and freeze cancel each other; cleansing water clears them all.
+## Running into ice (IcePillar) while burning melts it.
 
 ## `cause` is one of GameOver's causes; it picks the game over message.
 signal died(cause: StringName)
@@ -60,6 +61,10 @@ var _chat_icon: Node2D
 var _ice: Node2D
 ## max_speed before any fire boost.
 var _base_max_speed := -1.0
+
+
+func _ready() -> void:
+	add_to_group("player")
 
 
 ## `power` scales knockback with how hard the potion was thrown.
@@ -311,6 +316,8 @@ func _slide() -> void:
 	var bounced := false
 	for i in get_slide_collision_count():
 		var collision := get_slide_collision(i)
+		if is_burning() and collision.get_collider() is IcePillar:
+			collision.get_collider().melt()
 		var jelly := collision.get_collider() as Jelly
 		if not jelly or bounced:
 			continue

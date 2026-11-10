@@ -1,0 +1,61 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/puzzle/level_14.gd" id="level14"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/dialogue_trigger.gd" id="trigger"]
+
+[node name="Level14" instance=ExtResource("base") node_paths=PackedStringArray("chest")]
+script = ExtResource("level14")
+stage_id = "14"
+stage_size = Vector2(420, 216)
+hint_lines = PackedStringArray("SHELDON (squint): No ladder, no door, no way up. I've looked.", "SHELDON: You know, there's one way out that everybody takes eventually.", "SHELDON (squint): I'm just saying. Some of these ingredients really shouldn't be mixed.")
+potions_needed_until_x = 2000.0
+chest = NodePath("Level/Chest")
+exit_lines = PackedStringArray("SHELDON: And that's it. These are all the levels we have for now.", "SHELDON (glasses): Look forward to our game dev presentation, where you can play future levels yourself!")
+
+[node name="Knight" parent="."]
+position = Vector2(24, 96)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="StartLedge" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 96)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 200, 0, 200, 40, 176, 40, 176, 120, 0, 120)
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(176, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 96, 0, 96, 24, 0, 24)
+
+[node name="ExitLedge" type="StaticBody2D" parent="Level"]
+position = Vector2(248, 96)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 172, 0, 172, 120, 24, 120, 24, 40, 0, 40)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(390, 96)
+script = ExtResource("exit")
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(244, 192)
+script = ExtResource("chest")
+contents = "ember"
+amount = 1
+
+[node name="LedgeTalk" type="Area2D" parent="Level"]
+position = Vector2(214, 0)
+script = ExtResource("trigger")
+size = Vector2(26, 96)
+lines = PackedStringArray("SHELDON: Look, there it is! The Demon King's lair is right across th-")
+first_attempt_only = false
+retry_lines = PackedStringArray("SHELDON (squint): Oh! Before you jump, I just wanted to s-")
+
+[node name="StuckTalk" type="Area2D" parent="Level"]
+position = Vector2(180, 188)
+script = ExtResource("trigger")
+size = Vector2(88, 4)
+lines = PackedStringArray("SHELDON (squint): ...Sorry. I shouldn't talk to people mid-jump, should I?", "SHELDON (squint): Looks like we're stuck.")

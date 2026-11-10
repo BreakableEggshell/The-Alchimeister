@@ -16,6 +16,9 @@ extends Area2D
 @export_enum("none", "hint", "tutorial") var teaches := "none"
 ## Only on the stage's first attempt, not again after a restart.
 @export var first_attempt_only := true
+## With first_attempt_only off: lines for every attempt after the first.
+## Empty plays `lines` again.
+@export var retry_lines: PackedStringArray
 
 var _done := false
 
@@ -42,8 +45,11 @@ func _on_body_entered(body: Node) -> void:
 		return
 	_done = true
 	var dialogue := get_tree().get_first_node_in_group("dialogue")
+	var stage := owner
+	var retry: bool = stage and stage.has_method("restart_count") and stage.restart_count() > 0
+	var said := retry_lines if retry and not retry_lines.is_empty() else lines
 	if dialogue:
-		dialogue.interrupt(lines, body, &"" if teaches == "none" else StringName(teaches))
+		dialogue.interrupt(said, body, &"" if teaches == "none" else StringName(teaches))
 
 
 func _draw() -> void:

@@ -126,6 +126,8 @@ func _apply_splash() -> void:
 	query.shape = circle
 	query.transform = Transform2D(0.0, global_position)
 	query.collision_mask = PotionData.SPLASH_MASK
+	# Some props are areas (dynamite).
+	query.collide_with_areas = true
 	var touched := {}
 	for hit in get_world_2d().direct_space_state.intersect_shape(query, 32):
 		var body: Object = hit.collider

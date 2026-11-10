@@ -1,25 +1,44 @@
 extends Control
 ## Level select: a map with one node per stage, numbered in play order (the
 ## numbers are only for this screen; stages keep their ids, like "1-2").
-## Nodes wind across the map in rows, placed from however many stages there
-## are. Clicking an unlocked node plays that stage; locked ones are dimmed with
-## a padlock and can't be picked.
+## Nodes wind across the map in rows (at most MAX_ROWS), placed from however
+## many stages there are. Clicking an unlocked node plays that stage; locked
+## ones are dimmed with a padlock and can't be picked. Clouds drift across the
+## sky, each at its own pace, coming back round the other side.
 
-const BACKGROUND := preload("res://assets/map1_grass.png")
+const BACKGROUND := preload("res://assets/map1.png")
 const NODE_TEXTURE := preload("res://assets/map1_levelnode.png")
+const CLOUDS := preload("res://assets/map1_clouds.png")
+## Each cloud in the cloud sheet, where it floats (its height, and where it
+## starts across), and how fast it drifts in pixels per second. Smaller ones
+## are further away, so they drift slower.
+const CLOUD_LAYOUT: Array[Dictionary] = [
+	{"region": Rect2(11, 10, 52, 25), "y": 6.0, "x": 20.0, "speed": 6.0},
+	{"region": Rect2(82, 10, 59, 25), "y": 30.0, "x": 170.0, "speed": 4.5},
+	{"region": Rect2(170, 16, 30, 13), "y": 50.0, "x": 300.0, "speed": 2.5},
+	{"region": Rect2(234, 11, 51, 19), "y": 16.0, "x": 290.0, "speed": 3.5},
+]
 const GOLD := Color(0.95, 0.85, 0.55)
 const TEXT_OUTLINE := Color(0.08, 0.1, 0.06)
 const LOCKED_TINT := Color(0.55, 0.55, 0.55)
 ## A node's button: the art with its number below it.
 const NODE_SIZE := Vector2(30, 26)
 const NUMBER_BASELINE := 24.0
-const NODES_PER_ROW := 5
-## The area of the map the nodes spread across (their centres).
-const MAP_AREA := Rect2(44, 66, 296, 90)
+## Nodes per row: at least this many, more once MAX_ROWS rows would be full.
+const MIN_PER_ROW := 5
+const MAX_ROWS := 3
+## The area of the map the nodes spread across (their centres): the grass,
+## below the tree line.
+const MAP_AREA := Rect2(44, 100, 296, 76)
 ## Every other node sits this far up or down, so a row isn't a straight line.
 const WOBBLE := 10.0
 
 var _nodes: Array[Button] = []
+## Nodes per row on this map (see per_row()).
+var _per_row := MIN_PER_ROW
+var _sky: Control
+## How far each cloud has drifted from where it starts.
+var _drift: Array[float] = []
 
 
 func _ready() -> void:
@@ -30,6 +49,12 @@ func _ready() -> void:
 		if not _nodes[i].disabled:
 			_nodes[i].grab_focus()
 			break
+
+
+func _process(delta: float) -> void:
+	for i in _drift.size():
+		_drift[i] += CLOUD_LAYOUT[i].speed * delta
+	_sky.queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -44,21 +69,29 @@ func focus_first() -> bool:
 	return true
 
 
+## How many nodes go in a row for `count` stages: MIN_PER_ROW, or more if
+## MAX_ROWS rows of that wouldn't fit them all.
+static func per_row(count: int) -> int:
+	return maxi(MIN_PER_ROW, ceili(float(count) / MAX_ROWS))
+
+
 ## Where node `index` of `count` goes: rows that snake left to right, then
 ## right to left, so each number is next to the one before it.
 static func node_center(index: int, count: int) -> Vector2:
-	var rows := ceili(float(count) / NODES_PER_ROW)
-	var row := index / NODES_PER_ROW
-	var column := _column_of(index)
-	var x := MAP_AREA.position.x + MAP_AREA.size.x * column / (NODES_PER_ROW - 1)
+	var across := per_row(count)
+	var rows := ceili(float(count) / across)
+	var row := index / across
+	var column := _column_of(index, across)
+	var x := MAP_AREA.position.x + MAP_AREA.size.x * column / (across - 1)
 	var y := MAP_AREA.position.y + (MAP_AREA.size.y * row / (rows - 1) if rows > 1 else MAP_AREA.size.y / 2.0)
 	return Vector2(x, y + (WOBBLE if column % 2 == 1 else -WOBBLE))
 
 
-## Which column node `index` is in, counting from the left of the map.
-static func _column_of(index: int) -> int:
-	var column := index % NODES_PER_ROW
-	return NODES_PER_ROW - 1 - column if (index / NODES_PER_ROW) % 2 == 1 else column
+## Which column node `index` is in, counting from the left of the map, with
+## `across` nodes to a row.
+static func _column_of(index: int, across: int) -> int:
+	var column := index % across
+	return across - 1 - column if (index / across) % 2 == 1 else column
 
 
 # --- Layout
@@ -71,6 +104,14 @@ func _build() -> void:
 	map.set_anchors_preset(Control.PRESET_FULL_RECT)
 	map.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(map)
+
+	_sky = Control.new()
+	_sky.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sky.draw.connect(_draw_clouds)
+	add_child(_sky)
+	for cloud in CLOUD_LAYOUT:
+		_drift.append(0.0)
 
 	var title := Label.new()
 	title.text = "SELECT LEVEL"
@@ -85,6 +126,7 @@ func _build() -> void:
 	add_child(title)
 
 	var stages := SaveGame.all_stages()
+	_per_row = per_row(stages.size())
 	for i in stages.size():
 		var node := _level_node(stages[i], i + 1)
 		add_child(node)
@@ -112,8 +154,8 @@ func _link_keys(back: Button) -> void:
 		var node := _nodes[i]
 		if node.disabled:
 			continue
-		var row := i / NODES_PER_ROW
-		var column := _column_of(i)
+		var row := i / _per_row
+		var column := _column_of(i, _per_row)
 		node.focus_neighbor_left = _open_node_path(row, column - 1, node.get_path())
 		node.focus_neighbor_right = _open_node_path(row, column + 1, node.get_path())
 		node.focus_neighbor_top = _open_node_path(row - 1, column, node.get_path())
@@ -128,9 +170,9 @@ func _link_keys(back: Button) -> void:
 
 ## The path of the unlocked node at that spot on the map, else `otherwise`.
 func _open_node_path(row: int, column: int, otherwise: NodePath) -> NodePath:
-	if column < 0 or column >= NODES_PER_ROW or row < 0:
+	if column < 0 or column >= _per_row or row < 0:
 		return otherwise
-	var index := row * NODES_PER_ROW + (NODES_PER_ROW - 1 - column if row % 2 == 1 else column)
+	var index := row * _per_row + (_per_row - 1 - column if row % 2 == 1 else column)
 	if index >= _nodes.size() or _nodes[index].disabled:
 		return otherwise
 	return _nodes[index].get_path()
@@ -154,6 +196,18 @@ func _level_node(stage: String, number: int) -> Button:
 		node.focus_mode = Control.FOCUS_NONE
 	node.draw.connect(_draw_node.bind(node, number))
 	return node
+
+
+## Each cloud where it has drifted to, coming back in on the left once it has
+## gone off the right edge. Whole pixels, so the pixel art stays crisp.
+func _draw_clouds() -> void:
+	var width := _sky.size.x
+	for i in CLOUD_LAYOUT.size():
+		var cloud: Dictionary = CLOUD_LAYOUT[i]
+		var region: Rect2 = cloud.region
+		var lap := width + region.size.x
+		var x := fposmod(cloud.x + _drift[i] + region.size.x, lap) - region.size.x
+		_sky.draw_texture_rect_region(CLOUDS, Rect2(Vector2(roundf(x), cloud.y), region.size), region)
 
 
 func _draw_node(node: Button, number: int) -> void:

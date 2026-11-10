@@ -9,9 +9,9 @@ signal controls_changed
 
 const START_MENU := "res://scenes/menu/start_menu.tscn"
 const LEVEL_SELECT := "res://scenes/menu/level_select.tscn"
-## Seven levels. Levels 1 and 2 have stages; levels 3-7 are a single stage
-## each (picked straight from level select). A level with no stages is always
-## locked.
+## Fourteen levels. Levels 1 and 2 have stages; levels 3-14 are a single
+## stage each (picked straight from level select). A level with no stages is
+## always locked. The last one ("14") is the end of the game.
 const LEVELS: Array[Dictionary] = [
 	{"title": "TUTORIAL", "stages": ["1-1", "1-2", "1-3"]},
 	{"title": "I'M AFFECTED TOO", "stages": ["2-1", "2-2"]},
@@ -19,7 +19,14 @@ const LEVELS: Array[Dictionary] = [
 	{"title": "HOT FOOT", "stages": ["4"]},
 	{"title": "FALSE FLOORS", "stages": ["5"]},
 	{"title": "RETURN TO SENDER", "stages": ["6"]},
-	{"title": "THE ONLY WAY OUT", "stages": ["7"]},
+	{"title": "MELTDOWN", "stages": ["7"]},
+	{"title": "HIGH FLYERS", "stages": ["8"]},
+	{"title": "SPRING LOADED", "stages": ["9"]},
+	{"title": "GHOST GATES", "stages": ["10"]},
+	{"title": "DOOR TO DOOR", "stages": ["11"]},
+	{"title": "DON'T LOOK", "stages": ["12"]},
+	{"title": "BLAST RADIUS", "stages": ["13"]},
+	{"title": "THE ONLY WAY OUT", "stages": ["14"]},
 ]
 const STAGE_SCENES := {
 	"1-1": "res://scenes/levels/tutorial_1.tscn",
@@ -32,6 +39,13 @@ const STAGE_SCENES := {
 	"5": "res://scenes/levels/level_5.tscn",
 	"6": "res://scenes/levels/level_6.tscn",
 	"7": "res://scenes/levels/level_7.tscn",
+	"8": "res://scenes/levels/level_8.tscn",
+	"9": "res://scenes/levels/level_9.tscn",
+	"10": "res://scenes/levels/level_10.tscn",
+	"11": "res://scenes/levels/level_11.tscn",
+	"12": "res://scenes/levels/level_12.tscn",
+	"13": "res://scenes/levels/level_13.tscn",
+	"14": "res://scenes/levels/level_14.tscn",
 }
 const FIRST_STAGE := "1-1"
 ## Debug: free play with every mechanic, outside the levels and their progress.

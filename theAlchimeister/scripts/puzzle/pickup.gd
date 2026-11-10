@@ -1,10 +1,18 @@
 class_name Pickup
 extends Area2D
-## A floating ingredient. Touching it adds it to the inventory.
+## A floating ingredient. Touching it adds it to the inventory. With `falls`
+## (dropped by something in the air) it first falls until it lands on a floor.
+
+const FALL_GRAVITY := 600.0
+const MAX_FALL_SPEED := 300.0
+## How high above the floor it comes to rest.
+const REST_HEIGHT := 8.0
 
 var kind: StringName = PotionData.EMBER
+var falls := false
 
 var _clock := 0.0
+var _fall_speed := 0.0
 
 
 func _ready() -> void:
@@ -17,6 +25,20 @@ func _ready() -> void:
 	shape.shape = circle
 	add_child(shape)
 	body_entered.connect(_on_body_entered)
+
+
+func _physics_process(delta: float) -> void:
+	if not falls:
+		return
+	_fall_speed = minf(_fall_speed + FALL_GRAVITY * delta, MAX_FALL_SPEED)
+	var step := _fall_speed * delta
+	var query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(0, step + REST_HEIGHT), PotionData.LAYER_WORLD | PotionData.LAYER_PROPS)
+	var hit := get_world_2d().direct_space_state.intersect_ray(query)
+	if hit:
+		global_position.y = hit.position.y - REST_HEIGHT
+		falls = false
+	else:
+		global_position.y += step
 
 
 func _process(delta: float) -> void:

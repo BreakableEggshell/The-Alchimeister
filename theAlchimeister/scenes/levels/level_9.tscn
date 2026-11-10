@@ -1,0 +1,97 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/spring_pad.gd" id="spring"]
+[ext_resource type="Script" path="res://scripts/puzzle/rock.gd" id="rock"]
+[ext_resource type="Script" path="res://scripts/puzzle/pressure_plate.gd" id="plate"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+
+[node name="Level9" instance=ExtResource("base")]
+stage_id = "9"
+stage_size = Vector2(760, 216)
+intro_lines = PackedStringArray("SHELDON: Ooh, spring traps! The castle's full of them.", "SHELDON (glasses): One good blast sets them off. And up goes whatever's standing on them.")
+intro_teaches = "hint"
+hint_lines = PackedStringArray("SHELDON: That wall's too tall to jump. That spring isn't.", "---", "SHELDON (squint): That button up there is a bit high. For us, anyway.", "SHELDON: Rocks make great passengers.", "---", "SHELDON (glasses): Springs don't care what's standing on them. Slimes included.")
+potions_needed_until_x = 650.0
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="FloorA" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 180, 0, 180, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(50, 192)
+script = ExtResource("chest")
+contents = "gust_feather"
+amount = 4
+
+[node name="Spring1" type="StaticBody2D" parent="Level"]
+position = Vector2(140, 192)
+script = ExtResource("spring")
+
+[node name="Cliff" type="StaticBody2D" parent="Level"]
+position = Vector2(180, 96)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 340, 0, 340, 120, 0, 120)
+
+[node name="Spring2" type="StaticBody2D" parent="Level"]
+position = Vector2(300, 96)
+script = ExtResource("spring")
+width = 28.0
+
+[node name="Rock" type="CharacterBody2D" parent="Level"]
+position = Vector2(300, 96)
+script = ExtResource("rock")
+collision_layer = 8
+collision_mask = 9
+
+[node name="Shelf" type="StaticBody2D" parent="Level"]
+position = Vector2(274, 40)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 52, 0, 52, 6, 0, 6)
+one_way = true
+
+[node name="ShelfPlate" type="Area2D" parent="Level"]
+position = Vector2(300, 40)
+script = ExtResource("plate")
+
+[node name="UpperWall" type="StaticBody2D" parent="Level"]
+position = Vector2(440, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 14, 0, 14, 60, 0, 60)
+
+[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(440, 60)
+script = ExtResource("gate")
+size = Vector2(14, 36)
+plates = [NodePath("../ShelfPlate")]
+
+[node name="FloorB" type="StaticBody2D" parent="Level"]
+position = Vector2(520, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 240, 0, 240, 24, 0, 24)
+
+[node name="Spring3" type="StaticBody2D" parent="Level"]
+position = Vector2(610, 192)
+script = ExtResource("spring")
+
+[node name="ExitLedge" type="StaticBody2D" parent="Level"]
+position = Vector2(650, 100)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 110, 0, 110, 92, 0, 92)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(724, 100)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Guard" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(590, 192)
+speed = 28.0

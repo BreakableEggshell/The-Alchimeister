@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="1_slime"]
+[ext_resource type="Script" path="res://scripts/puzzle/sentry.gd" id="2_sentry"]
+
+[node name="Lookout" instance=ExtResource("1_slime")]
+script = ExtResource("2_sentry")
+movement = 0

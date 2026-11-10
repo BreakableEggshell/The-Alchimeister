@@ -203,7 +203,7 @@ func _check_stuck() -> void:
 
 ## Out of potions with no way to make more, short of the point where none are
 ## needed, and nothing still in play that could change things (a potion in
-## the air, an effect still running on the player or a monster).
+## the air, a lit fuse, an effect still running on the player or a monster).
 func is_stuck() -> bool:
 	if inventory.unlimited:
 		return false
@@ -214,7 +214,7 @@ func is_stuck() -> bool:
 	if PotionData.INGREDIENTS.any(func(kind: StringName) -> bool: return inventory.ingredient_count(kind) > 0):
 		return false
 	var tree := get_tree()
-	if tree.get_node_count_in_group("potions") > 0 or tree.get_node_count_in_group("pickups") > 0:
+	if tree.get_node_count_in_group("potions") > 0 or tree.get_node_count_in_group("pickups") > 0 or tree.get_node_count_in_group("lit_fuses") > 0:
 		return false
 	if tree.get_nodes_in_group("chests").any(func(chest: Node) -> bool: return not chest.is_opened()):
 		return false

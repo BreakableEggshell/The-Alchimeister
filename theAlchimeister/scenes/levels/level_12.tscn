@@ -1,0 +1,103 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/lookout.tscn" id="lookout"]
+
+[node name="Level12" instance=ExtResource("base")]
+stage_id = "12"
+stage_size = Vector2(900, 216)
+intro_lines = PackedStringArray("SHELDON (squint): Psst. That slime's on lookout duty.", "SHELDON: If it spots us, I bet that gate slams shut.")
+intro_teaches = "hint"
+hint_lines = PackedStringArray("SHELDON (squint): It can't shut the gate on what it can't see.", "---", "SHELDON: That one up there keeps looking back at the wall. Bored, probably.", "---", "SHELDON (glasses): Two lookouts, back to back. One splash could do for both. Or for us.")
+potions_needed_until_x = 820.0
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 900, 0, 900, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(56, 192)
+script = ExtResource("chest")
+contents = "ghost_wisp"
+amount = 2
+extra_contents = "frost_shard"
+
+[node name="WallA" type="StaticBody2D" parent="Level"]
+position = Vector2(300, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 156, 0, 156)
+
+[node name="GateA" type="StaticBody2D" parent="Level"]
+position = Vector2(300, 156)
+script = ExtResource("gate")
+size = Vector2(12, 36)
+open_when_pressed = false
+
+[node name="Balcony" type="StaticBody2D" parent="Level"]
+position = Vector2(500, 110)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 60, 0, 60, 10, 0, 10)
+
+[node name="WallB" type="StaticBody2D" parent="Level"]
+position = Vector2(560, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 156, 0, 156)
+
+[node name="GateB" type="StaticBody2D" parent="Level"]
+position = Vector2(560, 156)
+script = ExtResource("gate")
+size = Vector2(12, 36)
+open_when_pressed = false
+
+[node name="WallC" type="StaticBody2D" parent="Level"]
+position = Vector2(820, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 156, 0, 156)
+
+[node name="GateC" type="StaticBody2D" parent="Level"]
+position = Vector2(820, 156)
+script = ExtResource("gate")
+size = Vector2(12, 36)
+open_when_pressed = false
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(866, 192)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="DoorWatch" parent="Enemies" node_paths=PackedStringArray("doors") instance=ExtResource("lookout")]
+position = Vector2(250, 192)
+start_direction = -1
+doors = [NodePath("../../Level/GateA")]
+view_range = 130.0
+view_angle = 25.0
+
+[node name="BalconyWatch" parent="Enemies" node_paths=PackedStringArray("doors") instance=ExtResource("lookout")]
+position = Vector2(506, 110)
+start_direction = -1
+doors = [NodePath("../../Level/GateB")]
+view_range = 150.0
+view_angle = 22.0
+look_down = 30.0
+turn_every = 3.0
+
+[node name="WatchLeft" parent="Enemies" node_paths=PackedStringArray("doors") instance=ExtResource("lookout")]
+position = Vector2(742, 192)
+start_direction = -1
+doors = [NodePath("../../Level/GateC")]
+view_range = 120.0
+view_angle = 25.0
+
+[node name="WatchRight" parent="Enemies" node_paths=PackedStringArray("doors") instance=ExtResource("lookout")]
+position = Vector2(756, 192)
+doors = [NodePath("../../Level/GateC")]
+view_range = 120.0
+view_angle = 25.0
