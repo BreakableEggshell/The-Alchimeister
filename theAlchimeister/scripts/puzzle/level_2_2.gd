@@ -5,10 +5,11 @@ extends "res://scripts/puzzle/puzzle_level.gd"
 ## go on yourself too. Sheldon drops hints:
 ## - running out of translucent potions without ever turning translucent
 ##   yourself gets a nudge (blunt from the 7th attempt on);
-## - from the 3rd attempt, a wink at the start.
+## - from the 3rd attempt, a wink at the start (not when the hint reminder
+##   plays instead).
 
 const RUN_OUT_LINE := "SHELDON (squint): Darn, we don't have that much potions. If only we can be translucent ourselves."
-const WINK_LINE := "SHELDON (squint): I wonder if we can use the potion on ourselves. Why not try throwing it on your feet? *Wink* *Wink*"
+const WINK_LINE := "SHELDON (squint): Who says potions are only for throwing at monsters? *Wink* *Wink*"
 const BLUNT_LINE := "SHELDON (glasses): Throw. The. Translucent. Potion. To. Your. Feet."
 ## Attempts (restarts) before each hint kicks in.
 const WINK_AFTER_RESTARTS := 2
@@ -29,7 +30,7 @@ func _ready() -> void:
 func _on_stage_start(attempt: int) -> void:
 	if attempt == 0:
 		super(attempt)
-	elif attempt >= WINK_AFTER_RESTARTS and attempt < BLUNT_AFTER_RESTARTS:
+	elif attempt >= WINK_AFTER_RESTARTS and attempt < BLUNT_AFTER_RESTARTS and not is_nudge_attempt(attempt):
 		hud.dialogue.play(PackedStringArray([WINK_LINE]), &"hint")
 
 

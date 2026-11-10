@@ -14,6 +14,7 @@ stage_id = "1-1"
 stage_size = Vector2(814, 216)
 throwing_enabled = false
 show_potion_bar = false
+log_and_hint_enabled = false
 highlight_slots_after_misses = 0
 hint_lines = PackedStringArray("SHELDON (glasses): Run at the hole and jump it with {jump}. Don't touch the slime down there.", "SHELDON (glasses): Then hop up the planks and push the crate onto the button. That opens the gate.")
 

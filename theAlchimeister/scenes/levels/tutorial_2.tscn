@@ -8,15 +8,13 @@
 [ext_resource type="Script" uid="uid://ddxyoskuyx8fl" path="res://scripts/puzzle/exit_door.gd" id="6_exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="7_slime"]
 [ext_resource type="Script" uid="uid://bfk1ff0h8ik6e" path="res://scripts/puzzle/throw_hint.gd" id="8_hint"]
-[ext_resource type="Script" path="res://scripts/puzzle/tutorial_2.gd" id="9_stage"]
 [ext_resource type="Script" path="res://scripts/puzzle/dialogue_trigger.gd" id="10_trigger"]
 
 [node name="Tutorial2" unique_id=759354436 instance=ExtResource("1_base")]
-script = ExtResource("9_stage")
 stage_id = "1-2"
 stage_size = Vector2(760, 216)
 potions_needed_until_x = 612.0
-hint_lines = PackedStringArray("SHELDON: See that slime crawling on the wall? It keeps walking over the button.", "SHELDON (glasses): Freeze it while it's on the button, and it'll hold the gate open for us.", "SHELDON (glasses): Past that, the slime on the floor button is keeping the next gate shut. Knock it off with a good, hard throw!")
+hint_lines = PackedStringArray("SHELDON: See that slime crawling on the wall? It keeps walking over the button.", "SHELDON (glasses): Freeze it while it's on the button, and it'll hold the gate open for us.")
 
 [node name="Level" type="Node2D" parent="." index="5" unique_id=1724762320]
 
@@ -73,6 +71,7 @@ script = ExtResource("6_exit")
 position = Vector2(316, 130)
 script = ExtResource("10_trigger")
 size = Vector2(8, 62)
+lines = PackedStringArray("SHELDON: Fun fact, most playtesters needed that third or fourth potion.", "SHELDON (squint): Surprisingly a tough target.", "SHELDON: You'll get the hang of it though.")
 
 [node name="FeatherChest" type="Area2D" parent="Level"]
 position = Vector2(350, 192)
@@ -99,6 +98,7 @@ open_when_pressed = false
 [node name="EmberChest" type="Area2D" parent="Level"]
 position = Vector2(690, 192)
 script = ExtResource("5_chest")
+amount = 3
 
 [node name="Enemies" type="Node2D" parent="." index="6" unique_id=1049016870]
 

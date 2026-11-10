@@ -13,6 +13,7 @@
 [node name="Level5" instance=ExtResource("base")]
 stage_id = "5"
 stage_size = Vector2(860, 216)
+hint_lines = PackedStringArray("SHELDON (squint): Funny how much faith everything here puts in those wooden boards.", "SHELDON: That rock looks awfully heavy for such a thin shelf. And what's that right below it?", "SHELDON (squint): I do wonder if there's a way we can put that rock there.", "---", "SHELDON: You know how ghosts can go through walls and floors?", "SHELDON (squint): Just thought that was interesting.", "SHELDON: If only we could phase through like them.")
 potions_needed_until_x = 800.0
 
 [node name="Level" type="Node2D" parent="."]

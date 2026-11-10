@@ -1,30 +1,36 @@
 extends Control
 ## The recipe book, which is also the game's pause menu. Opening it pauses
-## the game (B, Esc or the book icon).
-## A gear (opening a popup of MENU / LEVELS / SETTINGS / EXIT TO DESKTOP), LOG, GIVE HINT and the
-## AUTO HINT toggle sit just above the book's top-right corner (only the gear
-## while SETTINGS is open). GIVE HINT asks the stage for Sheldon's
-## hint (hint_requested); the dialogue dims and covers the book while he talks.
-## On a stage with no hint, it says so instead. The level number sits at the
-## other end of that row, above the book's top-left corner.
-## AUTO HINT (saved) makes him give it by himself every few restarts.
+## the game (B or the book icon).
+## A gear (opening a popup of START MENU / RESTART / LEVELS / SKIP LEVEL /
+## SETTINGS / EXIT TO DESKTOP), LOG and HINT sit just above the book's top-right
+## corner (only the gear while SETTINGS is open). HINT first asks whether to
+## take one, warning in red what it costs (hint_warning), then asks the stage
+## for Sheldon's hint (hint_requested); the dialogue dims and covers the book
+## while he talks. On a stage with no hint, or with hints locked, it says so
+## instead. A stage can turn LOG and HINT off (set_log_and_hint_enabled). The
+## level number sits at the other end of that row, above the book's top-left
+## corner.
 ## Left page: a 2x2 crafting table pointing at a result box, the potions you
 ## hold, and the ingredient storage.
 ## Right page: a scrolling list of every recipe. Hovering (or tapping) an
 ## ingredient shows its name, and a tapped tip stays until you tap somewhere
-## else. Tapping a potion puts one batch of its recipe on the table. Potions not
-## yet discovered show a lock and "???"; the Death recipe (any mix that isn't
-## a recipe) cycles through random mixes.
+## else. Tapping a potion puts one batch of its recipe on the table. A potion
+## whose recipe hasn't been found yet (PotionData.RECIPE_TO_FIND) isn't listed,
+## and its mix shows a lock on the result and won't brew. Found but never
+## brewed, it shows a "?" and "???" until it is. The Death recipe (any mix that
+## isn't a recipe) cycles through random mixes. The secret recipe stays locked.
 ## Ingredients move by dragging or tapping, one per table box. Recipes are
 ## shapeless, and a table holding several copies of a recipe brews that many
 ## potions. Any other mix brews a Death potion. Tap the result, or press the
 ## interact key shown under it, to brew.
 ## Keyboard: WASD / Tab move between everything (slots, page arrows,
 ## buttons), Enter or Space presses, Page Up / Page Down turn pages, B or
-## Esc closes (Esc backs out of the gear's popup, CONTROLS, then SETTINGS, first).
+## B or Esc closes (backing out of the pause menu, CONTROLS, then SETTINGS, first).
+## During play, Esc opens the pause menu on its own, without the book.
 ## Arrows at the bottom corners turn the pages. Spread 2 lists what every
 ## potion (and cleansing water) does, with a SPECIAL section for the Death
-## and secret potions (locked until discovered). Spread 3 shows brewing in
+## and secret potions (a lock until their recipe is found, a "?" until
+## brewed). Spread 3 shows brewing in
 ## bulk: several copies of a recipe on the table brew that many potions.
 ## Spread 4 is a checklist of the story's goals (flavour only for now), with a
 ## WANTED poster of the Demon King beside it.
@@ -37,6 +43,8 @@ signal closed
 signal log_requested
 ## The player asked Sheldon for this stage's hint.
 signal hint_requested
+## The player asked to restart the level (from the pause menu).
+signal restart_requested
 
 const BOOK_SIZE := Vector2(360, 186)
 const PAGE_SIZE := Vector2(174, 176)
@@ -74,7 +82,7 @@ const BULK_BOX := 12.0
 ## The WANTED poster on the checklist spread.
 const POSTER_COLOR := Color(0.86, 0.74, 0.52)
 const POSTER_INK := Color(0.45, 0.1, 0.08)
-## Seconds the AUTO HINT on/off note stays up.
+## Seconds a note above the buttons stays up.
 const NOTE_TIME := 2.0
 ## The effects spread: first entry's top, and each entry's height.
 const EFFECTS_TOP := 22.0
@@ -87,8 +95,16 @@ const EFFECT_TEXT_SCALE := 0.875
 const DEMON_KING := preload("res://assets/portraits/demonking/dk_default.png")
 const CLEANSING_WATER := &"cleansing_water"
 const NO_HINT_NOTE := "NO HINT FOR THIS LEVEL"
+const HINTS_LOCKED_NOTE := "HINTS ARE LOCKED ON THIS LEVEL"
 const NO_HINT_COLOR := Color(1.0, 0.6, 0.5)
+const WARNING_COLOR := Color(1.0, 0.4, 0.4)
+const GOLD := Color(0.95, 0.85, 0.55)
+## The SPECIAL page's line for a potion still to be found, and for one found
+## but never brewed.
+const RECIPE_TO_FIND_TEXT := "RECIPE TO BE FOUND"
+const UNBREWED_TEXT := "TO BE BREWED"
 const GEAR_MARGIN := 8.0
+const GEAR_TITLE_HEIGHT := 12.0
 const GEAR_TEETH := 8
 const GEAR_OUTER := 5.0
 const GEAR_INNER := 3.5
@@ -120,9 +136,14 @@ var enabled := true:
 			_level_label.visible = value
 			if not value:
 				_gear_menu.hide()
+				_hint_prompt.hide()
 var is_open := false
-## Whether this stage has a hint to give. If not, GIVE HINT says so.
+## Whether this stage has a hint to give. If not, HINT says so.
 var has_hint := true
+## Hints are locked on this stage (one was taken on an earlier one).
+var hints_locked := false
+## What taking a hint costs, in red under HINT's question. Empty: nothing.
+var hint_warning := ""
 
 var _table: Array[StringName] = [&"", &"", &"", &""]
 var _book: Control
@@ -160,6 +181,11 @@ var _gear_button: Button
 var _gear_menu: Control
 var _gear_panel: Panel
 var _gear_list: VBoxContainer
+var _gear_title: Label
+## The current level, top left over the dim.
+var _gear_level: Label
+## The pause menu came up on its own, with the book hidden.
+var _pause_only := false
 var _skip_button: Button
 var _settings_button: Button
 var _log_button: Button
@@ -169,8 +195,15 @@ var _close_button: Button
 ## Red while hovered or focused: the X and the page arrows.
 const ACTIVE_INK := Color(0.75, 0.25, 0.2)
 var _hint_button: Button
-var _auto_hint: Button
-## A short note above the buttons, after toggling AUTO HINT.
+## HINT's question: take a hint now, or later.
+var _hint_prompt: Control
+var _hint_panel: Panel
+var _hint_title: Label
+var _hint_warning: Label
+var _hint_row: HBoxContainer
+var _hint_yes: Button
+var _hint_no: Button
+## A short note above the buttons.
 var _note: Label
 var _note_tween: Tween
 
@@ -192,11 +225,14 @@ func _exit_tree() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_book") or event.is_action_pressed("ui_cancel"):
-		if _gear_menu.visible:
-			_gear_menu.hide()
-			_gear_button.grab_focus()
+		if _hint_prompt.visible:
+			_close_hint_prompt()
+		elif _gear_menu.visible:
+			_close_gear_menu()
 		elif _settings.visible:
 			_settings.back_out()
+		elif event.is_action_pressed("ui_cancel") and not is_open:
+			_open_pause()
 		else:
 			toggle()
 			if is_open:
@@ -205,10 +241,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not is_open or not enabled:
 		return
-	if event.is_action_pressed("ui_page_down") and not _settings.visible:
+	if event.is_action_pressed("ui_page_down") and not _popup_open():
 		_set_page(_page + 1)
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_page_up") and not _settings.visible:
+	elif event.is_action_pressed("ui_page_up") and not _popup_open():
 		_set_page(_page - 1)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact") and _on_brewing_page():
@@ -227,7 +263,9 @@ func focus_first() -> bool:
 ## What keyboard focus starts on: the first storage box on the brewing
 ## spread, otherwise the page arrow (or the X).
 func _focus_default() -> void:
-	if _gear_menu.visible:
+	if _hint_prompt.visible:
+		_hint_no.grab_focus()
+	elif _gear_menu.visible:
 		_gear_list.get_child(0).grab_focus()
 	elif _settings.visible:
 		_settings.focus_first()
@@ -242,6 +280,8 @@ func _focus_default() -> void:
 ## Back out of SETTINGS, onto its entry in the gear's list.
 func _close_settings() -> void:
 	_settings.hide()
+	if _pause_only:
+		_book.hide()
 	_open_gear_menu()
 	_settings_button.grab_focus()
 
@@ -287,8 +327,48 @@ func open() -> void:
 	opened.emit()
 
 
+## Esc during play: the pause menu alone, without the book.
+func _open_pause() -> void:
+	if visible or not enabled:
+		return
+	is_open = true
+	_pause_only = true
+	show()
+	_settings.hide()
+	_set_page(PAGE_BREWING)
+	_refresh()
+	var viewport := get_viewport_rect().size
+	_book.position = Vector2(roundf((viewport.x - BOOK_SIZE.x) / 2.0), viewport.y - BOOK_SIZE.y - 2.0)
+	_book.hide()
+	get_tree().paused = true
+	_open_gear_menu()
+	_gear_list.get_child(0).grab_focus()
+	opened.emit()
+
+
+## Closes the pause menu: back to the book or settings under it, or to the game
+## if it came up on its own.
+func _close_gear_menu() -> void:
+	_gear_menu.hide()
+	if _pause_only and not _settings.visible:
+		close()
+	elif _gear_button.is_visible_in_tree():
+		_gear_button.grab_focus()
+
+
 func close() -> void:
 	if not is_open:
+		return
+	_hint_prompt.hide()
+	if _pause_only:
+		is_open = false
+		_pause_only = false
+		_gear_menu.hide()
+		_settings.hide()
+		_book.show()
+		hide()
+		get_tree().paused = false
+		closed.emit()
 		return
 	is_open = false
 	_gear_menu.hide()
@@ -355,7 +435,7 @@ func _on_slot_dropped(target: IngredientSlot, source: IngredientSlot) -> void:
 func _brew() -> void:
 	var result := inventory.match_recipe(_table)
 	var potion: StringName = result.potion
-	if potion == PotionData.SECRET:
+	if potion == PotionData.SECRET or (potion != &"" and not _recipe_found(potion)):
 		_flash_status("THE MIX WON'T SETTLE...", Color(INK, 0.8))
 		return
 	if potion == &"":
@@ -401,7 +481,18 @@ func _put_recipe_on_table(potion: StringName) -> void:
 
 
 func _on_brewing_page() -> bool:
-	return _page == PAGE_BREWING and not _settings.visible and not _gear_menu.visible
+	return _page == PAGE_BREWING and not _popup_open()
+
+
+## SETTINGS, the pause menu or HINT's question is up over the pages.
+func _popup_open() -> bool:
+	return _settings.visible or _gear_menu.visible or _hint_prompt.visible
+
+
+## Whether `potion` can be brewed: its recipe needn't be found, or has been. In
+## the sandbox (unlimited ingredients) every recipe counts as found.
+func _recipe_found(potion: StringName) -> bool:
+	return inventory.unlimited or SaveGame.is_recipe_found(potion)
 
 
 func _return_table() -> void:
@@ -422,8 +513,10 @@ func _refresh() -> void:
 		_storage_slots[i].show_contents(kind if amount > 0 else &"", amount)
 	var result := inventory.match_recipe(_table)
 	var potion: StringName = result.potion
-	var locked := potion == PotionData.SECRET or (potion != &"" and not SaveGame.is_potion_known(potion))
-	_result_slot.show_contents(potion, result.amount, locked)
+	# A lock until the recipe is found, then a "?" until it's first brewed.
+	var locked := potion == PotionData.SECRET or (potion != &"" and not _recipe_found(potion))
+	var unknown := not locked and potion != &"" and not SaveGame.is_potion_known(potion)
+	_result_slot.show_contents(potion, result.amount, locked, unknown)
 	_book.queue_redraw()
 	_recipe_list.custom_minimum_size.y = _recipe_entries().size() * RECIPE_ROW_HEIGHT
 	_recipe_list.queue_redraw()
@@ -527,16 +620,9 @@ func _build() -> void:
 	_gear_button = _build_gear_button()
 	_log_button = _page_button("LOG", _buttons)
 	_log_button.pressed.connect(log_requested.emit)
-	_hint_button = _page_button("GIVE HINT", _buttons)
+	_hint_button = _page_button("HINT", _buttons)
 	_hint_button.tooltip_text = "ASK SHELDON FOR A HINT"
-	_hint_button.pressed.connect(func() -> void:
-		_settings.hide()
-		_gear_menu.hide()
-		if has_hint:
-			hint_requested.emit()
-		else:
-			_show_note(NO_HINT_NOTE, NO_HINT_COLOR))
-	_auto_hint = _build_auto_hint()
+	_hint_button.pressed.connect(_on_hint_pressed)
 	_note = Label.new()
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_note.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.08))
@@ -562,6 +648,7 @@ func _build() -> void:
 		_set_tip({}))
 
 	_gear_menu = _build_gear_menu()
+	_hint_prompt = _build_hint_prompt()
 
 	_tip_layer = Control.new()
 	_tip_layer.size = BOOK_SIZE
@@ -618,7 +705,13 @@ func _build_gear_menu() -> Control:
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.gui_input.connect(func(event: InputEvent) -> void:
 		if event is InputEventMouseButton and event.pressed:
-			modal.hide())
+			_close_gear_menu())
+	_gear_level = Label.new()
+	_gear_level.add_theme_color_override("font_color", Color.WHITE)
+	_gear_level.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.08))
+	_gear_level.add_theme_constant_override("outline_size", 3)
+	_gear_level.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	modal.add_child(_gear_level)
 	_gear_panel = Panel.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.09, 0.14)
@@ -626,12 +719,20 @@ func _build_gear_menu() -> Control:
 	style.set_border_width_all(1)
 	_gear_panel.add_theme_stylebox_override("panel", style)
 	modal.add_child(_gear_panel)
+	_gear_title = Label.new()
+	_gear_title.text = "PAUSE MENU"
+	_gear_title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	_gear_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_gear_panel.add_child(_gear_title)
+	_gear_title.position = Vector2(0, GEAR_MARGIN - 3.0)
 	_gear_list = VBoxContainer.new()
 	_gear_list.add_theme_constant_override("separation", 2)
-	_gear_list.position = Vector2(GEAR_MARGIN, GEAR_MARGIN)
+	_gear_list.position = Vector2(GEAR_MARGIN, GEAR_MARGIN + GEAR_TITLE_HEIGHT)
 	_gear_panel.add_child(_gear_list)
-	var menu := _page_button("MENU", _gear_list)
+	var menu := _page_button("START MENU", _gear_list)
 	menu.pressed.connect(SaveGame.go_to.bind(SaveGame.START_MENU))
+	var restart := _page_button("RESTART", _gear_list)
+	restart.pressed.connect(_restart_level)
 	var levels := _page_button("LEVELS", _gear_list)
 	levels.pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
 	_skip_button = _page_button("SKIP LEVEL", _gear_list)
@@ -639,6 +740,7 @@ func _build_gear_menu() -> Control:
 	_settings_button = _page_button("SETTINGS", _gear_list)
 	_settings_button.pressed.connect(func() -> void:
 		modal.hide()
+		_book.show()
 		_settings.open())
 	var quit := _page_button("EXIT TO DESKTOP", _gear_list)
 	quit.pressed.connect(func() -> void: get_tree().quit())
@@ -649,32 +751,123 @@ func _build_gear_menu() -> Control:
 func _open_gear_menu() -> void:
 	_gear_menu.show()
 	_gear_list.reset_size()
-	_gear_panel.size = _gear_list.size + Vector2.ONE * GEAR_MARGIN * 2.0
+	_gear_panel.size = _gear_list.size + Vector2(GEAR_MARGIN * 2.0, GEAR_MARGIN * 2.0 + GEAR_TITLE_HEIGHT)
+	_gear_title.size = Vector2(_gear_panel.size.x, GEAR_TITLE_HEIGHT)
+	# Exactly where the notebook shows it, so the two never show side by side.
+	var viewport := get_viewport_rect().size
+	_gear_level.position = Vector2(roundf((viewport.x - BOOK_SIZE.x) / 2.0), viewport.y - BOOK_SIZE.y - 2.0) + _level_label.position
 	_gear_panel.position = ((get_viewport_rect().size - _gear_panel.size) / 2.0).round()
 
 
-## The AUTO HINT toggle: a button with a tick box drawn at its left.
-func _build_auto_hint() -> Button:
-	var button := _page_button("   AUTO HINT", _buttons)
-	button.toggle_mode = true
-	button.button_pressed = SaveGame.auto_hints
-	button.tooltip_text = "SHELDON GIVES A HINT EVERY %d RETRIES" % SaveGame.AUTO_HINT_EVERY
-	button.draw.connect(func() -> void:
-		var box := Rect2(5, roundf(button.size.y / 2.0) - 4, 7, 7)
-		button.draw_rect(box.grow(-0.5), Color.WHITE, false, 1.0)
-		if button.button_pressed:
-			button.draw_rect(box.grow(-2.0), Color(0.6, 0.95, 0.85)))
-	button.toggled.connect(func(on: bool) -> void:
-		SaveGame.set_auto_hints(on)
-		if on:
-			_show_note("HINT EVERY %d RETRIES: ON" % SaveGame.AUTO_HINT_EVERY, Color(0.6, 0.95, 0.85))
-		else:
-			_show_note("AUTO HINT: OFF", Color(1, 1, 1, 0.8)))
-	return button
+## RESTART: everything closes at once and the stage restarts.
+func _restart_level() -> void:
+	_gear_menu.hide()
+	_settings.hide()
+	_hint_prompt.hide()
+	_return_table()
+	is_open = false
+	_pause_only = false
+	_book.show()
+	hide()
+	get_tree().paused = false
+	closed.emit()
+	restart_requested.emit()
+
+
+# --- HINT
+
+## Gives the hint after asking (see _open_hint_prompt), or says why there isn't one.
+func _on_hint_pressed() -> void:
+	_settings.hide()
+	_gear_menu.hide()
+	if not has_hint:
+		_show_note(NO_HINT_NOTE, NO_HINT_COLOR)
+	elif hints_locked:
+		_show_note(HINTS_LOCKED_NOTE, NO_HINT_COLOR)
+	else:
+		_open_hint_prompt()
+
+
+## The stage's LOG and HINT buttons work (or are greyed out and do nothing).
+func set_log_and_hint_enabled(on: bool) -> void:
+	for button in [_log_button, _hint_button]:
+		button.disabled = not on
+		button.focus_mode = Control.FOCUS_ALL if on else Control.FOCUS_NONE
+
+
+## HINT's question, in the middle of the screen over a dim: HINT or LOOK AROUND
+## FIRST, with what a hint costs in red between. A click on the dim closes it.
+func _build_hint_prompt() -> Control:
+	var modal := Control.new()
+	modal.hide()
+	add_child(modal)
+	modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.5)
+	modal.add_child(dim)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed:
+			_close_hint_prompt())
+	_hint_panel = Panel.new()
+	_hint_panel.add_theme_stylebox_override("panel", _gear_panel.get_theme_stylebox("panel"))
+	modal.add_child(_hint_panel)
+	_hint_title = Label.new()
+	_hint_title.text = "ASK SHELDON FOR A HINT?"
+	_hint_title.add_theme_color_override("font_color", GOLD)
+	_hint_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_panel.add_child(_hint_title)
+	_hint_warning = Label.new()
+	_hint_warning.add_theme_color_override("font_color", WARNING_COLOR)
+	_hint_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_panel.add_child(_hint_warning)
+	_hint_row = HBoxContainer.new()
+	_hint_row.add_theme_constant_override("separation", 6)
+	_hint_panel.add_child(_hint_row)
+	_hint_yes = _page_button("HINT", _hint_row)
+	_hint_yes.pressed.connect(func() -> void:
+		_close_hint_prompt()
+		hint_requested.emit())
+	_hint_no = _page_button("LATER", _hint_row)
+	_hint_no.pressed.connect(_close_hint_prompt)
+	UiFocus.link_row([_hint_yes, _hint_no])
+	return modal
+
+
+## Lays the question out around the current warning and shows it. With a cost
+## to warn about, LATER is the safe default.
+func _open_hint_prompt() -> void:
+	_hint_prompt.show()
+	_hint_row.reset_size()
+	var font := get_theme_font("font", "Label")
+	var title_width := font.get_string_size(_hint_title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	var width := maxf(_hint_row.size.x, title_width) + GEAR_MARGIN * 2.0
+	var y := GEAR_MARGIN - 3.0
+	_hint_title.position = Vector2(0, y)
+	_hint_title.size = Vector2(width, 10)
+	y += GEAR_TITLE_HEIGHT + 2.0
+	_hint_warning.visible = hint_warning != ""
+	if _hint_warning.visible:
+		var lines := _wrap(font, hint_warning, width - GEAR_MARGIN * 2.0)
+		_hint_warning.text = "\n".join(lines)
+		_hint_warning.position = Vector2(GEAR_MARGIN, y)
+		_hint_warning.size = Vector2(width - GEAR_MARGIN * 2.0, lines.size() * 10.0)
+		y += lines.size() * 10.0 + 6.0
+	_hint_row.position = Vector2(roundf((width - _hint_row.size.x) / 2.0), y)
+	_hint_panel.size = Vector2(width, y + _hint_row.size.y + GEAR_MARGIN)
+	_hint_panel.position = ((get_viewport_rect().size - _hint_panel.size) / 2.0).round()
+	(_hint_no if _hint_warning.visible else _hint_yes).grab_focus()
+
+
+func _close_hint_prompt() -> void:
+	_hint_prompt.hide()
+	if _hint_button.is_visible_in_tree():
+		_hint_button.grab_focus()
 
 
 func set_level_label(text: String) -> void:
 	_level_label.text = text
+	_gear_level.text = text
 
 
 ## SKIP LEVEL only shows when there's a level to skip to.
@@ -683,9 +876,9 @@ func set_can_skip(can_skip: bool) -> void:
 	UiFocus.link_column(_gear_list.get_children().filter(func(button: Button) -> bool: return button.visible))
 
 
-## LOG, GIVE HINT and AUTO HINT are no use on the settings page.
+## LOG and HINT are no use on the settings page.
 func _show_page_buttons(shown: bool) -> void:
-	for button in [_log_button, _hint_button, _auto_hint]:
+	for button in [_log_button, _hint_button]:
 		button.visible = shown
 	_note.modulate.a = 0.0
 	_place_buttons.call_deferred()
@@ -850,8 +1043,9 @@ func _draw_book() -> void:
 # --- Effects spread
 
 ## Left page: the four everyday potions and cleansing water. Right page: the
-## SPECIAL ones, the Death potion and the secret potion, shown as a lock and
-## "???" until discovered.
+## SPECIAL ones, the Death potion and the secret potion: a lock and "???"
+## until the recipe is found (the secret one stays that way), then a "?" until
+## first brewed.
 func _draw_effects(font: Font) -> void:
 	_page_text(font, "EFFECTS", LEFT_PAGE + Vector2(0, TITLE_BASELINE), INK)
 	var y := LEFT_PAGE.y + EFFECTS_TOP
@@ -866,7 +1060,8 @@ func _draw_effects(font: Font) -> void:
 ## One entry: icon, name and a rough duration, and the description underneath, wrapped onto a
 ## second line if it's too wide for the page. Returns the extra height used.
 func _draw_effect(font: Font, kind: StringName, at: Vector2) -> float:
-	var known := kind == CLEANSING_WATER or (kind != PotionData.SECRET and SaveGame.is_potion_known(kind))
+	var found := kind != PotionData.SECRET and _recipe_found(kind)
+	var known := kind == CLEANSING_WATER or (found and SaveGame.is_potion_known(kind))
 	var box := Rect2(at, Vector2(14, 14))
 	_book.draw_rect(box, IngredientSlot.FILL)
 	var icon_at := box.get_center() + Vector2(0, 1)
@@ -880,8 +1075,13 @@ func _draw_effect(font: Font, kind: StringName, at: Vector2) -> float:
 		PotionData.draw_potion(_book, kind, icon_at)
 		name = PotionData.NAMES[kind]
 		text = PotionData.DESCRIPTIONS[kind]
+	elif found:
+		PotionData.draw_unknown_icon(_book, icon_at, IngredientSlot.BORDER.lightened(0.4))
+		text = UNBREWED_TEXT
 	else:
 		PotionData.draw_lock_icon(_book, icon_at, IngredientSlot.BORDER.lightened(0.4))
+		if kind != PotionData.SECRET:
+			text = RECIPE_TO_FIND_TEXT
 	var ink := INK if known else Color(INK, 0.6)
 	_book.draw_string(font, at + Vector2(22, 11), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, ink)
 	# How long it lasts, roughly, at the end of the name line.
@@ -1029,14 +1229,16 @@ func _draw_grey_potion(at: Vector2) -> void:
 
 # --- Recipe list
 
-## Every recipe row in order: {ingredients, potion, known}. The secret recipe
-## comes last.
+## Every recipe row in order: {ingredients, potion, known, locked}. Recipes
+## still to be found are left out. The secret recipe comes last, locked.
 func _recipe_entries() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for potion in PotionData.KINDS:
+		if not _recipe_found(potion):
+			continue
 		var ingredients := _death_preview if potion == PotionData.DEATH else _recipe_ingredients(potion)
-		entries.append({"ingredients": ingredients, "potion": potion, "known": SaveGame.is_potion_known(potion)})
-	entries.append({"ingredients": PotionData.INGREDIENTS, "potion": PotionData.SECRET, "known": false})
+		entries.append({"ingredients": ingredients, "potion": potion, "known": SaveGame.is_potion_known(potion), "locked": false})
+	entries.append({"ingredients": PotionData.INGREDIENTS, "potion": PotionData.SECRET, "known": false, "locked": true})
 	return entries
 
 
@@ -1084,8 +1286,10 @@ func _draw_recipes() -> void:
 		var icon_at := top + potion_box.get_center() + Vector2(0, 1)
 		if entry.known:
 			PotionData.draw_potion(_recipe_list, entry.potion, icon_at)
-		else:
+		elif entry.locked:
 			PotionData.draw_lock_icon(_recipe_list, icon_at, IngredientSlot.BORDER.lightened(0.4))
+		else:
+			PotionData.draw_unknown_icon(_recipe_list, icon_at, IngredientSlot.BORDER.lightened(0.4))
 		var title_at := Vector2(potion_box.end.x + 4.0, mid_y + 4.0)
 		_recipe_list.draw_string(font, title_at, _recipe_title(entry), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, INK if entry.known else Color(INK, 0.6))
 

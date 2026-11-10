@@ -9,16 +9,20 @@ extends Control
 
 const DIALOGUE_BOX := preload("res://scenes/ui/dialogue_box.tscn")
 const PUZZLE_LEVEL := preload("res://scripts/puzzle/puzzle_level.gd")
+const CHEST := preload("res://scripts/puzzle/chest.gd")
 const SETTINGS_SIZE := Vector2(360, 186)
 const DEBUG_SIZE := Vector2(190, 136)
 const GOLD := Color(0.95, 0.85, 0.55)
-## Every portrait there is to look at, except the knight's red eyes (not in use yet).
+## Every portrait there is to look at.
 const TEST_LINES: Array[String] = [
 	"SHELDON: This is my normal face.",
 	"SHELDON (glasses): These are my explaining glasses.",
 	"SHELDON (squint): And this is me thinking. Hmm.",
 	"ALCHEMIST: This is the knight.",
+	"ALCHEMIST (red_eye): This is the knight seeing red.",
+	"ALCHEMIST (red_eye_rage): And this is the knight very angry.",
 	"DEMON KING: AND I AM THE DEMON KING.",
+	"DEMON KING (aura): FEEL MY AURA.",
 	"SHELDON: He's in my spot.",
 ]
 
@@ -113,6 +117,9 @@ func _start_new_run() -> void:
 	SaveGame.start_new_run()
 	# Forget this session's retries too, so first-attempt lines play again.
 	PUZZLE_LEVEL._restarts.clear()
+	PUZZLE_LEVEL._hint_part.clear()
+	PUZZLE_LEVEL._hint_taken_at.clear()
+	CHEST.forget_heard()
 	SaveGame.play_stage(SaveGame.FIRST_STAGE)
 
 

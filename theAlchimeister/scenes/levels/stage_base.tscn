@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://decaxrq438krk" path="res://scripts/board.gd" id="2_board"]
 [ext_resource type="Script" path="res://scripts/puzzle/inventory.gd" id="3_inventory"]
 [ext_resource type="Script" path="res://scripts/puzzle/puzzle_knight.gd" id="4_knight"]
-[ext_resource type="Texture2D" uid="uid://boc1lwrisusa6" path="res://assets/sprites/characters/knight_idle_sheet.png" id="5_knight_tex"]
+[ext_resource type="Texture2D" uid="uid://dt4xl5be6fivb" path="res://assets/sprites/characters/knight_spritesheet.png" id="5_knight_tex"]
 [ext_resource type="Script" path="res://scripts/platformer/potion_thrower.gd" id="6_thrower"]
 [ext_resource type="Script" path="res://scripts/puzzle/potion_hud.gd" id="7_hud"]
 [ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/fonts/PixelOperator8.ttf" id="8_font"]
@@ -93,7 +93,8 @@ script = ExtResource("4_knight")
 scale = Vector2(0.8, 0.8)
 texture = ExtResource("5_knight_tex")
 offset = Vector2(0, -20)
-hframes = 3
+hframes = 5
+vframes = 2
 
 [node name="Body" type="CollisionShape2D" parent="Knight"]
 position = Vector2(0, -14)
@@ -220,10 +221,10 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -40.0
-offset_top = 4.0
-offset_right = -4.0
-offset_bottom = 40.0
+offset_left = -88.0
+offset_top = 24.0
+offset_right = -52.0
+offset_bottom = 60.0
 grow_horizontal = 0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBox_cancel")

@@ -10,6 +10,7 @@
 [node name="Level4" instance=ExtResource("base")]
 stage_id = "4"
 stage_size = Vector2(1000, 216)
+hint_lines = PackedStringArray("SHELDON (squint): Slimes sure do panic and run around pretty fast when they're on fire.", "SHELDON: If only we could run that fast ourselves, to jump over that gap.")
 potions_needed_until_x = 880.0
 
 [node name="Knight" parent="."]

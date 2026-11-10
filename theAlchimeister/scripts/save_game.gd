@@ -1,7 +1,7 @@
 extends Node
 ## Autoload "SaveGame": the level/stage structure, which stages are unlocked,
 ## the stage the player was last in (for Continue), potions discovered by
-## brewing them, and settings (including auto hints). Everything
+## brewing them, and settings. Everything
 ## is saved to user://save.cfg as soon as it changes.
 
 ## A key binding changed (update anything showing a key's name).
@@ -36,20 +36,20 @@ const STAGE_SCENES := {
 const FIRST_STAGE := "1-1"
 ## Debug: free play with every mechanic, outside the levels and their progress.
 const SANDBOX := "res://scenes/levels/sandbox.tscn"
-## Restarts between automatic hints (when auto_hints is on).
-const AUTO_HINT_EVERY := 5
 
 var save_path := "user://save.cfg"
 var unlocked: Array[String] = [FIRST_STAGE]
 var last_stage := ""
 ## Discoverable potion kinds (see PotionData.DISCOVERABLE) brewed at least once.
 var discovered_potions: Array[String] = []
+## Potions in PotionData.RECIPE_TO_FIND whose recipe has been found.
+var found_recipes: Array[String] = []
+## Stages where HINT is locked. Each hint taken locks the next stage that isn't
+## already (lock_hints_after); clearing or skipping a stage frees it.
+var hint_locks: Array[String] = []
 var music_volume := 0.8
 var sound_volume := 0.8
 var fullscreen := false
-## Sheldon gives the stage's hint by himself after every
-## AUTO_HINT_EVERY restarts.
-var auto_hints := false
 ## Action name -> physical keycodes, for the actions in Controls.REMAPPABLE
 ## (see Controls). Empty until the player remaps something.
 var key_bindings := {}
@@ -94,10 +94,11 @@ func load_save() -> void:
 		last_stage = file.get_value("progress", "last_stage", "")
 		var potions: Array = file.get_value("progress", "discovered_potions", [])
 		discovered_potions.assign(potions)
+		found_recipes.assign(file.get_value("progress", "found_recipes", []))
+		hint_locks.assign(file.get_value("progress", "hint_locks", []))
 		music_volume = file.get_value("settings", "music_volume", music_volume)
 		sound_volume = file.get_value("settings", "sound_volume", sound_volume)
 		fullscreen = file.get_value("settings", "fullscreen", fullscreen)
-		auto_hints = file.get_value("settings", "auto_hints", auto_hints)
 		key_bindings = file.get_value("controls", "bindings", key_bindings)
 		run_active = file.get_value("progress", "run_active", run_active)
 		run_seconds = file.get_value("progress", "run_seconds", run_seconds)
@@ -111,20 +112,21 @@ func save() -> void:
 	file.set_value("progress", "unlocked", unlocked)
 	file.set_value("progress", "last_stage", last_stage)
 	file.set_value("progress", "discovered_potions", discovered_potions)
+	file.set_value("progress", "found_recipes", found_recipes)
+	file.set_value("progress", "hint_locks", hint_locks)
 	file.set_value("progress", "run_active", run_active)
 	file.set_value("progress", "run_seconds", run_seconds)
 	file.set_value("playtesters", "finished", playtesters)
 	file.set_value("settings", "music_volume", music_volume)
 	file.set_value("settings", "sound_volume", sound_volume)
 	file.set_value("settings", "fullscreen", fullscreen)
-	file.set_value("settings", "auto_hints", auto_hints)
 	file.set_value("controls", "bindings", key_bindings)
 	file.save(save_path)
 
 
 ## Whether START would lose anything.
 func has_progress() -> bool:
-	return unlocked.size() > 1 or last_stage != "" or not discovered_potions.is_empty()
+	return unlocked.size() > 1 or last_stage != "" or not discovered_potions.is_empty() or not found_recipes.is_empty()
 
 
 ## START: wipes progress (not settings) and starts the secret timer.
@@ -132,6 +134,8 @@ func start_new_run() -> void:
 	unlocked.assign([FIRST_STAGE])
 	last_stage = ""
 	discovered_potions.clear()
+	found_recipes.clear()
+	hint_locks.clear()
 	run_active = true
 	run_seconds = 0.0
 	save()
@@ -177,13 +181,16 @@ func format_time(seconds: float) -> String:
 	return "%d:%02d" % [total / 60, total % 60]
 
 
-## Debug: every stage playable and every potion discovered.
+## Debug: every stage playable, every recipe found and every potion discovered.
 func unlock_all() -> void:
 	unlocked.assign(STAGE_SCENES.keys())
 	run_active = false
 	for kind in PotionData.DISCOVERABLE:
 		if not is_potion_discovered(kind):
 			discovered_potions.append(String(kind))
+	for kind in PotionData.RECIPE_TO_FIND:
+		if not found_recipes.has(String(kind)):
+			found_recipes.append(String(kind))
 	save()
 
 
@@ -224,6 +231,72 @@ func discover_potion(kind: StringName) -> bool:
 	discovered_potions.append(String(kind))
 	save()
 	return true
+
+
+## Whether `kind` can be brewed: its recipe needn't be found, has been, or it
+## was brewed before (older saves).
+func is_recipe_found(kind: StringName) -> bool:
+	return not PotionData.RECIPE_TO_FIND.has(kind) or found_recipes.has(String(kind)) or is_potion_discovered(kind)
+
+
+## Returns true if this was the first time.
+func find_recipe(kind: StringName) -> bool:
+	if found_recipes.has(String(kind)):
+		return false
+	found_recipes.append(String(kind))
+	save()
+	return true
+
+
+# --- Hint locks
+
+func hints_locked(stage: String) -> bool:
+	return hint_locks.has(stage)
+
+
+## A hint was taken on `stage`: the first stage after it that isn't locked yet
+## loses its hints.
+func lock_hints_after(stage: String) -> void:
+	for later in _stages_after(stage):
+		if not hint_locks.has(later):
+			hint_locks.append(later)
+			save()
+			return
+
+
+## How many stages in a row after `stage` would be without hints if one more
+## were taken there. 0 if every later stage is locked already (or none left).
+func hint_cost(stage: String) -> int:
+	var later := _stages_after(stage)
+	if later.all(func(other: String) -> bool: return hint_locks.has(other)):
+		return 0
+	var run := 0
+	var added := false
+	for other in later:
+		if hint_locks.has(other):
+			run += 1
+		elif not added:
+			added = true
+			run += 1
+		else:
+			break
+	return run
+
+
+## `stage` was cleared or skipped: hints there are free again.
+func free_hints(stage: String) -> void:
+	if hint_locks.has(stage):
+		hint_locks.erase(stage)
+		save()
+
+
+func _stages_after(stage: String) -> Array[String]:
+	var stages := all_stages()
+	var at := stages.find(stage)
+	var later: Array[String] = []
+	if at >= 0:
+		later.assign(stages.slice(at + 1))
+	return later
 
 
 func set_last_stage(stage: String) -> void:
@@ -342,11 +415,6 @@ func set_fullscreen(value: bool) -> void:
 	save()
 
 
-func set_auto_hints(value: bool) -> void:
-	auto_hints = value
-	save()
-
-
 ## Binds `action` to `key` and saves (see Controls.rebind).
 func rebind(action: StringName, key: int) -> void:
 	Controls.rebind(action, key)
@@ -381,10 +449,11 @@ func _set_defaults() -> void:
 	unlocked.assign([FIRST_STAGE])
 	last_stage = ""
 	discovered_potions.clear()
+	found_recipes.clear()
+	hint_locks.clear()
 	music_volume = 0.8
 	sound_volume = 0.8
 	fullscreen = false
-	auto_hints = false
 	key_bindings = {}
 	run_active = false
 	run_seconds = 0.0

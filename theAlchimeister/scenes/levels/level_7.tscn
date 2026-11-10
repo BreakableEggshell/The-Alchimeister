@@ -11,9 +11,10 @@
 script = ExtResource("level7")
 stage_id = "7"
 stage_size = Vector2(420, 216)
+hint_lines = PackedStringArray("SHELDON (squint): No ladder, no door, no way up. I've looked.", "SHELDON: You know, there's one way out that everybody takes eventually.", "SHELDON (squint): I'm just saying. Some of these ingredients really shouldn't be mixed.")
 potions_needed_until_x = 2000.0
 chest = NodePath("Level/Chest")
-exit_lines = PackedStringArray("SHELDON: And that's it. These are all the levels we have for now.", "SHELDON (glasses): Look forward to our game dev presentation, where you can play the levels yourself!")
+exit_lines = PackedStringArray("SHELDON: And that's it. These are all the levels we have for now.", "SHELDON (glasses): Look forward to our game dev presentation, where you can play future levels yourself!")
 
 [node name="Knight" parent="."]
 position = Vector2(24, 96)
@@ -44,10 +45,9 @@ position = Vector2(270, 192)
 script = ExtResource("chest")
 contents = "ember"
 amount = 1
-open_lines = PackedStringArray("SHELDON (squint): Random junk. Of course it's random junk.")
 
 [node name="StuckTalk" type="Area2D" parent="Level"]
 position = Vector2(204, 188)
 script = ExtResource("trigger")
 size = Vector2(132, 4)
-lines = PackedStringArray("SHELDON: ...Okay. That was a long way down.", "SHELDON (squint): And those walls are way too high to climb. We're stuck.")
+lines = PackedStringArray("SHELDON (squint): Looks like we're stuck.")

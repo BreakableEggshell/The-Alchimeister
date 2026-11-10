@@ -13,6 +13,7 @@
 [node name="Level6" instance=ExtResource("base")]
 stage_id = "6"
 stage_size = Vector2(1000, 216)
+hint_lines = PackedStringArray("SHELDON (squint): That slime's tucked away where no throw can reach. Not directly, anyway.", "---", "SHELDON: Jelly is bouncy stuff. Potions don't even break on it.", "---", "SHELDON (squint): That blue one is a lot more bouncy-er.", "SHELDON: And that slime up high looks awfully comfortable.")
 potions_needed_until_x = 770.0
 
 [node name="Level" type="Node2D" parent="."]

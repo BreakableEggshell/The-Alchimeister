@@ -11,5 +11,5 @@ portrait = ExtResource("2_portrait")
 portrait_folder = "res://assets/portraits/demonking"
 portrait_prefix = "dk_"
 side = 1
-portrait_scale = 0.8
-portrait_center = Vector2(66, 90)
+portrait_scale = 1.0
+portrait_center = Vector2(70, 70)

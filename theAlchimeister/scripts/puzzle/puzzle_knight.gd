@@ -42,6 +42,14 @@ const SKULL_ROWS: Array[String] = [
 	"..#.#.#..",
 ]
 
+const BURN_FLASH_A := Color(1.5, 0.75, 0.45)
+const BURN_FLASH_B := Color(1.3, 0.5, 0.3)
+## Colour changes per second.
+const BURN_FLASH_RATE := 12.0
+
+var _burn_flash_clock := 0.0
+var _held_by_dialogue := false
+var _ignore_jump := false
 var _float_label: Label
 var _float_tween: Tween
 ## Beside the float text when it's a death message.
@@ -217,6 +225,36 @@ func _keep_remark_on_screen() -> void:
 
 
 ## Holds the knight still with a speech bubble over its head (during a chat).
+## Potion effects on the knight now, for the HUD: [{kind, left}], in seconds.
+func active_effects() -> Array[Dictionary]:
+	var effects: Array[Dictionary] = []
+	for effect in [[PotionData.FIRE, _burn_left], [PotionData.FREEZE, _freeze_left], [PotionData.TRANSLUCENT, _translucent_left]]:
+		if effect[1] > 0.0:
+			effects.append({"kind": effect[0], "left": effect[1]})
+	return effects
+
+
+## A conversation froze the game. The knight stays in it, but still falls: no
+## control and no potion timers, only gravity. (Runs while the game is paused.)
+func set_held_by_dialogue(held: bool) -> void:
+	_held_by_dialogue = held
+	process_mode = Node.PROCESS_MODE_ALWAYS if held else Node.PROCESS_MODE_INHERIT
+
+
+## A jump key still held from closing a conversation or the book doesn't count.
+func ignore_held_jump() -> void:
+	_ignore_jump = true
+	_jump_buffer_timer = 0.0
+
+
+func _jump_pressed() -> bool:
+	if _ignore_jump:
+		if not Input.is_action_pressed("jump"):
+			_ignore_jump = false
+		return false
+	return super()
+
+
 func set_talking(talking: bool) -> void:
 	_talking = talking
 	if not _chat_icon:
@@ -237,6 +275,12 @@ func _draw_chat_icon() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _held_by_dialogue:
+		velocity.x = 0.0
+		if not is_on_floor():
+			velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
+		_slide()
+		return
 	if is_burning():
 		_burn_left -= delta
 		if _burn_left <= 0.0:
@@ -254,13 +298,6 @@ func _physics_process(delta: float) -> void:
 	if _base_max_speed < 0.0:
 		_base_max_speed = max_speed
 	max_speed = _base_max_speed * (PotionData.PLAYER_FIRE_SPEED_BOOST if is_burning() else 1.0)
-	if _talking:
-		velocity.x = 0.0
-		if not is_on_floor():
-			velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
-		_slide()
-		_animate(delta, 0.0)
-		return
 	super(delta)
 	_push_crates()
 
@@ -306,11 +343,13 @@ func _push_crates() -> void:
 func _process(delta: float) -> void:
 	if _remark and _remark.visible:
 		_keep_remark_on_screen()
-	if _dead:
+	if _dead or _held_by_dialogue:
 		return
 	_translucent_left = maxf(_translucent_left - delta, 0.0)
 	if not _flames:
 		_flames = _make_flames()
+		# Freezes with the game even while the knight is held by dialogue.
+		_flames.process_mode = Node.PROCESS_MODE_PAUSABLE
 		add_child(_flames)
 	_flames.emitting = is_burning()
 	if not _ice:
@@ -326,7 +365,9 @@ func _process(delta: float) -> void:
 	if is_frozen():
 		tint = Color(0.6, 0.85, 1.0)
 	elif is_burning():
-		tint = Color(1.0, 0.65, 0.45)
+		# The same hurt flash as a burning slime.
+		_burn_flash_clock += delta
+		tint = BURN_FLASH_A if int(_burn_flash_clock * BURN_FLASH_RATE) % 2 == 0 else BURN_FLASH_B
 	_sprite.modulate = tint
 	var alpha := 1.0
 	if is_translucent():

@@ -12,7 +12,7 @@
 stage_id = "3"
 stage_size = Vector2(480, 216)
 potions_needed_until_x = 392.0
-hint_lines = PackedStringArray("SHELDON (glasses): That button needs three frozen slimes on it at the same time. The marks on it count them.", "SHELDON (squint): Stand on the bridge and wait for all three to bunch up in the middle, then drop a freeze potion right on them. Potions fly straight through planks!")
+hint_lines = PackedStringArray("SHELDON (squint): Three marks on that button, three slimes in that pit. Funny coincidence.", "SHELDON: They do seem to bump into each other now and then. Almost like they're huddling.", "---", "SHELDON (squint): Good thing this bridge has so many gaps in it.", "SHELDON: It's easier to hit them between those gaps.")
 
 [node name="Knight" parent="."]
 position = Vector2(24, 128)
