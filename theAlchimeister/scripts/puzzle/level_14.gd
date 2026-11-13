@@ -1,5 +1,6 @@
 extends "res://scripts/puzzle/puzzle_level.gd"
-## The last level, "The only way out": on the way to the Demon King's lair
+## The last level of the first map, and the end of the game for now, "The
+## only way out": on the way to the Demon King's lair
 ## there's a gap to jump, but Sheldon always starts talking mid-jump (every
 ## attempt, LedgeTalk), and a conversation stops the knight dead in the air, so
 ## he drops into the pit below. That's on purpose. The pit can't be climbed

@@ -71,6 +71,8 @@ func _ready() -> void:
 		_messages.show()
 		_update_visibility())
 	book.log_requested.connect(dialogue.show_log)
+	# Closing the notebook (B) with the log open closes the log too.
+	book.closed.connect(dialogue.hide_log)
 	dialogue.started.connect(func() -> void:
 		thrower.cancel()
 		_update_visibility())
@@ -101,9 +103,9 @@ func _ready() -> void:
 	_restart_hint.flat = true
 	_restart_hint.focus_mode = Control.FOCUS_NONE
 	_restart_hint.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_restart_hint.add_theme_color_override("font_color", Color(1, 0.35, 0.35))
-	_restart_hint.add_theme_color_override("font_hover_color", Color(1, 0.6, 0.6))
-	_restart_hint.add_theme_color_override("font_pressed_color", Color(1, 0.75, 0.75))
+	_restart_hint.add_theme_color_override("font_color", Color(1, 0.95, 0.2))
+	_restart_hint.add_theme_color_override("font_hover_color", Color(1, 1, 0.55))
+	_restart_hint.add_theme_color_override("font_pressed_color", Color(1, 1, 0.75))
 	_restart_hint.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.08))
 	_restart_hint.add_theme_constant_override("outline_size", 4)
 	for state in ["normal", "hover", "pressed", "focus"]:
@@ -187,7 +189,7 @@ func set_potions_enabled(on: bool) -> void:
 	_update_visibility()
 
 
-## Shows or hides the red "PRESS R TO RESTART THE LEVEL" line.
+## Shows or hides the bright yellow "STUCK? PRESS R TO RESTART!" line.
 func show_restart_hint(on: bool) -> void:
 	_restart_hint.visible = on and not _stage_over
 
@@ -308,7 +310,7 @@ func _draw_slot(slot: Button, kind: StringName) -> void:
 
 ## The keyboard key for a button, centred just below it.
 func _restart_text() -> String:
-	return "PRESS %s TO RESTART THE LEVEL" % Controls.key_name(&"restart")
+	return "STUCK? PRESS %s TO RESTART!" % Controls.key_name(&"restart")
 
 
 func _on_controls_changed() -> void:

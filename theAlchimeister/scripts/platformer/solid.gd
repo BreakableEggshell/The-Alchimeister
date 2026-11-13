@@ -3,11 +3,12 @@ class_name Solid
 extends StaticBody2D
 ## A piece of level geometry: draws its polygon and collides with it.
 ## Rectangles and ramps are both just polygons.
-## Drawn with the tiles in tiles.png (`tiled`): wall bricks all over, and the
-## floor tile, with its light top edge, along every top surface something can
-## stand on (not the very top of the stage, where walls hang from). Tiles line
-## up with the world, so pieces side by side join seamlessly. Planks
-## (`one_way`) are drawn as wood instead.
+## Drawn with the tiles in tiles.png (`tiled`): the floor tile along every top
+## surface something can stand on (not the very top of the stage, where walls
+## hang from), and the brick (below-floor) tile everywhere else, walls hanging
+## from the ceiling included. The wall tile is for the room behind (Board).
+## Tiles line up with the world, so pieces side by side join seamlessly.
+## Planks (`one_way`) are drawn as wood instead.
 
 @export var points := PackedVector2Array([Vector2(0, 0), Vector2(48, 0), Vector2(48, 12), Vector2(0, 12)]):
 	set(value):
@@ -31,14 +32,16 @@ const PLANK_DARK := Color(0.38, 0.25, 0.14)
 const TILES := preload("res://assets/tiles.png")
 ## Each tile's square size, and where it sits in the sheet.
 const TILE_SIZE := 28
-const WALL_AT := Vector2i(0, 0)
-const FLOOR_AT := Vector2i(30, 0)
+const FLOOR_AT := Vector2i(0, 0)
+const WALL_AT := Vector2i(30, 0)
+const BELOW_FLOOR_AT := Vector2i(0, 30)
 ## The outline around a tiled piece: the dark of the mortar.
 const TILED_EDGE := Color(0.13, 0.11, 0.17)
 
-## The two tiles cut out of the sheet, each on its own so it can repeat.
+## The tiles cut out of the sheet, each on its own so it can repeat.
 static var _wall_tile: Texture2D
 static var _floor_tile: Texture2D
+static var _below_floor_tile: Texture2D
 
 
 func _ready() -> void:
@@ -82,9 +85,16 @@ func _draw_plank() -> void:
 
 func _draw_tiled() -> void:
 	_cut_tiles()
-	draw_colored_polygon(points, Color.WHITE, _wall_uvs(), _wall_tile)
-	# The floor tile along each top surface, its light edge on top.
-	for top in _top_edges():
+	var tops := _top_edges()
+	# Ground (something to stand on) is filled with the below-floor tile;
+	# walls with nothing on top with the wall tile.
+	if tops:
+		# Rows start right under the floor tile, so the two meet cleanly.
+		draw_colored_polygon(points, Color.WHITE, _floor_uvs(points, tops[0][0].y), _below_floor_tile)
+	else:
+		draw_colored_polygon(points, Color.WHITE, _wall_uvs(), _below_floor_tile)
+	# The floor tile along each top surface.
+	for top in tops:
 		var band := PackedVector2Array([top[0], top[1], top[1] + Vector2(0, TILE_SIZE), top[0] + Vector2(0, TILE_SIZE)])
 		for piece in Geometry2D.intersect_polygons(points, band):
 			draw_colored_polygon(piece, Color.WHITE, _floor_uvs(piece, top[0].y), _floor_tile)
@@ -138,10 +148,17 @@ func _bounds() -> Rect2:
 	return bounds
 
 
-## Splits tiles.png into its wall and floor tiles, once.
+## The wall tile on its own, for the room backdrop (Board).
+static func wall_texture() -> Texture2D:
+	_cut_tiles()
+	return _wall_tile
+
+
+## Splits tiles.png into its tiles, once.
 static func _cut_tiles() -> void:
 	if _wall_tile:
 		return
 	var sheet := TILES.get_image()
 	_wall_tile = ImageTexture.create_from_image(sheet.get_region(Rect2i(WALL_AT, Vector2i(TILE_SIZE, TILE_SIZE))))
 	_floor_tile = ImageTexture.create_from_image(sheet.get_region(Rect2i(FLOOR_AT, Vector2i(TILE_SIZE, TILE_SIZE))))
+	_below_floor_tile = ImageTexture.create_from_image(sheet.get_region(Rect2i(BELOW_FLOOR_AT, Vector2i(TILE_SIZE, TILE_SIZE))))

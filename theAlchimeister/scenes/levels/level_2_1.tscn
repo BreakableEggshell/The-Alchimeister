@@ -10,7 +10,7 @@
 
 [node name="Level2_1" instance=ExtResource("1_base")]
 stage_id = "2-1"
-intro_lines = PackedStringArray("SHELDON: This puzzle seems easy enough.", "SHELDON (glasses): But if you're ever stuck, you can ask for a hint in your notebook.", "SHELDON (glasses): It's the 'HINT' button in the top right.")
+intro_lines = PackedStringArray("SHELDON: This puzzle seems easy enough.", "SHELDON (glasses): If you're stuck, you can always ask for a <<hint>>.", "SHELDON (glasses): You can find it in your <<notebook>>. It's the <<HINT>> button on the top right.", "SHELDON (squint): Though, if you use a hint now, I won't be able to give you another one for the next level.", "SHELDON: Even though I'm dead, my brain still needs a recharge.")
 stage_size = Vector2(512, 216)
 potions_needed_until_x = 380.0
 hint_lines = PackedStringArray("SHELDON (squint): Those big buttons don't budge for just anything. They want something heavy.", "SHELDON: Ever tried lifting a block of ice? Heavier than it looks.", "SHELDON (squint): Two buttons, though, and only one slime. Who else is around here?", "---", "SHELDON (squint): If only there was a way to freeze ourselves.", "---", "SHELDON (glasses): I think you can freeze yourself. Just throw the ice onto your feet.")

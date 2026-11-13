@@ -5,6 +5,7 @@ extends Area2D
 ## With `open_lines`, opening it also pauses the game with a speech bubble
 ## over the player's head and plays that conversation, the first time only: it
 ## isn't repeated after a retry.
+## Until it's opened, little sparkles twinkle around it.
 ## Origin is the floor surface at its centre.
 
 ## Emitted once it has been opened and its conversation (if any) is over.
@@ -12,6 +13,11 @@ signal opened
 
 const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
 const OUTLINE := Color.WHITE
+const SPARKLE := Color(1, 0.95, 0.65)
+## Where each sparkle twinkles, relative to the origin, and when in the cycle.
+const SPARKLES := [[Vector2(-11, -13), 0.0], [Vector2(10, -6), 0.33], [Vector2(4, -17), 0.66]]
+## Seconds for one sparkle to come and go.
+const SPARKLE_TIME := 1.4
 
 @export_enum("ember", "gust_feather", "frost_shard", "ghost_wisp") var contents := "ember"
 ## How many of `contents` it gives.
@@ -37,6 +43,7 @@ var _opened := false
 var _player_near := false
 var _player: Node
 var _prompt: Button
+var _time := 0.0
 
 
 func _ready() -> void:
@@ -57,6 +64,13 @@ func _ready() -> void:
 	add_child(_prompt)
 	SaveGame.controls_changed.connect(_label_prompt)
 	_place_prompt.call_deferred()
+
+
+func _process(delta: float) -> void:
+	if Engine.is_editor_hint() or _opened:
+		return
+	_time += delta
+	queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -171,3 +185,19 @@ func _draw() -> void:
 		draw_rect(Rect2(-8, -12, 16, 4), wood.lightened(0.1))
 		draw_rect(Rect2(-1, -10, 2, 3), band)
 		draw_rect(Rect2(-8.5, -12.5, 17, 12.5), OUTLINE, false)
+		_draw_sparkles()
+
+
+## Each sparkle grows into a little cross and shrinks away in turn.
+func _draw_sparkles() -> void:
+	for sparkle in SPARKLES:
+		var phase := fposmod(_time / SPARKLE_TIME + sparkle[1], 1.0)
+		# Shown for the first half of its cycle, biggest in the middle of that.
+		if phase >= 0.5:
+			continue
+		var arm := roundf(sin(phase * 2.0 * PI) * 2.0)
+		var at: Vector2 = sparkle[0]
+		draw_rect(Rect2(at, Vector2.ONE), SPARKLE)
+		if arm >= 1.0:
+			draw_rect(Rect2(at - Vector2(arm, 0), Vector2(arm * 2 + 1, 1)), Color(SPARKLE, 0.8))
+			draw_rect(Rect2(at - Vector2(0, arm), Vector2(1, arm * 2 + 1)), Color(SPARKLE, 0.8))

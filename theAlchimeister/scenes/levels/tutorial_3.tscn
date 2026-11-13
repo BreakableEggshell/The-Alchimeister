@@ -16,6 +16,7 @@
 stage_id = "1-3"
 stage_size = Vector2(720, 216)
 potions_needed_until_x = 627.0
+hint_enabled = false
 hint_lines = PackedStringArray("SHELDON (glasses): Freeze or knock back the shining slime. It'll drop ghost wisps, no harm done.", "SHELDON (glasses): Brew those into translucent potions, then throw one at the wooden platform under that big rock.", "SHELDON (glasses): The rock should land on the button below and open the gate. Just don't stand under it!")
 
 [node name="Level" type="Node2D" parent="."]

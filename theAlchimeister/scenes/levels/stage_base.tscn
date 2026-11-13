@@ -10,6 +10,7 @@
 [ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/fonts/PixelOperator8.ttf" id="8_font"]
 [ext_resource type="PackedScene" path="res://scenes/ui/crafting_book.tscn" id="9_book"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="10_dialogue"]
+[ext_resource type="Texture2D" uid="uid://dw1ptbv33huoa" path="res://assets/btn.png" id="11_btn"]
 
 [sub_resource type="RectangleShape2D" id="Shape_knight"]
 size = Vector2(12, 28)
@@ -58,6 +59,58 @@ expand_margin_top = 1.0
 expand_margin_right = 1.0
 expand_margin_bottom = 1.0
 
+[sub_resource type="StyleBoxTexture" id="StyleBox_btn"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("11_btn")
+texture_margin_left = 4.0
+texture_margin_top = 3.0
+texture_margin_right = 4.0
+texture_margin_bottom = 3.0
+axis_stretch_vertical = 2
+modulate_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleBox_btn_hover"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("11_btn")
+texture_margin_left = 4.0
+texture_margin_top = 3.0
+texture_margin_right = 4.0
+texture_margin_bottom = 3.0
+axis_stretch_vertical = 2
+modulate_color = Color(1.15, 1.15, 1.15, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleBox_btn_pressed"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("11_btn")
+texture_margin_left = 4.0
+texture_margin_top = 3.0
+texture_margin_right = 4.0
+texture_margin_bottom = 3.0
+axis_stretch_vertical = 2
+modulate_color = Color(0.8, 0.8, 0.8, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleBox_btn_disabled"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("11_btn")
+texture_margin_left = 4.0
+texture_margin_top = 3.0
+texture_margin_right = 4.0
+texture_margin_bottom = 3.0
+axis_stretch_vertical = 2
+modulate_color = Color(0.55, 0.55, 0.6, 1)
+
 [sub_resource type="Theme" id="Theme_hud"]
 default_font = ExtResource("8_font")
 default_font_size = 8
@@ -66,6 +119,20 @@ Button/styles/hover = SubResource("StyleBox_slot_hover")
 Button/styles/hover_pressed = SubResource("StyleBox_slot_selected")
 Button/styles/normal = SubResource("StyleBox_slot")
 Button/styles/pressed = SubResource("StyleBox_slot_selected")
+WoodButton/base_type = &"Button"
+WoodButton/colors/font_color = Color(1, 0.96, 0.9, 1)
+WoodButton/colors/font_disabled_color = Color(1, 1, 1, 0.5)
+WoodButton/colors/font_focus_color = Color(1, 1, 1, 1)
+WoodButton/colors/font_hover_color = Color(1, 1, 1, 1)
+WoodButton/colors/font_hover_pressed_color = Color(1, 1, 1, 1)
+WoodButton/colors/font_pressed_color = Color(1, 1, 1, 1)
+WoodButton/colors/font_outline_color = Color(0.17, 0.12, 0.2, 1)
+WoodButton/constants/outline_size = 3
+WoodButton/styles/disabled = SubResource("StyleBox_btn_disabled")
+WoodButton/styles/hover = SubResource("StyleBox_btn_hover")
+WoodButton/styles/hover_pressed = SubResource("StyleBox_btn_pressed")
+WoodButton/styles/normal = SubResource("StyleBox_btn")
+WoodButton/styles/pressed = SubResource("StyleBox_btn_pressed")
 
 [node name="Stage" type="Node2D" node_paths=PackedStringArray("player", "thrower", "hud", "inventory", "backdrop")]
 script = ExtResource("1_level")
@@ -207,11 +274,13 @@ theme_override_constants/separation = 8
 alignment = 1
 
 [node name="NextButton" type="Button" parent="HUD/Hud/EndButtons"]
+theme_type_variation = &"WoodButton"
 custom_minimum_size = Vector2(80, 18)
 layout_mode = 2
 text = "NEXT STAGE"
 
 [node name="LevelsButton" type="Button" parent="HUD/Hud/EndButtons"]
+theme_type_variation = &"WoodButton"
 custom_minimum_size = Vector2(60, 18)
 layout_mode = 2
 text = "LEVELS"

@@ -10,6 +10,8 @@ extends Control
 ## and log (also on L), with their keys shown underneath. Conversations can be
 ## marked as teaching something (HINT or TUTORIAL); if any of the lines still to
 ## come do, the skip question warns about it in red.
+## <<Words>> in double angle brackets are highlighted (HIGHLIGHT), in the box
+## and in the log.
 ## The log (chat history for this stage, skipped lines included) can also be
 ## opened from elsewhere with show_log().
 ## Mid-gameplay conversations go through interrupt(): the game pauses, a speech
@@ -22,6 +24,8 @@ const CHARS_PER_SECOND := 50.0
 ## Seconds the speech bubble shows before a mid-gameplay conversation starts.
 const BUBBLE_TIME := 0.6
 const KEY_COLOR := Color(1, 1, 1, 0.75)
+## The colour of <<highlighted>> words.
+const HIGHLIGHT := Color(0.95, 0.85, 0.55)
 const BG := Color(0.1, 0.09, 0.14, 0.95)
 const BORDER := Color(0.95, 0.85, 0.55)
 const BOX_WIDTH := 240.0
@@ -73,7 +77,7 @@ var _standing := {}
 var _portrait_tweens := {}
 var _dim_tween: Tween
 var _name: Label
-var _text: Label
+var _text: RichTextLabel
 var _skip_button: Button
 var _log_button: Button
 ## The level being played, top left while talking.
@@ -194,12 +198,17 @@ func show_log() -> void:
 		var speaker := _speaker(line.speaker)
 		var color := speaker.name_color if speaker else Color.WHITE
 		var shown := speaker.shown_name() if speaker else String(line.speaker)
-		bbcode += "[color=#%s]%s:[/color] %s\n\n" % [color.to_html(false), shown, line.text]
+		bbcode += "[color=#%s]%s:[/color] %s\n\n" % [color.to_html(false), shown, _to_bbcode(line.text)]
 	_log_text.text = bbcode if bbcode else "[color=#888888]NOTHING SAID YET.[/color]"
 	_log.show()
 	move_to_front()
 	_log_text.grab_focus()
 	_log_text.scroll_to_line(maxi(_log_text.get_line_count() - 1, 0))
+
+
+## Puts the log away (the notebook it was opened from has closed).
+func hide_log() -> void:
+	_log.hide()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -250,14 +259,21 @@ func _show_line(shift_time := SHIFT_TIME) -> void:
 	var speaker := _speaker(line.speaker)
 	_name.text = speaker.shown_name() if speaker else String(line.speaker)
 	_name.add_theme_color_override("font_color", speaker.name_color if speaker else Color.WHITE)
-	_text.text = line.text
+	_text.text = _to_bbcode(line.text)
 	_fit_box()
 	_spotlight(speaker, shift_time, line.get("expression", ""))
 	_text.visible_ratio = 0.0
 	if _type_tween:
 		_type_tween.kill()
 	_type_tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	_type_tween.tween_property(_text, "visible_ratio", 1.0, line.text.length() / CHARS_PER_SECOND)
+	_type_tween.tween_property(_text, "visible_ratio", 1.0, _text.get_parsed_text().length() / CHARS_PER_SECOND)
+
+
+## A line as BBCode: its own square brackets (key names like "[B]") shown as
+## they are, and <<words>> in the HIGHLIGHT colour.
+static func _to_bbcode(text: String) -> String:
+	var bbcode := text.replace("[", "[lb]")
+	return bbcode.replace("<<", "[color=#%s]" % HIGHLIGHT.to_html(false)).replace(">>", "[/color]")
 
 
 func _finish() -> void:
@@ -380,7 +396,7 @@ func _portrait_position(speaker: DialogueSpeaker, talking: bool) -> Vector2:
 
 ## Grows the box upwards when the current line needs more than the minimum.
 func _fit_box() -> void:
-	var text_height := _text.get_line_count() * _text.get_line_height()
+	var text_height := float(_text.get_content_height())
 	var height := maxf(BOX_MIN_HEIGHT, TEXT_TOP + text_height + TEXT_PADDING)
 	_box.offset_top = -BOX_MARGIN - height
 
@@ -492,7 +508,12 @@ func _build() -> void:
 	_name.position = Vector2(TEXT_PADDING, 4)
 	_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_child(_name)
-	_text = Label.new()
+	_text = RichTextLabel.new()
+	_text.bbcode_enabled = true
+	_text.scroll_active = false
+	# The same look the plain label had.
+	_text.add_theme_color_override("default_color", get_theme_color("font_color", "Label"))
+	_text.add_theme_constant_override("line_separation", get_theme_constant("line_spacing", "Label"))
 	_text.anchor_right = 1.0
 	_text.anchor_bottom = 1.0
 	_text.offset_left = TEXT_PADDING
@@ -613,6 +634,8 @@ func _text_button(text: String, at: Vector2, button_size: Vector2) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_ALL
+	# The btn.png look (see the HUD theme).
+	button.theme_type_variation = &"WoodButton"
 	button.position = at
 	button.size = button_size
 	return button

@@ -1,24 +1,23 @@
 extends Control
-## Level select: a map with one node per stage, numbered in play order (the
-## numbers are only for this screen; stages keep their ids, like "1-2").
-## Nodes wind across the map in rows (at most MAX_ROWS), placed from however
-## many stages there are. Clicking an unlocked node plays that stage; locked
-## ones are dimmed with a padlock and can't be picked. Clouds drift across the
-## sky, each at its own pace, coming back round the other side.
+## Level select: one map per SaveGame map, side by side, with one node per
+## stage, numbered in play order (the numbers are only for this screen; stages
+## keep their ids, like "1-2"). One map shows at a time; the arrows at the
+## screen's edges (or left / right past a map's last column) slide to the next.
+## Nodes wind across their map in rows (at most MAX_ROWS), placed from however
+## many stages it has. Clicking an unlocked node plays that stage; locked ones
+## are dimmed with a padlock and can't be picked. A map with nothing unlocked
+## says COMING SOON. Behind each map, its picture with drifting clouds
+## (MapBackground; the later maps use the first one's picture for now).
 
-const BACKGROUND := preload("res://assets/map1.png")
 const NODE_TEXTURE := preload("res://assets/map1_levelnode.png")
-const CLOUDS := preload("res://assets/map1_clouds.png")
-## Each cloud in the cloud sheet, where it floats (its height, and where it
-## starts across), and how fast it drifts in pixels per second. Smaller ones
-## are further away, so they drift slower.
-const CLOUD_LAYOUT: Array[Dictionary] = [
-	{"region": Rect2(11, 10, 52, 25), "y": 6.0, "x": 20.0, "speed": 6.0},
-	{"region": Rect2(82, 10, 59, 25), "y": 30.0, "x": 170.0, "speed": 4.5},
-	{"region": Rect2(170, 16, 30, 13), "y": 50.0, "x": 300.0, "speed": 2.5},
-	{"region": Rect2(234, 11, 51, 19), "y": 16.0, "x": 290.0, "speed": 3.5},
-]
 const GOLD := Color(0.95, 0.85, 0.55)
+## A picked node blinks this many times, over this long, before the iris.
+const PICK_BLINKS := 3
+const PICK_BLINK_TIME := 0.45
+## Seconds the map takes to slide in after CONTINUE.
+const SLIDE_IN_TIME := 0.45
+## Seconds to slide from one map to the next.
+const PAGE_SLIDE_TIME := 0.4
 const TEXT_OUTLINE := Color(0.08, 0.1, 0.06)
 const LOCKED_TINT := Color(0.55, 0.55, 0.55)
 ## A node's button: the art with its number below it.
@@ -32,41 +31,139 @@ const MAX_ROWS := 3
 const MAP_AREA := Rect2(44, 100, 296, 76)
 ## Every other node sits this far up or down, so a row isn't a straight line.
 const WOBBLE := 10.0
+## The arrows that slide to the next map.
+const ARROW_SIZE := Vector2(18, 24)
 
+## Every node, in play order.
 var _nodes: Array[Button] = []
-## Nodes per row on this map (see per_row()).
-var _per_row := MIN_PER_ROW
-var _sky: Control
-## How far each cloud has drifted from where it starts.
-var _drift: Array[float] = []
+## Each map's nodes, in play order.
+var _map_nodes: Array = []
+## The maps, side by side; sliding this shows one or another.
+var _maps: Control
+## The map on show.
+var _map := 0
+var _map_tween: Tween
+var _previous_map: Button
+var _next_map: Button
+var _back: Button
+## The first map's background.
+var _sky: MapBackground
+## A level has been picked, or BACK pressed: nothing else can be until the
+## screen has changed.
+var _picked := false
 
 
 func _ready() -> void:
 	add_to_group(UiFocus.SCREENS)
 	_build()
-	# Start on the furthest stage reached.
-	for i in range(_nodes.size() - 1, -1, -1):
-		if not _nodes[i].disabled:
-			_nodes[i].grab_focus()
-			break
+	if SaveGame.slide_in_level_select:
+		SaveGame.slide_in_level_select = false
+		_slide_in()
+	# Straight to the map the starting node is on, without sliding there.
+	var start := _starting_node()
+	_show_map(start.get_meta("map"), false, true)
+	start.grab_focus()
 
 
-func _process(delta: float) -> void:
-	for i in _drift.size():
-		_drift[i] += CLOUD_LAYOUT[i].speed * delta
-	_sky.queue_redraw()
+## Where the screen opens: the level last played, if it can still be picked,
+## else the furthest one reached on the first map.
+func _starting_node() -> Button:
+	var last := SaveGame.all_stages().find(SaveGame.last_stage)
+	if last >= 0 and not _nodes[last].disabled:
+		return _nodes[last]
+	var first_map: Array = _map_nodes[0]
+	for i in range(first_map.size() - 1, -1, -1):
+		if not first_map[i].disabled:
+			return first_map[i]
+	return _nodes[0]
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		SaveGame.go_to(SaveGame.START_MENU)
+		_back_to_menu()
 		get_viewport().set_input_as_handled()
+
+
+## A level was picked: its node blinks, then the iris closes on it and the
+## level opens.
+func _pick(node: Button, stage: String) -> void:
+	if _picked:
+		return
+	_picked = true
+	var blink := create_tween()
+	for i in PICK_BLINKS:
+		blink.tween_property(node, "modulate:a", 0.15, PICK_BLINK_TIME / PICK_BLINKS / 2.0)
+		blink.tween_property(node, "modulate:a", 1.0, PICK_BLINK_TIME / PICK_BLINKS / 2.0)
+	await blink.finished
+	SaveGame.play_stage(stage, node.get_global_transform_with_canvas().origin + NODE_SIZE / 2.0)
+
+
+## Arriving from the start menu's black screen: the whole map slides in from
+## the right, pushing the black off to the left.
+func _slide_in() -> void:
+	var width := get_viewport_rect().size.x
+	var black := ColorRect.new()
+	black.color = Color.BLACK
+	black.size = get_viewport_rect().size
+	black.position.x = -width
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(black)
+	position.x = width
+	var slide := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	slide.tween_property(self, "position:x", 0.0, SLIDE_IN_TIME)
+	slide.tween_callback(black.queue_free)
+
+
+## BACK: the way in, backwards. The whole map slides off to the right, pulling
+## a black screen in from the left, and the start menu carries on from there.
+func _back_to_menu() -> void:
+	if _picked:
+		return
+	_picked = true
+	var width := get_viewport_rect().size.x
+	var black := ColorRect.new()
+	black.color = Color.BLACK
+	black.size = get_viewport_rect().size
+	black.position.x = -width
+	add_child(black)
+	var slide := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	slide.tween_property(self, "position:x", width, SLIDE_IN_TIME)
+	await slide.finished
+	SaveGame.slide_in_start_menu = true
+	SaveGame.go_to(SaveGame.START_MENU)
 
 
 ## See UiFocus: the first node (node 1 is always unlocked).
 func focus_first() -> bool:
+	_show_map(0)
 	_nodes[0].grab_focus()
 	return true
+
+
+## Slides to `map` (or jumps there, with `instant`). With `take_focus`, the
+## keys land on its first open node, or, with none to pick, on the arrow that
+## leads back.
+func _show_map(map: int, take_focus := false, instant := false) -> void:
+	map = clampi(map, 0, _map_nodes.size() - 1)
+	var came_from := _map
+	_map = map
+	_previous_map.visible = map > 0
+	_next_map.visible = map + 1 < _map_nodes.size()
+	if _map_tween:
+		_map_tween.kill()
+	var x := -map * get_viewport_rect().size.x
+	if instant:
+		_maps.position.x = x
+	else:
+		_map_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+		_map_tween.tween_property(_maps, "position:x", x, PAGE_SLIDE_TIME)
+	if not take_focus:
+		return
+	for node: Button in _map_nodes[map]:
+		if not node.disabled:
+			node.grab_focus()
+			return
+	(_previous_map if map > came_from else _next_map).grab_focus()
 
 
 ## How many nodes go in a row for `count` stages: MIN_PER_ROW, or more if
@@ -75,8 +172,8 @@ static func per_row(count: int) -> int:
 	return maxi(MIN_PER_ROW, ceili(float(count) / MAX_ROWS))
 
 
-## Where node `index` of `count` goes: rows that snake left to right, then
-## right to left, so each number is next to the one before it.
+## Where node `index` of the `count` on a map goes: rows that snake left to
+## right, then right to left, so each number is next to the one before it.
 static func node_center(index: int, count: int) -> Vector2:
 	var across := per_row(count)
 	var rows := ceili(float(count) / across)
@@ -97,117 +194,147 @@ static func _column_of(index: int, across: int) -> int:
 # --- Layout
 
 func _build() -> void:
-	var map := TextureRect.new()
-	map.texture = BACKGROUND
-	map.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	map.stretch_mode = TextureRect.STRETCH_SCALE
-	map.set_anchors_preset(Control.PRESET_FULL_RECT)
-	map.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(map)
+	var screen := get_viewport_rect().size
+	_maps = Control.new()
+	_maps.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_maps)
+	var number := 1
+	for map in SaveGame.MAP_COUNT:
+		var page := Control.new()
+		page.position = Vector2(map * screen.x, 0)
+		page.size = screen
+		page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_maps.add_child(page)
+		var sky := MapBackground.new()
+		page.add_child(sky)
+		if map == 0:
+			_sky = sky
+		var stages := SaveGame.map_stages(map)
+		var nodes: Array[Button] = []
+		for i in stages.size():
+			var node := _level_node(stages[i], number, map)
+			number += 1
+			page.add_child(node)
+			node.size = NODE_SIZE
+			node.position = (node_center(i, stages.size()) - NODE_SIZE / 2.0).round()
+			nodes.append(node)
+			_nodes.append(node)
+		_map_nodes.append(nodes)
+		if nodes.all(func(node: Button) -> bool: return node.disabled):
+			page.add_child(_outlined_label("COMING SOON", 8, 36.0))
 
-	_sky = Control.new()
-	_sky.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_sky.draw.connect(_draw_clouds)
-	add_child(_sky)
-	for cloud in CLOUD_LAYOUT:
-		_drift.append(0.0)
+	add_child(_outlined_label("SELECT LEVEL", 16, 12.0))
 
-	var title := Label.new()
-	title.text = "SELECT LEVEL"
-	title.add_theme_color_override("font_color", GOLD)
-	title.add_theme_color_override("font_outline_color", TEXT_OUTLINE)
-	title.add_theme_constant_override("outline_size", 4)
-	title.add_theme_font_size_override("font_size", 16)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	title.offset_top = 12
-	title.offset_bottom = 30
-	add_child(title)
+	_previous_map = _arrow("<", 4.0)
+	_previous_map.pressed.connect(func() -> void: _show_map(_map - 1, true))
+	_next_map = _arrow(">", screen.x - ARROW_SIZE.x - 4.0)
+	_next_map.pressed.connect(func() -> void: _show_map(_map + 1, true))
 
-	var stages := SaveGame.all_stages()
-	_per_row = per_row(stages.size())
-	for i in stages.size():
-		var node := _level_node(stages[i], i + 1)
-		add_child(node)
-		node.size = NODE_SIZE
-		node.position = (node_center(i, stages.size()) - NODE_SIZE / 2.0).round()
-		_nodes.append(node)
-
-	var back := Button.new()
-	back.text = "BACK"
-	back.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	back.offset_left = 8
-	back.offset_top = -24
-	back.offset_right = 64
-	back.offset_bottom = -8
-	back.pressed.connect(SaveGame.go_to.bind(SaveGame.START_MENU))
-	add_child(back)
-	_link_keys(back)
-
-
-## WASD moves along a node's row and column on the map (the automatic guess can
-## pick the wrong node on a winding layout). Locked nodes are skipped: left and
-## right stay put, and down from there goes to BACK.
-func _link_keys(back: Button) -> void:
-	for i in _nodes.size():
-		var node := _nodes[i]
-		if node.disabled:
-			continue
-		var row := i / _per_row
-		var column := _column_of(i, _per_row)
-		node.focus_neighbor_left = _open_node_path(row, column - 1, node.get_path())
-		node.focus_neighbor_right = _open_node_path(row, column + 1, node.get_path())
-		node.focus_neighbor_top = _open_node_path(row - 1, column, node.get_path())
-		node.focus_neighbor_bottom = _open_node_path(row + 1, column, back.get_path())
-	var last_open := _nodes[0]
-	for node in _nodes:
-		if not node.disabled:
-			last_open = node
-	back.focus_neighbor_top = last_open.get_path()
-	back.focus_neighbor_right = last_open.get_path()
+	_back = Button.new()
+	_back.text = "BACK"
+	_back.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_back.offset_left = 8
+	_back.offset_top = -24
+	_back.offset_right = 64
+	_back.offset_bottom = -8
+	_back.pressed.connect(_back_to_menu)
+	add_child(_back)
+	_link_keys()
+	_show_map(0, false, true)
 
 
-## The path of the unlocked node at that spot on the map, else `otherwise`.
-func _open_node_path(row: int, column: int, otherwise: NodePath) -> NodePath:
-	if column < 0 or column >= _per_row or row < 0:
+## Gold text with a dark outline, centred across the screen at `top`.
+func _outlined_label(text: String, font_size: int, top: float) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_color_override("font_color", GOLD)
+	label.add_theme_color_override("font_outline_color", TEXT_OUTLINE)
+	label.add_theme_constant_override("outline_size", 4)
+	label.add_theme_font_size_override("font_size", font_size)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.position = Vector2(0, top)
+	label.size = Vector2(get_viewport_rect().size.x, font_size + 2.0)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+
+## An arrow at the side of the screen, halfway down the grass.
+func _arrow(text: String, x: float) -> Button:
+	var arrow := Button.new()
+	arrow.text = text
+	arrow.focus_mode = Control.FOCUS_ALL
+	arrow.mouse_entered.connect(arrow.grab_focus)
+	add_child(arrow)
+	arrow.position = Vector2(x, roundf(MAP_AREA.get_center().y - ARROW_SIZE.y / 2.0))
+	arrow.size = ARROW_SIZE
+	return arrow
+
+
+## WASD moves along a node's row and column on its map (the automatic guess
+## can pick the wrong node on a winding layout). Locked nodes are skipped. Off
+## the side of a map goes to the arrow there, and on to the next map; down
+## from the bottom goes to BACK.
+func _link_keys() -> void:
+	for map in _map_nodes.size():
+		var nodes: Array = _map_nodes[map]
+		var across := per_row(nodes.size())
+		for i in nodes.size():
+			var node: Button = nodes[i]
+			if node.disabled:
+				continue
+			var row := i / across
+			var column := _column_of(i, across)
+			var left := _previous_map.get_path() if map > 0 else node.get_path()
+			var right := _next_map.get_path() if map + 1 < _map_nodes.size() else node.get_path()
+			node.focus_neighbor_left = _open_node_path(nodes, row, column - 1, left)
+			node.focus_neighbor_right = _open_node_path(nodes, row, column + 1, right)
+			node.focus_neighbor_top = _open_node_path(nodes, row - 1, column, node.get_path())
+			node.focus_neighbor_bottom = _open_node_path(nodes, row + 1, column, _back.get_path())
+	_back.focus_neighbor_right = _next_map.get_path()
+	for arrow in [_previous_map, _next_map]:
+		arrow.focus_neighbor_bottom = _back.get_path()
+		arrow.focus_neighbor_top = arrow.get_path()
+	# Between the arrows: across the map on show, by its nearest open node.
+	_previous_map.focus_neighbor_left = _previous_map.get_path()
+	_next_map.focus_neighbor_right = _next_map.get_path()
+	_previous_map.focus_neighbor_right = NodePath()
+	_next_map.focus_neighbor_left = NodePath()
+	_back.focus_neighbor_top = NodePath()
+
+
+## The path of the unlocked node at that spot on a map, else `otherwise`.
+func _open_node_path(nodes: Array, row: int, column: int, otherwise: NodePath) -> NodePath:
+	var across := per_row(nodes.size())
+	if column < 0 or column >= across or row < 0:
 		return otherwise
-	var index := row * _per_row + (_per_row - 1 - column if row % 2 == 1 else column)
-	if index >= _nodes.size() or _nodes[index].disabled:
+	var index := row * across + (across - 1 - column if row % 2 == 1 else column)
+	if index >= nodes.size() or nodes[index].disabled:
 		return otherwise
-	return _nodes[index].get_path()
+	return nodes[index].get_path()
 
 
-func _level_node(stage: String, number: int) -> Button:
+func _level_node(stage: String, number: int, map: int) -> Button:
 	var node := Button.new()
 	node.flat = true
-	node.tooltip_text = "LEVEL %d" % number
+	node.set_meta("map", map)
 	for state in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
 		node.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	var unlocked := SaveGame.is_unlocked(stage)
 	node.disabled = not unlocked
 	if unlocked:
 		node.focus_mode = Control.FOCUS_ALL
-		node.pressed.connect(SaveGame.play_stage.bind(stage))
+		node.pressed.connect(_pick.bind(node, stage))
 		node.mouse_entered.connect(node.grab_focus)
 		node.focus_entered.connect(node.queue_redraw)
+		# The keys reaching a node on another map bring that map along.
+		node.focus_entered.connect(func() -> void:
+			if _map != map:
+				_show_map(map))
 		node.focus_exited.connect(node.queue_redraw)
 	else:
 		node.focus_mode = Control.FOCUS_NONE
 	node.draw.connect(_draw_node.bind(node, number))
 	return node
-
-
-## Each cloud where it has drifted to, coming back in on the left once it has
-## gone off the right edge. Whole pixels, so the pixel art stays crisp.
-func _draw_clouds() -> void:
-	var width := _sky.size.x
-	for i in CLOUD_LAYOUT.size():
-		var cloud: Dictionary = CLOUD_LAYOUT[i]
-		var region: Rect2 = cloud.region
-		var lap := width + region.size.x
-		var x := fposmod(cloud.x + _drift[i] + region.size.x, lap) - region.size.x
-		_sky.draw_texture_rect_region(CLOUDS, Rect2(Vector2(roundf(x), cloud.y), region.size), region)
 
 
 func _draw_node(node: Button, number: int) -> void:

@@ -1,8 +1,8 @@
 extends Control
 ## The recipe book, which is also the game's pause menu. Opening it pauses
 ## the game (B or the book icon).
-## A gear (opening a popup of START MENU / RESTART / LEVELS / SKIP LEVEL /
-## SETTINGS / EXIT TO DESKTOP), LOG and HINT sit just above the book's top-right
+## A gear (opening a popup of MAIN MENU / RESTART / LEVELS / SETTINGS /
+## CLOSE GAME, which asks first), LOG and HINT sit just above the book's top-right
 ## corner (only the gear while SETTINGS is open). HINT first asks whether to
 ## take one, warning in red what it costs (hint_warning), then asks the stage
 ## for Sheldon's hint (hint_requested); the dialogue dims and covers the book
@@ -32,6 +32,9 @@ extends Control
 ## and secret potions (a lock until their recipe is found, a "?" until
 ## brewed). Spread 3 shows brewing in
 ## bulk: several copies of a recipe on the table brew that many potions.
+## Typing the DebugCode (wwssadad) in the pause menu opens its DEBUG tools,
+## and adds DEBUG to the list until the player goes back to the start menu.
+## There, SKIP LEVEL (off to start with) adds SKIP LEVEL to the pause menu.
 ## Spread 4 is a checklist of the story's goals (flavour only for now), with a
 ## WANTED poster of the Demon King beside it.
 
@@ -45,6 +48,8 @@ signal log_requested
 signal hint_requested
 ## The player asked to restart the level (from the pause menu).
 signal restart_requested
+## The player asked for the main menu (from the pause menu).
+signal main_menu_requested
 
 const BOOK_SIZE := Vector2(360, 186)
 const PAGE_SIZE := Vector2(174, 176)
@@ -95,7 +100,10 @@ const EFFECT_TEXT_SCALE := 0.875
 const DEMON_KING := preload("res://assets/portraits/demonking/dk_default.png")
 const CLEANSING_WATER := &"cleansing_water"
 const NO_HINT_NOTE := "NO HINT FOR THIS LEVEL"
-const HINTS_LOCKED_NOTE := "HINTS ARE LOCKED ON THIS LEVEL"
+## The popup HINT gives where hints are locked.
+const HINTS_LOCKED_TITLE := "CAN'T USE HINTS"
+const HINTS_LOCKED_TEXT := "YOU ALREADY USED HINTS IN THE PREVIOUS LEVEL. I WANNA RECHARGE MY BRAIN THIS TIME."
+const HINTS_LOCKED_WIDTH := 190.0
 const NO_HINT_COLOR := Color(1.0, 0.6, 0.5)
 const WARNING_COLOR := Color(1.0, 0.4, 0.4)
 const GOLD := Color(0.95, 0.85, 0.55)
@@ -105,6 +113,7 @@ const RECIPE_TO_FIND_TEXT := "RECIPE TO BE FOUND"
 const UNBREWED_TEXT := "TO BE BREWED"
 const GEAR_MARGIN := 8.0
 const GEAR_TITLE_HEIGHT := 12.0
+const GEAR_BUTTON_HEIGHT := 16.0
 const GEAR_TEETH := 8
 const GEAR_OUTER := 5.0
 const GEAR_INNER := 3.5
@@ -121,7 +130,18 @@ const TIP_COLOR := Color(0.16, 0.15, 0.22)
 const CYCLE_TIME := 1.0
 const SLIDE_TIME := 0.25
 const COVER_COLOR := Color(0.42, 0.2, 0.14)
-const PAGE_COLOR := Color(0.94, 0.88, 0.74)
+## The paper colour in notebook.png.
+const PAGE_COLOR := Color8(255, 244, 205)
+## The open book drawn behind the pages: assets/notebook.png, stretched to
+## BOOK_SIZE as a nine-patch (one per page) so its corners, cover edges and the
+## dips at the spine stay pixel for pixel, at the same scale as the text.
+const NOTEBOOK := preload("res://assets/notebook.png")
+## Each page's part of the art, and how much of each edge stays unstretched:
+## [region, left, top, right, bottom].
+const NOTEBOOK_PAGES := [
+	[Rect2(0, 0, 40, 58), 8, 7, 9, 10],
+	[Rect2(40, 0, 39, 58), 8, 7, 8, 10],
+]
 const INK := Color(0.35, 0.22, 0.14)
 
 @export var inventory: Inventory
@@ -144,6 +164,8 @@ var has_hint := true
 var hints_locked := false
 ## What taking a hint costs, in red under HINT's question. Empty: nothing.
 var hint_warning := ""
+## Every hint here has been given: HINT just repeats them, without asking.
+var hint_repeats := false
 
 var _table: Array[StringName] = [&"", &"", &"", &""]
 var _book: Control
@@ -187,6 +209,17 @@ var _gear_level: Label
 ## The pause menu came up on its own, with the book hidden.
 var _pause_only := false
 var _skip_button: Button
+## There's a level after this one to skip to.
+var _can_skip := false
+var _debug_button: Button
+var _debug_menu: Control
+var _debug_panel: Panel
+var _debug_skip_toggle: Button
+var _quit_prompt: Control
+var _locked_popup: Control
+var _locked_ok: Button
+var _quit_no: Button
+var _code := DebugCode.new()
 var _settings_button: Button
 var _log_button: Button
 ## "LEVEL 5 (2 - 2)", above the book's top-left corner.
@@ -227,6 +260,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_book") or event.is_action_pressed("ui_cancel"):
 		if _hint_prompt.visible:
 			_close_hint_prompt()
+		elif _locked_popup.visible:
+			_close_locked_popup()
+		elif _quit_prompt.visible:
+			_close_quit_prompt()
+		elif _debug_menu.visible:
+			_close_debug_menu()
 		elif _gear_menu.visible:
 			_close_gear_menu()
 		elif _settings.visible:
@@ -265,6 +304,12 @@ func focus_first() -> bool:
 func _focus_default() -> void:
 	if _hint_prompt.visible:
 		_hint_no.grab_focus()
+	elif _locked_popup.visible:
+		_locked_ok.grab_focus()
+	elif _quit_prompt.visible:
+		_quit_no.grab_focus()
+	elif _debug_menu.visible:
+		_debug_skip_toggle.grab_focus()
 	elif _gear_menu.visible:
 		_gear_list.get_child(0).grab_focus()
 	elif _settings.visible:
@@ -289,6 +334,12 @@ func _close_settings() -> void:
 func _input(event: InputEvent) -> void:
 	# Nothing in the book reacts while Sheldon talks over it.
 	if not is_open or not enabled:
+		return
+	if _code.feed(event) and _gear_menu.visible:
+		SaveGame.debug_unlocked = true
+		_refresh_gear_buttons()
+		_open_debug_menu()
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseMotion:
 		var part := _ingredient_at(event.position)
@@ -486,7 +537,7 @@ func _on_brewing_page() -> bool:
 
 ## SETTINGS, the pause menu or HINT's question is up over the pages.
 func _popup_open() -> bool:
-	return _settings.visible or _gear_menu.visible or _hint_prompt.visible
+	return _settings.visible or _gear_menu.visible or _hint_prompt.visible or _debug_menu.visible or _quit_prompt.visible or _locked_popup.visible
 
 
 ## Whether `potion` can be brewed: its recipe needn't be found, or has been. In
@@ -640,7 +691,7 @@ func _build() -> void:
 
 	_settings = SettingsPanel.new()
 	_book.add_child(_settings)
-	_settings.build(BOOK_SIZE, true)
+	_settings.build(BOOK_SIZE)
 	_settings.back_requested.connect(_close_settings)
 	_settings.visibility_changed.connect(func() -> void:
 		_show_page_buttons(not _settings.visible)
@@ -649,6 +700,10 @@ func _build() -> void:
 
 	_gear_menu = _build_gear_menu()
 	_hint_prompt = _build_hint_prompt()
+	_debug_menu = _build_debug_menu()
+	_quit_prompt = _build_quit_prompt()
+	_locked_popup = _build_locked_popup()
+	_refresh_gear_buttons()
 
 	_tip_layer = Control.new()
 	_tip_layer.size = BOOK_SIZE
@@ -726,11 +781,13 @@ func _build_gear_menu() -> Control:
 	_gear_panel.add_child(_gear_title)
 	_gear_title.position = Vector2(0, GEAR_MARGIN - 3.0)
 	_gear_list = VBoxContainer.new()
-	_gear_list.add_theme_constant_override("separation", 2)
+	_gear_list.add_theme_constant_override("separation", 3)
 	_gear_list.position = Vector2(GEAR_MARGIN, GEAR_MARGIN + GEAR_TITLE_HEIGHT)
 	_gear_panel.add_child(_gear_list)
-	var menu := _page_button("START MENU", _gear_list)
-	menu.pressed.connect(SaveGame.go_to.bind(SaveGame.START_MENU))
+	var menu := _page_button("MAIN MENU", _gear_list)
+	menu.pressed.connect(func() -> void:
+		modal.hide()
+		main_menu_requested.emit())
 	var restart := _page_button("RESTART", _gear_list)
 	restart.pressed.connect(_restart_level)
 	var levels := _page_button("LEVELS", _gear_list)
@@ -742,9 +799,194 @@ func _build_gear_menu() -> Control:
 		modal.hide()
 		_book.show()
 		_settings.open())
-	var quit := _page_button("EXIT TO DESKTOP", _gear_list)
-	quit.pressed.connect(func() -> void: get_tree().quit())
-	UiFocus.link_column(_gear_list.get_children())
+	_debug_button = _page_button("DEBUG", _gear_list)
+	_debug_button.pressed.connect(_open_debug_menu)
+	var quit := _page_button("CLOSE GAME", _gear_list)
+	quit.pressed.connect(_open_quit_prompt)
+	# A little room above and below each label.
+	for button in _gear_list.get_children():
+		button.custom_minimum_size.y = GEAR_BUTTON_HEIGHT
+	return modal
+
+
+## SKIP LEVEL (debug, and only with a level to skip to) and DEBUG (once the
+## code has been typed) come and go; keys step through what's shown.
+func _refresh_gear_buttons() -> void:
+	_skip_button.visible = _can_skip and SaveGame.debug_skip_level
+	_debug_button.visible = SaveGame.debug_unlocked
+	UiFocus.link_column(_gear_list.get_children().filter(func(button: Button) -> bool: return button.visible))
+	if _gear_menu.visible:
+		_open_gear_menu()
+
+
+# --- DEBUG
+
+## The pause menu's debug tools, in place of the pause menu.
+func _build_debug_menu() -> Control:
+	var modal := _popup_modal(_close_debug_menu)
+	_debug_panel = Panel.new()
+	_debug_panel.add_theme_stylebox_override("panel", _gear_panel.get_theme_stylebox("panel"))
+	modal.add_child(_debug_panel)
+	var title := Label.new()
+	title.text = "DEBUG"
+	title.add_theme_color_override("font_color", GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(0, GEAR_MARGIN - 3.0)
+	_debug_panel.add_child(title)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 3)
+	list.position = Vector2(GEAR_MARGIN, GEAR_MARGIN + GEAR_TITLE_HEIGHT)
+	_debug_panel.add_child(list)
+	_debug_skip_toggle = _page_button("", list)
+	_debug_skip_toggle.pressed.connect(func() -> void:
+		SaveGame.debug_skip_level = not SaveGame.debug_skip_level
+		_label_debug_menu()
+		_refresh_gear_buttons())
+	var back := _page_button("BACK", list)
+	back.pressed.connect(_close_debug_menu)
+	for button in list.get_children():
+		button.custom_minimum_size.y = GEAR_BUTTON_HEIGHT
+	UiFocus.link_column(list.get_children())
+	_label_debug_menu()
+	list.reset_size()
+	_debug_panel.size = list.size + Vector2(GEAR_MARGIN * 2.0, GEAR_MARGIN * 2.0 + GEAR_TITLE_HEIGHT)
+	title.size = Vector2(_debug_panel.size.x, GEAR_TITLE_HEIGHT)
+	return modal
+
+
+func _label_debug_menu() -> void:
+	# Both labels the same length, so the panel doesn't change size.
+	_debug_skip_toggle.text = " SKIP LEVEL: %s " % ("ON " if SaveGame.debug_skip_level else "OFF")
+
+
+func _open_debug_menu() -> void:
+	_gear_menu.hide()
+	_debug_menu.show()
+	_debug_panel.position = ((get_viewport_rect().size - _debug_panel.size) / 2.0).round()
+	_debug_skip_toggle.grab_focus()
+
+
+func _close_debug_menu() -> void:
+	_debug_menu.hide()
+	_open_gear_menu()
+	_debug_button.grab_focus()
+
+
+# --- CLOSE GAME
+
+## CLOSE GAME's question: the level in progress isn't kept.
+func _build_quit_prompt() -> Control:
+	var modal := _popup_modal(_close_quit_prompt)
+	var panel := Panel.new()
+	panel.add_theme_stylebox_override("panel", _gear_panel.get_theme_stylebox("panel"))
+	modal.add_child(panel)
+	var title := Label.new()
+	title.text = "CLOSE GAME?"
+	title.add_theme_color_override("font_color", GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(title)
+	var warning := Label.new()
+	warning.text = "YOUR PROGRESS FOR THIS\nLEVEL WILL BE LOST."
+	warning.add_theme_color_override("font_color", WARNING_COLOR)
+	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(warning)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	panel.add_child(row)
+	var yes := _page_button("CLOSE GAME", row)
+	yes.pressed.connect(func() -> void: get_tree().quit())
+	_quit_no = _page_button("CANCEL", row)
+	_quit_no.pressed.connect(_close_quit_prompt)
+	for button in [yes, _quit_no]:
+		button.custom_minimum_size.y = GEAR_BUTTON_HEIGHT
+	UiFocus.link_row([yes, _quit_no])
+	# Wide enough for the buttons, with the usual margin either side.
+	row.reset_size()
+	var width := maxf(150.0, row.size.x + GEAR_MARGIN * 2.0)
+	var y := GEAR_MARGIN - 3.0
+	title.position = Vector2(0, y)
+	title.size = Vector2(width, 10)
+	y += GEAR_TITLE_HEIGHT + 2.0
+	warning.position = Vector2(0, y)
+	warning.size = Vector2(width, 20)
+	y += 26.0
+	row.reset_size()
+	row.position = Vector2(roundf((width - row.size.x) / 2.0), y)
+	panel.size = Vector2(width, y + row.size.y + GEAR_MARGIN)
+	panel.position = ((get_viewport_rect().size - panel.size) / 2.0).round()
+	return modal
+
+
+## HINT's answer where hints are locked: why, and OK.
+func _build_locked_popup() -> Control:
+	var modal := _popup_modal(_close_locked_popup)
+	var panel := Panel.new()
+	panel.add_theme_stylebox_override("panel", _gear_panel.get_theme_stylebox("panel"))
+	modal.add_child(panel)
+	var width := HINTS_LOCKED_WIDTH
+	var title := Label.new()
+	title.text = HINTS_LOCKED_TITLE
+	title.add_theme_color_override("font_color", GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(title)
+	var lines := _wrap(get_theme_font("font", "Label"), HINTS_LOCKED_TEXT, width - GEAR_MARGIN * 2.0)
+	var text := Label.new()
+	text.text = "\n".join(lines)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(text)
+	_locked_ok = _page_button("OK", panel)
+	_locked_ok.custom_minimum_size = Vector2(48, GEAR_BUTTON_HEIGHT)
+	_locked_ok.pressed.connect(_close_locked_popup)
+	var y := GEAR_MARGIN - 3.0
+	title.position = Vector2(0, y)
+	title.size = Vector2(width, 10)
+	y += GEAR_TITLE_HEIGHT + 2.0
+	text.position = Vector2(GEAR_MARGIN, y)
+	text.size = Vector2(width - GEAR_MARGIN * 2.0, lines.size() * 10.0)
+	y += lines.size() * 10.0 + 6.0
+	_locked_ok.reset_size()
+	_locked_ok.position = Vector2(roundf((width - _locked_ok.size.x) / 2.0), y)
+	panel.size = Vector2(width, y + _locked_ok.size.y + GEAR_MARGIN)
+	panel.position = ((get_viewport_rect().size - panel.size) / 2.0).round()
+	return modal
+
+
+func _open_locked_popup() -> void:
+	_locked_popup.show()
+	_locked_ok.grab_focus()
+
+
+func _close_locked_popup() -> void:
+	_locked_popup.hide()
+	if _hint_button.is_visible_in_tree():
+		_hint_button.grab_focus()
+
+
+func _open_quit_prompt() -> void:
+	_gear_menu.hide()
+	_quit_prompt.show()
+	_quit_no.grab_focus()
+
+
+func _close_quit_prompt() -> void:
+	_quit_prompt.hide()
+	_open_gear_menu()
+	_gear_list.get_child(_gear_list.get_child_count() - 1).grab_focus()
+
+
+## A full-screen layer over a dim; a click on the dim calls `on_dismiss`.
+func _popup_modal(on_dismiss: Callable) -> Control:
+	var modal := Control.new()
+	modal.hide()
+	add_child(modal)
+	modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.5)
+	modal.add_child(dim)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed:
+			on_dismiss.call())
 	return modal
 
 
@@ -783,16 +1025,18 @@ func _on_hint_pressed() -> void:
 	if not has_hint:
 		_show_note(NO_HINT_NOTE, NO_HINT_COLOR)
 	elif hints_locked:
-		_show_note(HINTS_LOCKED_NOTE, NO_HINT_COLOR)
+		_open_locked_popup()
+	elif hint_repeats:
+		hint_requested.emit()
 	else:
 		_open_hint_prompt()
 
 
 ## The stage's LOG and HINT buttons work (or are greyed out and do nothing).
-func set_log_and_hint_enabled(on: bool) -> void:
-	for button in [_log_button, _hint_button]:
-		button.disabled = not on
-		button.focus_mode = Control.FOCUS_ALL if on else Control.FOCUS_NONE
+func set_log_and_hint_enabled(log_on: bool, hint_on := log_on) -> void:
+	for pair in [[_log_button, log_on], [_hint_button, hint_on]]:
+		pair[0].disabled = not pair[1]
+		pair[0].focus_mode = Control.FOCUS_ALL if pair[1] else Control.FOCUS_NONE
 
 
 ## HINT's question, in the middle of the screen over a dim: HINT or LOOK AROUND
@@ -870,10 +1114,11 @@ func set_level_label(text: String) -> void:
 	_gear_level.text = text
 
 
-## SKIP LEVEL only shows when there's a level to skip to.
+## SKIP LEVEL only shows when there's a level to skip to (and the debug
+## option is on).
 func set_can_skip(can_skip: bool) -> void:
-	_skip_button.visible = can_skip
-	UiFocus.link_column(_gear_list.get_children().filter(func(button: Button) -> bool: return button.visible))
+	_can_skip = can_skip
+	_refresh_gear_buttons()
 
 
 ## LOG and HINT are no use on the settings page.
@@ -999,19 +1244,30 @@ func _page_button(text: String, parent: Control) -> Button:
 	var button := Button.new()
 	button.text = " %s " % text
 	button.focus_mode = Control.FOCUS_ALL
+	# The btn.png look (see the HUD theme).
+	button.theme_type_variation = &"WoodButton"
 	parent.add_child(button)
 	return button
 
 
+## notebook.png across the whole book, each half stretched over its page.
+func _draw_notebook() -> void:
+	var half := BOOK_SIZE.x / 2.0
+	for i in NOTEBOOK_PAGES.size():
+		var part: Array = NOTEBOOK_PAGES[i]
+		var style := StyleBoxTexture.new()
+		style.texture = NOTEBOOK
+		style.region_rect = part[0]
+		style.texture_margin_left = part[1]
+		style.texture_margin_top = part[2]
+		style.texture_margin_right = part[3]
+		style.texture_margin_bottom = part[4]
+		_book.draw_style_box(style, Rect2(half * i, 0, half, BOOK_SIZE.y))
+
+
 func _draw_book() -> void:
 	var font := get_theme_font("font", "Label")
-	_book.draw_rect(Rect2(Vector2.ZERO, BOOK_SIZE), COVER_COLOR)
-	_book.draw_rect(Rect2(Vector2.ZERO, BOOK_SIZE).grow(-1), COVER_COLOR.darkened(0.4), false, 2.0)
-	for page in [LEFT_PAGE, RIGHT_PAGE]:
-		_book.draw_rect(Rect2(page, PAGE_SIZE), PAGE_COLOR)
-	# Shading where the pages meet the spine.
-	_book.draw_rect(Rect2(LEFT_PAGE + Vector2(PAGE_SIZE.x - 4, 0), Vector2(4, PAGE_SIZE.y)), PAGE_COLOR.darkened(0.1))
-	_book.draw_rect(Rect2(RIGHT_PAGE, Vector2(4, PAGE_SIZE.y)), PAGE_COLOR.darkened(0.1))
+	_draw_notebook()
 
 	if _page == PAGE_EFFECTS:
 		_draw_effects(font)

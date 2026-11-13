@@ -133,6 +133,7 @@ func _ink_label(text: String, at: Vector2, width: float) -> Label:
 func _button(rect: Rect2) -> Button:
 	var button := Button.new()
 	button.focus_mode = Control.FOCUS_ALL
+	button.theme_type_variation = &"WoodButton"
 	button.clip_text = true
 	add_child(button)
 	button.position = rect.position

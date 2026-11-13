@@ -9,25 +9,33 @@ signal controls_changed
 
 const START_MENU := "res://scenes/menu/start_menu.tscn"
 const LEVEL_SELECT := "res://scenes/menu/level_select.tscn"
-## Fourteen levels. Levels 1 and 2 have stages; levels 3-14 are a single
-## stage each (picked straight from level select). A level with no stages is
-## always locked. The last one ("14") is the end of the game.
+## Fourteen levels on two maps (`map`: which one). The first two levels have
+## stages; the rest are a single stage each (picked straight from level
+## select). A level with no stages is always locked. Stage ids are only names:
+## the order here is the play order.
+## Map 0 is the game for now: it ends with "14" (THE ONLY WAY OUT), the end of
+## the game. Map 1 is for later: clearing map 0 doesn't lead into it, so its
+## levels only open through the debug tools (unlock_all_levels, unlock_all).
 const LEVELS: Array[Dictionary] = [
-	{"title": "TUTORIAL", "stages": ["1-1", "1-2", "1-3"]},
-	{"title": "I'M AFFECTED TOO", "stages": ["2-1", "2-2"]},
-	{"title": "THREE'S A CROWD", "stages": ["3"]},
-	{"title": "HOT FOOT", "stages": ["4"]},
-	{"title": "FALSE FLOORS", "stages": ["5"]},
-	{"title": "RETURN TO SENDER", "stages": ["6"]},
-	{"title": "MELTDOWN", "stages": ["7"]},
-	{"title": "HIGH FLYERS", "stages": ["8"]},
-	{"title": "SPRING LOADED", "stages": ["9"]},
-	{"title": "GHOST GATES", "stages": ["10"]},
-	{"title": "DOOR TO DOOR", "stages": ["11"]},
-	{"title": "DON'T LOOK", "stages": ["12"]},
-	{"title": "BLAST RADIUS", "stages": ["13"]},
-	{"title": "THE ONLY WAY OUT", "stages": ["14"]},
+	{"title": "TUTORIAL", "stages": ["1-1", "1-2", "1-3"], "map": 0},
+	{"title": "I'M AFFECTED TOO", "stages": ["2-1", "2-2"], "map": 0},
+	{"title": "THREE'S A CROWD", "stages": ["3"], "map": 0},
+	{"title": "HOT FOOT", "stages": ["4"], "map": 0},
+	{"title": "FALSE FLOORS", "stages": ["5"], "map": 0},
+	{"title": "RETURN TO SENDER", "stages": ["6"], "map": 0},
+	{"title": "THE ONLY WAY OUT", "stages": ["14"], "map": 0},
+	{"title": "MELTDOWN", "stages": ["7"], "map": 1},
+	{"title": "HIGH FLYERS", "stages": ["8"], "map": 1},
+	{"title": "SPRING LOADED", "stages": ["9"], "map": 1},
+	{"title": "GHOST GATES", "stages": ["10"], "map": 1},
+	{"title": "DOOR TO DOOR", "stages": ["11"], "map": 1},
+	{"title": "DON'T LOOK", "stages": ["12"], "map": 1},
+	{"title": "BLAST RADIUS", "stages": ["13"], "map": 1},
 ]
+## How many maps the level select has.
+const MAP_COUNT := 2
+## The map that's the game for now; speedrun times only count its levels.
+const PLAYABLE_MAP := 0
 const STAGE_SCENES := {
 	"1-1": "res://scenes/levels/tutorial_1.tscn",
 	"1-2": "res://scenes/levels/tutorial_2.tscn",
@@ -72,8 +80,22 @@ var key_bindings := {}
 ## LEVELS, the debug tools) ends the run.
 var run_active := false
 var run_seconds := 0.0
-## Everyone who finished a full run: [{name, seconds}]. Kept through START and
-## RESET, which only wipe progress.
+## This run's splits: stage -> run_seconds when it was first cleared.
+var run_splits := {}
+## The pause menu's debug tools, opened with the DebugCode. Not saved: they
+## last until the player goes back to the start menu.
+var debug_unlocked := false
+## Debug: the pause menu shows SKIP LEVEL.
+var debug_skip_level := false
+## The start menu left under a black screen (CONTINUE): the level select
+## slides in from the right, pushing the black off, instead of just appearing.
+var slide_in_level_select := false
+## The level select left under a black screen (BACK): the start menu's black
+## slides off to the right and its buttons slide back in from the left.
+var slide_in_start_menu := false
+## Everyone who finished a full run: [{name, seconds, splits, date}] (runs
+## from before splits and dates were kept have neither). Kept through START and RESET, which only
+## wipe progress.
 var playtesters: Array = []
 
 
@@ -116,6 +138,7 @@ func load_save() -> void:
 		key_bindings = file.get_value("controls", "bindings", key_bindings)
 		run_active = file.get_value("progress", "run_active", run_active)
 		run_seconds = file.get_value("progress", "run_seconds", run_seconds)
+		run_splits = file.get_value("progress", "run_splits", run_splits)
 		playtesters = file.get_value("playtesters", "finished", playtesters)
 	apply_settings()
 	Controls.apply(key_bindings)
@@ -130,17 +153,13 @@ func save() -> void:
 	file.set_value("progress", "hint_locks", hint_locks)
 	file.set_value("progress", "run_active", run_active)
 	file.set_value("progress", "run_seconds", run_seconds)
+	file.set_value("progress", "run_splits", run_splits)
 	file.set_value("playtesters", "finished", playtesters)
 	file.set_value("settings", "music_volume", music_volume)
 	file.set_value("settings", "sound_volume", sound_volume)
 	file.set_value("settings", "fullscreen", fullscreen)
 	file.set_value("controls", "bindings", key_bindings)
 	file.save(save_path)
-
-
-## Whether START would lose anything.
-func has_progress() -> bool:
-	return unlocked.size() > 1 or last_stage != "" or not discovered_potions.is_empty() or not found_recipes.is_empty()
 
 
 ## START: wipes progress (not settings) and starts the secret timer.
@@ -152,10 +171,12 @@ func start_new_run() -> void:
 	hint_locks.clear()
 	run_active = true
 	run_seconds = 0.0
+	run_splits = {}
 	save()
 
 
-## ALL LEVELS: every stage playable.
+## ALL LEVELS: every stage playable, the later map's too, which players
+## can't reach yet.
 func unlock_all_levels() -> void:
 	unlocked.assign(STAGE_SCENES.keys())
 	run_active = false
@@ -173,6 +194,46 @@ func skip_stage(stage: String, focus = null) -> void:
 	play_stage(next, focus)
 
 
+## Notes the run's time when `stage` is cleared for the first time this run.
+func mark_split(stage: String) -> void:
+	if run_active and not run_splits.has(stage):
+		run_splits[stage] = run_seconds
+		save()
+
+
+## How long each playable stage (the first map's) took in a finished run:
+## [[stage, seconds]] in play order, each from the clear before it (or the
+## start) to its own. Runs from when the later map's levels were part of the
+## game have those left out. Empty for runs from before splits were kept.
+func stage_times(run: Dictionary) -> Array:
+	var splits: Dictionary = run.get("splits", {})
+	# In the order they were cleared, whatever order the levels are in now.
+	var cleared: Array = splits.keys()
+	cleared.sort_custom(func(a: String, b: String) -> bool: return splits[a] < splits[b])
+	var took := {}
+	var previous := 0.0
+	for stage in cleared:
+		took[stage] = splits[stage] - previous
+		previous = splits[stage]
+	var times := []
+	for stage in map_stages(PLAYABLE_MAP):
+		if took.has(stage):
+			times.append([stage, took[stage]])
+	return times
+
+
+## A finished run's time over the playable levels only: its stage_times added
+## up, or its whole time if it has no splits to go by.
+func playable_seconds(run: Dictionary) -> float:
+	var times := stage_times(run)
+	if times.is_empty():
+		return run.seconds
+	var total := 0.0
+	for entry in times:
+		total += entry[1]
+	return total
+
+
 ## Stops the secret timer at the end of the game. False if no run was going.
 func finish_run() -> bool:
 	if not run_active:
@@ -184,7 +245,19 @@ func finish_run() -> bool:
 
 ## Saves who finished the run that just ended, and their time.
 func record_playtester(player_name: String) -> void:
-	playtesters.append({"name": player_name, "seconds": run_seconds})
+	playtesters.append({"name": player_name, "seconds": run_seconds, "splits": run_splits.duplicate(), "date": Time.get_date_string_from_system()})
+	save()
+
+
+## Gives a finished run a new name.
+func rename_playtester(run: Dictionary, player_name: String) -> void:
+	run.name = player_name
+	save()
+
+
+## Removes one finished run from the list for good.
+func delete_playtester(run: Dictionary) -> void:
+	playtesters.erase(run)
 	save()
 
 
@@ -195,9 +268,12 @@ func format_time(seconds: float) -> String:
 	return "%d:%02d" % [total / 60, total % 60]
 
 
-## Debug: every stage playable, every recipe found and every potion discovered.
+## Debug: everything a player could reach unlocked, as if they'd played
+## through: every stage on the playable map, every recipe found and every
+## potion discovered. (The later map stays shut; that's ALL LEVELS.)
 func unlock_all() -> void:
-	unlocked.assign(STAGE_SCENES.keys())
+	for stage in map_stages(PLAYABLE_MAP):
+		unlock(stage)
 	run_active = false
 	for kind in PotionData.DISCOVERABLE:
 		if not is_potion_discovered(kind):
@@ -304,8 +380,9 @@ func free_hints(stage: String) -> void:
 		save()
 
 
+## The stages after `stage` on its map, in play order.
 func _stages_after(stage: String) -> Array[String]:
-	var stages := all_stages()
+	var stages := map_stages(map_of(stage))
 	var at := stages.find(stage)
 	var later: Array[String] = []
 	if at >= 0:
@@ -323,6 +400,12 @@ func has_last_stage() -> bool:
 	return STAGE_SCENES.has(last_stage)
 
 
+## Whether CONTINUE has anywhere to go: a level has been played, or more than
+## the first one is open (as after the debug unlocks).
+func can_continue() -> bool:
+	return has_last_stage() or unlocked.size() > 1
+
+
 ## The stage after `stage`: the next one in its level, or the first stage of
 ## the next level that has any. "" after the very last stage.
 func next_stage(stage: String) -> String:
@@ -333,10 +416,28 @@ func next_stage(stage: String) -> String:
 	var i := stages.find(stage)
 	if i + 1 < stages.size():
 		return stages[i + 1]
+	# On to the next level of the same map; a map's last stage leads nowhere.
 	for later in range(level + 1, LEVELS.size()):
+		if LEVELS[later].map != LEVELS[level].map:
+			break
 		if not LEVELS[later].stages.is_empty():
 			return LEVELS[later].stages[0]
 	return ""
+
+
+## Which map `stage` is on (0 for the first), or -1.
+func map_of(stage: String) -> int:
+	var level := level_of(stage)
+	return LEVELS[level].map if level >= 0 else -1
+
+
+## Every stage on `map`, in play order.
+func map_stages(map: int) -> Array[String]:
+	var stages: Array[String] = []
+	for level in LEVELS:
+		if level.map == map:
+			stages.append_array(level.stages)
+	return stages
 
 
 ## Index into LEVELS of the level holding `stage`, or -1.
@@ -401,6 +502,12 @@ func _enter_scene(path: String, focus) -> void:
 	await Iris.close(focus)
 	get_tree().paused = false
 	get_tree().change_scene_to_file(path)
+
+
+## Leaves for a menu behind an iris closing on `focus` (screen pixels; null
+## for the middle). The menu opens it again (see StartMenu._ready).
+func go_to_with_iris(scene_path: String, focus = null) -> void:
+	_enter_scene(scene_path, focus)
 
 
 func go_to(scene_path: String) -> void:
@@ -471,3 +578,4 @@ func _set_defaults() -> void:
 	key_bindings = {}
 	run_active = false
 	run_seconds = 0.0
+	run_splits = {}

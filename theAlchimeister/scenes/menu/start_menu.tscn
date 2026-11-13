@@ -28,8 +28,10 @@ theme_override_constants/separation = 4
 [node name="Title" type="Label" parent="Center/Layout"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.85, 0.55, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.1, 0.06, 1)
+theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 16
-text = "ALCHEMIST"
+text = "THE ALCHIMEISTER"
 horizontal_alignment = 1
 
 [node name="Spacer" type="Control" parent="Center/Layout"]
@@ -47,20 +49,10 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "CONTINUE"
 
-[node name="AllLevelsButton" type="Button" parent="Center/Layout"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "ALL LEVELS"
-
 [node name="SettingsButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "SETTINGS"
-
-[node name="DebugButton" type="Button" parent="Center/Layout"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "DEBUG"
 
 [node name="ExitButton" type="Button" parent="Center/Layout"]
 unique_name_in_owner = true

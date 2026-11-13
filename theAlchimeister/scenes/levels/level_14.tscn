@@ -14,7 +14,7 @@ stage_size = Vector2(420, 216)
 hint_lines = PackedStringArray("SHELDON (squint): No ladder, no door, no way up. I've looked.", "SHELDON: You know, there's one way out that everybody takes eventually.", "SHELDON (squint): I'm just saying. Some of these ingredients really shouldn't be mixed.")
 potions_needed_until_x = 2000.0
 chest = NodePath("Level/Chest")
-exit_lines = PackedStringArray("SHELDON: And that's it. These are all the levels we have for now.", "SHELDON (glasses): Look forward to our game dev presentation, where you can play future levels yourself!")
+exit_lines = PackedStringArray("SHELDON (squint): What a tragic end to our knight.", "SHELDON: But surely that can't be the end of it, right?", "SHELDON (squint): Unfortunately, that's all the levels we have for now.", "SHELDON (glasses): Look forward to our game dev presentation, where you can play future levels yourself!")
 
 [node name="Knight" parent="."]
 position = Vector2(24, 96)
