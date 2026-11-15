@@ -11,7 +11,8 @@ extends Control
 ## marked as teaching something (HINT or TUTORIAL); if any of the lines still to
 ## come do, the skip question warns about it in red.
 ## <<Words>> in double angle brackets are highlighted (HIGHLIGHT), in the box
-## and in the log.
+## and in the log; <<fire:words>> (or knockback, freeze, translucent, death)
+## takes that potion's colour instead. The log scrolls by dragging it, too.
 ## The log (chat history for this stage, skipped lines included) can also be
 ## opened from elsewhere with show_log().
 ## Mid-gameplay conversations go through interrupt(): the game pauses, a speech
@@ -67,6 +68,8 @@ var _lines: Array[Dictionary] = []
 var _queued: Array[Dictionary] = []
 var _index := 0
 var _paused_by_me := false
+## The log paused the game itself (opened during play), so it unpauses it.
+var _log_paused := false
 var _type_tween: Tween
 var _blocker: Control
 var _dim: ColorRect
@@ -200,21 +203,28 @@ func show_log() -> void:
 		var shown := speaker.shown_name() if speaker else String(line.speaker)
 		bbcode += "[color=#%s]%s:[/color] %s\n\n" % [color.to_html(false), shown, _to_bbcode(line.text)]
 	_log_text.text = bbcode if bbcode else "[color=#888888]NOTHING SAID YET.[/color]"
+	if not _log.visible and not get_tree().paused:
+		_log_paused = true
+		get_tree().paused = true
 	_log.show()
 	move_to_front()
 	_log_text.grab_focus()
 	_log_text.scroll_to_line(maxi(_log_text.get_line_count() - 1, 0))
 
 
-## Puts the log away (the notebook it was opened from has closed).
+## Puts the log away, unpausing the game if the log paused it.
 func hide_log() -> void:
 	_log.hide()
+	if _log_paused:
+		_log_paused = false
+		get_tree().paused = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _log.visible:
-		if event.is_action_pressed("ui_cancel") or (is_playing and _is_log_key(event)):
-			_log.hide()
+		# Esc, L or B put it away (B mustn't open the notebook under it).
+		if event.is_action_pressed("ui_cancel") or _is_log_key(event) or event.is_action_pressed("toggle_book"):
+			hide_log()
 			get_viewport().set_input_as_handled()
 		return
 	if not is_playing:
@@ -273,7 +283,17 @@ func _show_line(shift_time := SHIFT_TIME) -> void:
 ## they are, and <<words>> in the HIGHLIGHT colour.
 static func _to_bbcode(text: String) -> String:
 	var bbcode := text.replace("[", "[lb]")
+	for kind in PotionData.KINDS:
+		bbcode = bbcode.replace("<<%s:" % kind, "[color=#%s]" % PotionData.color_of(kind).to_html(false))
 	return bbcode.replace("<<", "[color=#%s]" % HIGHLIGHT.to_html(false)).replace(">>", "[/color]")
+
+
+## Dragging the log (mouse or finger) scrolls it.
+func _drag_log(event: InputEvent) -> void:
+	var drag := event as InputEventMouseMotion
+	if drag and drag.button_mask & MOUSE_BUTTON_MASK_LEFT:
+		_log_text.get_v_scroll_bar().value -= drag.relative.y
+		_log_text.accept_event()
 
 
 func _finish() -> void:
@@ -579,9 +599,10 @@ func _build() -> void:
 	_log_text.focus_mode = Control.FOCUS_ALL
 	_log_text.position = Vector2(10, 20)
 	_log_text.size = Vector2(300, 130)
+	_log_text.gui_input.connect(_drag_log)
 	log_panel.add_child(_log_text)
 	_log_close = _text_button("CLOSE", Vector2(130, 154), Vector2(60, 16))
-	_log_close.pressed.connect(_log.hide)
+	_log_close.pressed.connect(hide_log)
 	log_panel.add_child(_log_close)
 
 
@@ -655,6 +676,8 @@ func _draw_skip_icon(button: Button) -> void:
 		button.draw_colored_polygon(PackedVector2Array([c + Vector2(dx - 2, -4), c + Vector2(dx + 4, 0), c + Vector2(dx - 2, 4)]), Color.WHITE)
 
 
+## The log's icon (a page of lines), centred on `button`. The HUD's LOG
+## button uses it too.
 func _draw_log_icon(button: Button) -> void:
 	var c := button.size / 2.0
 	button.draw_rect(Rect2(c + Vector2(-5, -6), Vector2(10, 12)), Color(0.94, 0.88, 0.74))

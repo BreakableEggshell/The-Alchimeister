@@ -7,7 +7,7 @@ extends Control
 ## in from the right (see LevelSelect). Coming back from the level select runs
 ## it all backwards (_arrive).
 ## SETTINGS opens the
-## settings page, EXIT quits. Typing the DebugCode (wwssadad) on the menu opens
+## settings page, EXIT quits (after asking). Typing the DebugCode (wwssadad) on the menu opens
 ## the hidden DEBUG tools: ALL LEVELS (level select with everything unlocked),
 ## reset progress (after asking), unlock everything, every finished speedrun,
 ## a gallery of every level (LEVEL PREVIEW),
@@ -87,6 +87,8 @@ var _delete_no: Button
 ## The run the delete popup is asking about.
 var _deleting: Dictionary
 var _rename: Control
+var _exit_confirm: Control
+var _exit_no: Button
 var _rename_field: LineEdit
 var _rename_save: Button
 ## The run the rename popup is renaming.
@@ -111,10 +113,11 @@ func _ready() -> void:
 	# The pause menu's debug tools last until the player is back here.
 	SaveGame.debug_unlocked = false
 	SaveGame.debug_skip_level = false
+	SaveGame.debug_speed_boost = false
 	_start.pressed.connect(_start_new_run)
 	_continue.pressed.connect(_continue_game)
 	_settings_button.pressed.connect(_open_settings)
-	_exit.pressed.connect(get_tree().quit)
+	_exit.pressed.connect(_ask_exit)
 	for button in [_start, _continue, _settings_button, _exit]:
 		button.mouse_entered.connect(button.grab_focus)
 		# btn.png scaled up whole, centred under the title.
@@ -131,6 +134,7 @@ func _ready() -> void:
 	_confirm = _build_confirm()
 	_delete_confirm = _build_delete_confirm()
 	_rename = _build_rename()
+	_exit_confirm = _build_exit_confirm()
 	_refresh()
 	_start.grab_focus()
 	if SaveGame.slide_in_start_menu:
@@ -151,7 +155,9 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
 		return
-	if _rename.visible:
+	if _exit_confirm.visible:
+		_close_exit()
+	elif _rename.visible:
 		_close_rename()
 	elif _delete_confirm.visible:
 		_close_delete_confirm()
@@ -174,7 +180,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func focus_first() -> bool:
 	if _dialogue and _dialogue.is_playing:
 		return false
-	if _rename.visible:
+	if _exit_confirm.visible:
+		_exit_no.grab_focus()
+	elif _rename.visible:
 		_rename_field.grab_focus()
 	elif _delete_confirm.visible:
 		_delete_no.grab_focus()
@@ -303,7 +311,7 @@ func _watch_for_code(event: InputEvent) -> void:
 
 ## Nothing open on top of the menu buttons.
 func _on_main_menu() -> bool:
-	for modal in [_settings_modal, _debug, _times, _confirm, _delete_confirm, _rename, _preview]:
+	for modal in [_settings_modal, _debug, _times, _confirm, _delete_confirm, _rename, _exit_confirm, _preview]:
 		if modal and modal.visible:
 			return false
 	return not (_dialogue and _dialogue.is_playing)
@@ -705,6 +713,25 @@ AND SETTINGS?", func() -> void:
 		_reset_button.grab_focus(), _close_confirm)
 	_confirm_no = buttons.no
 	return buttons.modal
+
+
+## EXIT asks first; NO is picked to start with.
+func _build_exit_confirm() -> Control:
+	var buttons := _yes_no("ARE YOU SURE YOU\nWANT TO QUIT?", get_tree().quit, _close_exit)
+	_exit_no = buttons.no
+	return buttons.modal
+
+
+func _ask_exit() -> void:
+	if _leaving:
+		return
+	_exit_confirm.show()
+	_exit_no.grab_focus()
+
+
+func _close_exit() -> void:
+	_exit_confirm.hide()
+	_exit.grab_focus()
 
 
 ## RENAME: a box with the run's name to type over, SAVE and CANCEL.

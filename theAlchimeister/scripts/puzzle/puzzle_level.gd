@@ -39,7 +39,8 @@ static var _hint_taken_at := {}
 ## "SPEAKER: text" lines Sheldon gives as this stage's hint; a "---" line
 ## starts the next part (see the top of this script).
 @export var hint_lines: PackedStringArray
-## The notebook's LOG and HINT buttons work. Off on the very first stage.
+## The LOG button (beside the notebook icon) and the notebook's HINT work.
+## Off on the very first stage.
 @export var log_and_hint_enabled := true
 ## The notebook's HINT button works. Off through the tutorial: Sheldon
 ## introduces hints on 2-1.
@@ -103,7 +104,8 @@ func _ready() -> void:
 	hud.restart_pressed.connect(restart)
 	hud.next_pressed.connect(_go_next)
 	hud.levels_pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
-	hud.book.set_log_and_hint_enabled(log_and_hint_enabled, log_and_hint_enabled and hint_enabled)
+	hud.book.set_hint_enabled(log_and_hint_enabled and hint_enabled)
+	hud.log_enabled = log_and_hint_enabled
 	_update_hint_state()
 	hud.book.restart_requested.connect(restart)
 	# MAIN MENU: the iris closes on the knight, and the menu opens from black.
@@ -317,8 +319,8 @@ func _on_exit_reached() -> void:
 	var next := SaveGame.next_stage(stage_id)
 	SaveGame.unlock(next)
 	SaveGame.mark_split(stage_id)
-	# The very end stops the secret timer.
-	var full_run := next == "" and SaveGame.finish_run()
+	# The very end (of the game, not of a later map) stops the secret timer.
+	var full_run := next == "" and SaveGame.map_of(stage_id) == SaveGame.PLAYABLE_MAP and SaveGame.finish_run()
 	var lines := _exit_lines()
 	if not lines.is_empty():
 		await hud.dialogue.interrupt(lines, player)

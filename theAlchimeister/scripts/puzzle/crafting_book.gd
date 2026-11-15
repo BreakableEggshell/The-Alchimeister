@@ -1,13 +1,13 @@
 extends Control
 ## The recipe book, which is also the game's pause menu. Opening it pauses
 ## the game (B or the book icon).
-## A gear (opening a popup of MAIN MENU / RESTART / LEVELS / SETTINGS /
-## CLOSE GAME, which asks first), LOG and HINT sit just above the book's top-right
+## A gear (opening a popup of RESUME / RESTART / LEVELS / SETTINGS / MAIN
+## MENU) and HINT sit just above the book's top-right
 ## corner (only the gear while SETTINGS is open). HINT first asks whether to
 ## take one, warning in red what it costs (hint_warning), then asks the stage
 ## for Sheldon's hint (hint_requested); the dialogue dims and covers the book
 ## while he talks. On a stage with no hint, or with hints locked, it says so
-## instead. A stage can turn LOG and HINT off (set_log_and_hint_enabled). The
+## instead. A stage can turn HINT off (set_hint_enabled). The
 ## level number sits at the other end of that row, above the book's top-left
 ## corner.
 ## Left page: a 2x2 crafting table pointing at a result box, the potions you
@@ -34,7 +34,8 @@ extends Control
 ## bulk: several copies of a recipe on the table brew that many potions.
 ## Typing the DebugCode (wwssadad) in the pause menu opens its DEBUG tools,
 ## and adds DEBUG to the list until the player goes back to the start menu.
-## There, SKIP LEVEL (off to start with) adds SKIP LEVEL to the pause menu.
+## There, SKIP LEVEL (off to start with) adds SKIP LEVEL to the pause menu,
+## and SPEED BOOST (off to start with) makes the knight run twice as fast.
 ## Spread 4 is a checklist of the story's goals (flavour only for now), with a
 ## WANTED poster of the Demon King beside it.
 
@@ -42,8 +43,6 @@ signal opened
 ## The player asked to skip this level (from the gear's popup).
 signal skip_requested
 signal closed
-## The player asked to see the dialogue log.
-signal log_requested
 ## The player asked Sheldon for this stage's hint.
 signal hint_requested
 ## The player asked to restart the level (from the pause menu).
@@ -215,13 +214,11 @@ var _debug_button: Button
 var _debug_menu: Control
 var _debug_panel: Panel
 var _debug_skip_toggle: Button
-var _quit_prompt: Control
+var _debug_speed_toggle: Button
 var _locked_popup: Control
 var _locked_ok: Button
-var _quit_no: Button
 var _code := DebugCode.new()
 var _settings_button: Button
-var _log_button: Button
 ## "LEVEL 5 (2 - 2)", above the book's top-left corner.
 var _level_label: Label
 var _close_button: Button
@@ -262,8 +259,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_hint_prompt()
 		elif _locked_popup.visible:
 			_close_locked_popup()
-		elif _quit_prompt.visible:
-			_close_quit_prompt()
 		elif _debug_menu.visible:
 			_close_debug_menu()
 		elif _gear_menu.visible:
@@ -306,8 +301,6 @@ func _focus_default() -> void:
 		_hint_no.grab_focus()
 	elif _locked_popup.visible:
 		_locked_ok.grab_focus()
-	elif _quit_prompt.visible:
-		_quit_no.grab_focus()
 	elif _debug_menu.visible:
 		_debug_skip_toggle.grab_focus()
 	elif _gear_menu.visible:
@@ -537,7 +530,7 @@ func _on_brewing_page() -> bool:
 
 ## SETTINGS, the pause menu or HINT's question is up over the pages.
 func _popup_open() -> bool:
-	return _settings.visible or _gear_menu.visible or _hint_prompt.visible or _debug_menu.visible or _quit_prompt.visible or _locked_popup.visible
+	return _settings.visible or _gear_menu.visible or _hint_prompt.visible or _debug_menu.visible or _locked_popup.visible
 
 
 ## Whether `potion` can be brewed: its recipe needn't be found, or has been. In
@@ -669,8 +662,6 @@ func _build() -> void:
 	_buttons.add_theme_constant_override("separation", 4)
 	_book.add_child(_buttons)
 	_gear_button = _build_gear_button()
-	_log_button = _page_button("LOG", _buttons)
-	_log_button.pressed.connect(log_requested.emit)
 	_hint_button = _page_button("HINT", _buttons)
 	_hint_button.tooltip_text = "ASK SHELDON FOR A HINT"
 	_hint_button.pressed.connect(_on_hint_pressed)
@@ -701,7 +692,6 @@ func _build() -> void:
 	_gear_menu = _build_gear_menu()
 	_hint_prompt = _build_hint_prompt()
 	_debug_menu = _build_debug_menu()
-	_quit_prompt = _build_quit_prompt()
 	_locked_popup = _build_locked_popup()
 	_refresh_gear_buttons()
 
@@ -784,10 +774,8 @@ func _build_gear_menu() -> Control:
 	_gear_list.add_theme_constant_override("separation", 3)
 	_gear_list.position = Vector2(GEAR_MARGIN, GEAR_MARGIN + GEAR_TITLE_HEIGHT)
 	_gear_panel.add_child(_gear_list)
-	var menu := _page_button("MAIN MENU", _gear_list)
-	menu.pressed.connect(func() -> void:
-		modal.hide()
-		main_menu_requested.emit())
+	var resume := _page_button("RESUME", _gear_list)
+	resume.pressed.connect(close)
 	var restart := _page_button("RESTART", _gear_list)
 	restart.pressed.connect(_restart_level)
 	var levels := _page_button("LEVELS", _gear_list)
@@ -801,8 +789,10 @@ func _build_gear_menu() -> Control:
 		_settings.open())
 	_debug_button = _page_button("DEBUG", _gear_list)
 	_debug_button.pressed.connect(_open_debug_menu)
-	var quit := _page_button("CLOSE GAME", _gear_list)
-	quit.pressed.connect(_open_quit_prompt)
+	var menu := _page_button("MAIN MENU", _gear_list)
+	menu.pressed.connect(func() -> void:
+		modal.hide()
+		main_menu_requested.emit())
 	# A little room above and below each label.
 	for button in _gear_list.get_children():
 		button.custom_minimum_size.y = GEAR_BUTTON_HEIGHT
@@ -842,6 +832,10 @@ func _build_debug_menu() -> Control:
 		SaveGame.debug_skip_level = not SaveGame.debug_skip_level
 		_label_debug_menu()
 		_refresh_gear_buttons())
+	_debug_speed_toggle = _page_button("", list)
+	_debug_speed_toggle.pressed.connect(func() -> void:
+		SaveGame.debug_speed_boost = not SaveGame.debug_speed_boost
+		_label_debug_menu())
 	var back := _page_button("BACK", list)
 	back.pressed.connect(_close_debug_menu)
 	for button in list.get_children():
@@ -856,7 +850,8 @@ func _build_debug_menu() -> Control:
 
 func _label_debug_menu() -> void:
 	# Both labels the same length, so the panel doesn't change size.
-	_debug_skip_toggle.text = " SKIP LEVEL: %s " % ("ON " if SaveGame.debug_skip_level else "OFF")
+	_debug_skip_toggle.text = " SKIP LEVEL:  %s " % ("ON " if SaveGame.debug_skip_level else "OFF")
+	_debug_speed_toggle.text = " SPEED BOOST: %s " % ("ON " if SaveGame.debug_speed_boost else "OFF")
 
 
 func _open_debug_menu() -> void:
@@ -870,51 +865,6 @@ func _close_debug_menu() -> void:
 	_debug_menu.hide()
 	_open_gear_menu()
 	_debug_button.grab_focus()
-
-
-# --- CLOSE GAME
-
-## CLOSE GAME's question: the level in progress isn't kept.
-func _build_quit_prompt() -> Control:
-	var modal := _popup_modal(_close_quit_prompt)
-	var panel := Panel.new()
-	panel.add_theme_stylebox_override("panel", _gear_panel.get_theme_stylebox("panel"))
-	modal.add_child(panel)
-	var title := Label.new()
-	title.text = "CLOSE GAME?"
-	title.add_theme_color_override("font_color", GOLD)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	panel.add_child(title)
-	var warning := Label.new()
-	warning.text = "YOUR PROGRESS FOR THIS\nLEVEL WILL BE LOST."
-	warning.add_theme_color_override("font_color", WARNING_COLOR)
-	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	panel.add_child(warning)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	panel.add_child(row)
-	var yes := _page_button("CLOSE GAME", row)
-	yes.pressed.connect(func() -> void: get_tree().quit())
-	_quit_no = _page_button("CANCEL", row)
-	_quit_no.pressed.connect(_close_quit_prompt)
-	for button in [yes, _quit_no]:
-		button.custom_minimum_size.y = GEAR_BUTTON_HEIGHT
-	UiFocus.link_row([yes, _quit_no])
-	# Wide enough for the buttons, with the usual margin either side.
-	row.reset_size()
-	var width := maxf(150.0, row.size.x + GEAR_MARGIN * 2.0)
-	var y := GEAR_MARGIN - 3.0
-	title.position = Vector2(0, y)
-	title.size = Vector2(width, 10)
-	y += GEAR_TITLE_HEIGHT + 2.0
-	warning.position = Vector2(0, y)
-	warning.size = Vector2(width, 20)
-	y += 26.0
-	row.reset_size()
-	row.position = Vector2(roundf((width - row.size.x) / 2.0), y)
-	panel.size = Vector2(width, y + row.size.y + GEAR_MARGIN)
-	panel.position = ((get_viewport_rect().size - panel.size) / 2.0).round()
-	return modal
 
 
 ## HINT's answer where hints are locked: why, and OK.
@@ -960,18 +910,6 @@ func _close_locked_popup() -> void:
 	_locked_popup.hide()
 	if _hint_button.is_visible_in_tree():
 		_hint_button.grab_focus()
-
-
-func _open_quit_prompt() -> void:
-	_gear_menu.hide()
-	_quit_prompt.show()
-	_quit_no.grab_focus()
-
-
-func _close_quit_prompt() -> void:
-	_quit_prompt.hide()
-	_open_gear_menu()
-	_gear_list.get_child(_gear_list.get_child_count() - 1).grab_focus()
 
 
 ## A full-screen layer over a dim; a click on the dim calls `on_dismiss`.
@@ -1032,11 +970,10 @@ func _on_hint_pressed() -> void:
 		_open_hint_prompt()
 
 
-## The stage's LOG and HINT buttons work (or are greyed out and do nothing).
-func set_log_and_hint_enabled(log_on: bool, hint_on := log_on) -> void:
-	for pair in [[_log_button, log_on], [_hint_button, hint_on]]:
-		pair[0].disabled = not pair[1]
-		pair[0].focus_mode = Control.FOCUS_ALL if pair[1] else Control.FOCUS_NONE
+## The stage's HINT button works (or is greyed out and does nothing).
+func set_hint_enabled(on: bool) -> void:
+	_hint_button.disabled = not on
+	_hint_button.focus_mode = Control.FOCUS_ALL if on else Control.FOCUS_NONE
 
 
 ## HINT's question, in the middle of the screen over a dim: HINT or LOOK AROUND
@@ -1121,10 +1058,9 @@ func set_can_skip(can_skip: bool) -> void:
 	_refresh_gear_buttons()
 
 
-## LOG and HINT are no use on the settings page.
+## HINT is no use on the settings page.
 func _show_page_buttons(shown: bool) -> void:
-	for button in [_log_button, _hint_button]:
-		button.visible = shown
+	_hint_button.visible = shown
 	_note.modulate.a = 0.0
 	_place_buttons.call_deferred()
 

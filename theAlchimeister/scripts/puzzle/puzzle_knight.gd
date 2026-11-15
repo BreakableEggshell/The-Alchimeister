@@ -303,6 +303,9 @@ func _physics_process(delta: float) -> void:
 	if _base_max_speed < 0.0:
 		_base_max_speed = max_speed
 	max_speed = _base_max_speed * (PotionData.PLAYER_FIRE_SPEED_BOOST if is_burning() else 1.0)
+	# Debug (pause menu): run faster, to get round levels quickly.
+	if SaveGame.debug_speed_boost:
+		max_speed *= SaveGame.DEBUG_SPEED_BOOST
 	super(delta)
 	_push_crates()
 
