@@ -35,7 +35,7 @@ position = Vector2(168, 192)
 script = ExtResource("5_chest")
 contents = "frost_shard"
 amount = 4
-open_lines = PackedStringArray("SHELDON (squint): This chest just has a bunch of junk.", "SHELDON: But looks like we can make something with this.", "SHELDON (glasses): Press <<[{toggle_book}]>> to open your <<notebook>>.")
+open_lines = PackedStringArray("SHELDON (squint): This chest just has a bunch of junk.", "SHELDON: But looks like we can make something with this.", "SHELDON (glasses): <<Open>> your <<notebook [{toggle_book}]>> to start brewing.")
 open_lines_teach = "tutorial"
 
 [node name="WallButton" type="Area2D" parent="Level" index="3" unique_id=2050312468]
