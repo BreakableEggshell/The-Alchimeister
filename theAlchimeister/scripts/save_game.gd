@@ -9,13 +9,18 @@ signal controls_changed
 
 const START_MENU := "res://scenes/menu/start_menu.tscn"
 const LEVEL_SELECT := "res://scenes/menu/level_select.tscn"
-## Fourteen levels on two maps (`map`: which one). The first two levels have
+## The levels, on four maps (`map`: which one). The first two levels have
 ## stages; the rest are a single stage each (picked straight from level
 ## select). A level with no stages is always locked. Stage ids are only names:
 ## the order here is the play order.
-## Map 0 is the game for now: it ends with "14" (THE ONLY WAY OUT), the end of
-## the game. Map 1 is for later: clearing map 0 doesn't lead into it, so its
-## levels only open through the debug tools (unlock_all_levels, unlock_all).
+## Map 0 (PLAYABLE_MAP) is the game for now: it ends with "14" (THE ONLY WAY
+## OUT), the end of the game. Map 1 (SECRET_MAP) is for later: clearing map 0
+## doesn't lead into it, so its levels only open through the debug tools
+## (unlock_all_levels). Maps 2 and 3 (SPECIAL_MAP, PROTOTYPE_MAP) are for
+## trying things out: levels with mechanics set aside, and new ones being
+## worked on. Their levels are always open, and they're numbered on their own
+## ("S1", "P1"; see MAP_PREFIX). Which of the later maps the level select
+## shows is a debug setting (shown_maps).
 const LEVELS: Array[Dictionary] = [
 	{"title": "TUTORIAL", "stages": ["1-1", "1-2", "1-3"], "map": 0},
 	{"title": "I'M AFFECTED TOO", "stages": ["2-1", "2-2"], "map": 0},
@@ -26,16 +31,32 @@ const LEVELS: Array[Dictionary] = [
 	{"title": "THE ONLY WAY OUT", "stages": ["14"], "map": 0},
 	{"title": "MELTDOWN", "stages": ["7"], "map": 1},
 	{"title": "HIGH FLYERS", "stages": ["8"], "map": 1},
-	{"title": "SPRING LOADED", "stages": ["9"], "map": 1},
 	{"title": "GHOST GATES", "stages": ["10"], "map": 1},
 	{"title": "DOOR TO DOOR", "stages": ["11"], "map": 1},
-	{"title": "DON'T LOOK", "stages": ["12"], "map": 1},
 	{"title": "BLAST RADIUS", "stages": ["13"], "map": 1},
+	{"title": "SPRING LOADED", "stages": ["9"], "map": 2},
+	{"title": "DON'T LOOK", "stages": ["12"], "map": 2},
+	{"title": "SLOW BURN", "stages": ["P1"], "map": 3},
+	{"title": "CUT THE ROPE", "stages": ["P2"], "map": 3},
+	{"title": "COLD FEET", "stages": ["P3"], "map": 3},
+	{"title": "SPREAD THE FIRE", "stages": ["P4"], "map": 3},
 ]
 ## How many maps the level select has.
-const MAP_COUNT := 2
+const MAP_COUNT := 4
 ## The map that's the game for now; speedrun times only count its levels.
 const PLAYABLE_MAP := 0
+## The later levels players can't reach yet.
+const SECRET_MAP := 1
+## Levels whose mechanics were set aside.
+const SPECIAL_MAP := 2
+## New levels being tried out.
+const PROTOTYPE_MAP := 3
+## Each map's name (level select, level preview, the debug toggles).
+const MAP_NAMES: Array[String] = ["MAP 1", "SECRET LEVELS", "SPECIAL", "PROTOTYPES"]
+## Maps numbered on their own: their stages are "S1", "S2" (and "SPECIAL 1"
+## in game). Their levels are always open.
+const MAP_PREFIX := {SPECIAL_MAP: "S", PROTOTYPE_MAP: "P"}
+const MAP_STAGE_NAMES := {SPECIAL_MAP: "SPECIAL", PROTOTYPE_MAP: "PROTOTYPE"}
 const STAGE_SCENES := {
 	"1-1": "res://scenes/levels/tutorial_1.tscn",
 	"1-2": "res://scenes/levels/tutorial_2.tscn",
@@ -54,6 +75,10 @@ const STAGE_SCENES := {
 	"12": "res://scenes/levels/level_12.tscn",
 	"13": "res://scenes/levels/level_13.tscn",
 	"14": "res://scenes/levels/level_14.tscn",
+	"P1": "res://scenes/levels/proto_1.tscn",
+	"P2": "res://scenes/levels/proto_2.tscn",
+	"P3": "res://scenes/levels/proto_3.tscn",
+	"P4": "res://scenes/levels/proto_4.tscn",
 }
 const FIRST_STAGE := "1-1"
 ## Debug: free play with every mechanic, outside the levels and their progress.
@@ -87,12 +112,21 @@ var run_splits := {}
 var debug_unlocked := false
 ## Debug: the pause menu shows SKIP LEVEL.
 var debug_skip_level := false
+## Debug: the knight runs DEBUG_SPEED_BOOST times as fast.
+var debug_speed_boost := false
+const DEBUG_SPEED_BOOST := 2.0
 ## The start menu left under a black screen (CONTINUE): the level select
 ## slides in from the right, pushing the black off, instead of just appearing.
 var slide_in_level_select := false
 ## The level select left under a black screen (BACK): the start menu's black
 ## slides off to the right and its buttons slide back in from the left.
 var slide_in_start_menu := false
+## Debug (the level select's own debug menu): which of the later maps the
+## level select shows (map -> bool). The first map always shows. Saved; kept
+## through RESET. To start with, only the secret map shows (as COMING SOON
+## until its levels are unlocked).
+var shown_maps := {}
+const DEFAULT_SHOWN_MAPS := {SECRET_MAP: true, SPECIAL_MAP: false, PROTOTYPE_MAP: false}
 ## Everyone who finished a full run: [{name, seconds, splits, date}] (runs
 ## from before splits and dates were kept have neither). Kept through START and RESET, which only
 ## wipe progress.
@@ -121,6 +155,7 @@ func _exit_tree() -> void:
 func load_save() -> void:
 	_set_defaults()
 	playtesters = []
+	shown_maps = DEFAULT_SHOWN_MAPS.duplicate()
 	var file := ConfigFile.new()
 	if file.load(save_path) == OK:
 		var saved: Array = file.get_value("progress", "unlocked", [FIRST_STAGE])
@@ -140,6 +175,7 @@ func load_save() -> void:
 		run_seconds = file.get_value("progress", "run_seconds", run_seconds)
 		run_splits = file.get_value("progress", "run_splits", run_splits)
 		playtesters = file.get_value("playtesters", "finished", playtesters)
+		shown_maps.merge(file.get_value("debug", "shown_maps", {}), true)
 	apply_settings()
 	Controls.apply(key_bindings)
 
@@ -155,6 +191,7 @@ func save() -> void:
 	file.set_value("progress", "run_seconds", run_seconds)
 	file.set_value("progress", "run_splits", run_splits)
 	file.set_value("playtesters", "finished", playtesters)
+	file.set_value("debug", "shown_maps", shown_maps)
 	file.set_value("settings", "music_volume", music_volume)
 	file.set_value("settings", "sound_volume", sound_volume)
 	file.set_value("settings", "fullscreen", fullscreen)
@@ -296,7 +333,17 @@ func reset_all() -> void:
 # --- Progress
 
 func is_unlocked(stage: String) -> bool:
-	return unlocked.has(stage)
+	return unlocked.has(stage) or MAP_PREFIX.has(map_of(stage))
+
+
+## Whether the level select shows `map` (see shown_maps).
+func is_map_shown(map: int) -> bool:
+	return map == PLAYABLE_MAP or shown_maps.get(map, false)
+
+
+func set_map_shown(map: int, shown: bool) -> void:
+	shown_maps[map] = shown
+	save()
 
 
 func unlock(stage: String) -> void:
@@ -473,15 +520,32 @@ func stage_code(stage: String) -> String:
 	return "%d - %d" % [level + 1, LEVELS[level].stages.find(stage) + 1] if level >= 0 else ""
 
 
-## How the notebook and dialogue name a stage: "LEVEL 5 (2 - 2)".
+## How the notebook and dialogue name a stage: "LEVEL 5 (2 - 2)", or
+## "PROTOTYPE 2" on a map numbered on its own.
 func stage_label(stage: String) -> String:
 	var number := stage_number(stage)
-	return "LEVEL %d (%s)" % [number, stage_code(stage)] if number > 0 else "SANDBOX"
+	if number <= 0:
+		return "SANDBOX"
+	var map := map_of(stage)
+	if MAP_PREFIX.has(map):
+		return "%s %d" % [MAP_STAGE_NAMES[map], number]
+	return "LEVEL %d (%s)" % [number, stage_code(stage)]
 
 
-## The number the player knows a stage by (1 for the first, and so on).
+## The number the player knows a stage by (1 for the first, and so on). The
+## first two maps count on from each other; the others count from 1 each.
 func stage_number(stage: String) -> int:
-	return all_stages().find(stage) + 1
+	var map := map_of(stage)
+	if MAP_PREFIX.has(map):
+		return map_stages(map).find(stage) + 1
+	var stages := map_stages(PLAYABLE_MAP)
+	stages.append_array(map_stages(SECRET_MAP))
+	return stages.find(stage) + 1
+
+
+## What a stage's level-select node says: "5", or "P2".
+func stage_tag(stage: String) -> String:
+	return MAP_PREFIX.get(map_of(stage), "") + str(stage_number(stage))
 
 
 ## Iris in on `focus` (screen pixels; null for the middle), then the stage,

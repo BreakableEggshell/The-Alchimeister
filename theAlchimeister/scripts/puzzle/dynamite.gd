@@ -135,6 +135,11 @@ func _catch_everything() -> void:
 			thing.die(GameOver.BLOWN_UP)
 		elif thing is Node and thing.is_in_group("enemies"):
 			thing.apply_potion(PotionData.DEATH, global_position)
+	# Planks are one-way, which shape queries don't see.
+	var area := Rect2(global_position + blast_area.position, blast_area.size)
+	for plank in get_tree().get_nodes_in_group("planks"):
+		if not caught.has(plank) and area.intersects(plank.global_bounds()):
+			plank.blast()
 
 
 func _burst() -> void:

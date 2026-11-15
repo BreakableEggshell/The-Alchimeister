@@ -22,12 +22,17 @@ extends StaticBody2D
 ## while the lookout raises the alarm, whatever its plates say; the eye turns
 ## red. With no plates and open_when_pressed off, a gate simply stands open
 ## until then.
+## A gate held by ropes (`ropes`, see rope.gd) stays shut until every one of
+## them has burnt through, then opens for good (its plates don't count). A
+## rope's line runs to it over the wall, like a button's wire.
 
 @export var size := Vector2(12, 24):
 	set(value):
 		size = value
 		queue_redraw()
 @export var plates: Array[PressurePlate] = []
+## Ropes holding it shut; it opens once they've all burnt through.
+@export var ropes: Array[Rope] = []
 @export var open_when_pressed := true
 ## Open only while every linked plate is pressed, not just any one.
 @export var needs_all := false
@@ -96,6 +101,8 @@ func _ready() -> void:
 		collision_layer |= PotionData.LAYER_PROPS
 	for plate in plates:
 		plate.toggled.connect(_wires.queue_redraw.unbind(1))
+	for rope in ropes:
+		rope.snapped.connect(_wires.queue_redraw)
 
 
 func _physics_process(delta: float) -> void:
@@ -109,6 +116,8 @@ func _physics_process(delta: float) -> void:
 	var is_pressed := func(plate: PressurePlate) -> bool: return plate.pressed
 	var active := plates.all(is_pressed) if needs_all else plates.any(is_pressed)
 	var wants_open := active == open_when_pressed and not is_alarmed()
+	if not ropes.is_empty():
+		wants_open = ropes.all(func(rope: Rope) -> bool: return rope.is_snapped()) and not is_alarmed()
 	_wanted_for = _wanted_for + delta if wants_open else 0.0
 	var target := 1.0 if wants_open and _wanted_for >= _delay() else 0.0
 	if _open_amount == target:
@@ -208,9 +217,21 @@ func _process(_delta: float) -> void:
 
 
 ## Each button's wire: down into the floor (or wall) under the button, along
-## inside it, then out into the middle of the gate's nearest edge.
+## inside it, then out into the middle of the gate's nearest edge. Each rope
+## that hasn't burnt: from its knot across to above the gate, then down onto it.
 func _draw_wires() -> void:
 	var gate_rect := Rect2(Vector2.ZERO, size)
+	for rope in ropes:
+		if not is_instance_valid(rope) or (not Engine.is_editor_hint() and rope.is_snapped()):
+			continue
+		var knot := to_local(rope.global_position).round()
+		var over := Vector2(roundf(size.x / 2.0), knot.y)
+		var points := PackedVector2Array([knot, over, Vector2(over.x, 0)])
+		if knot.y > 0.0:
+			# Tied lower than the gate's top: straight across to its side.
+			points = PackedVector2Array([knot, Vector2(0.0 if knot.x < 0.0 else size.x, knot.y)])
+		_wires.draw_polyline(points, WIRE_OUTLINE, 4.0)
+		_wires.draw_polyline(points, Rope.HEMP, 2.0)
 	for i in plates.size():
 		var plate := plates[i]
 		if not is_instance_valid(plate):

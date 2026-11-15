@@ -3,8 +3,11 @@ extends Control
 ## Debug: a gallery of every level, each shown whole, to look up quickly how a
 ## puzzle is laid out. Each stage is built offscreen with nothing running (no
 ## knight script, HUD, dialogue or monsters moving), pictured once, and kept.
-## The numbers along the bottom, in two rows, pick a level (left / right
-## steps through them); BACK or Esc closes it.
+## Levels come in the level select's sections (SaveGame maps: MAP 1, SECRET
+## LEVELS, SPECIAL, PROTOTYPES), every one of them here whatever the level
+## select shows. The upper row picks a section (PgUp / PgDn too), the lower
+## row one of its levels (left / right steps through them); BACK or Esc
+## closes it.
 
 ## The player closed the gallery.
 signal closed
@@ -13,9 +16,9 @@ const GOLD := Color(0.95, 0.85, 0.55)
 const BG := Color(0.06, 0.06, 0.09)
 ## Where the level's picture fits, keeping its shape.
 const PICTURE_AREA := Rect2(6, 20, 372, 146)
-const BUTTONS_Y := 172.0
-## Number buttons in each row.
-const PER_ROW := 9
+const SECTIONS_Y := 170.0
+const NUMBERS_Y := 190.0
+const NUMBER_SIZE := Vector2(34, 16)
 ## The stage_base parts that aren't the level itself.
 const STAGE_PARTS := ["Backdrop", "Inventory", "Knight", "PotionThrower", "HUD"]
 
@@ -25,7 +28,14 @@ var _stages: Array[String] = []
 var _picture: TextureRect
 var _title: Label
 var _loading: Label
+## Map -> its section button, and the section on show.
+var _section_buttons := {}
+var _section := 0
+var _sections_row: HBoxContainer
+var _numbers_row: HBoxContainer
+## The section on show's level buttons, and their stages.
 var _buttons: Array[Button] = []
+var _button_stages: Array[String] = []
 var _back: Button
 var _shown := ""
 
@@ -66,40 +76,89 @@ func _ready() -> void:
 	_loading.position = PICTURE_AREA.position
 	_loading.size = PICTURE_AREA.size
 	add_child(_loading)
-	var row := GridContainer.new()
-	row.columns = PER_ROW
-	row.add_theme_constant_override("h_separation", 2)
-	row.add_theme_constant_override("v_separation", 2)
-	add_child(row)
-	for i in _stages.size():
-		var button := Button.new()
-		button.text = str(i + 1)
-		button.custom_minimum_size = Vector2(36, 16)
-		button.focus_mode = Control.FOCUS_ALL
-		button.focus_entered.connect(_show.bind(_stages[i]))
-		button.mouse_entered.connect(button.grab_focus)
-		row.add_child(button)
-		_buttons.append(button)
+	_sections_row = HBoxContainer.new()
+	_sections_row.add_theme_constant_override("separation", 2)
+	add_child(_sections_row)
+	for map in SaveGame.MAP_COUNT:
+		var section := Button.new()
+		section.text = SaveGame.MAP_NAMES[map]
+		section.custom_minimum_size.y = NUMBER_SIZE.y
+		section.focus_mode = Control.FOCUS_ALL
+		section.focus_entered.connect(_show_section.bind(map))
+		section.mouse_entered.connect(section.grab_focus)
+		_sections_row.add_child(section)
+		_section_buttons[map] = section
 	_back = Button.new()
 	_back.text = "BACK"
-	_back.custom_minimum_size = Vector2(36, 16)
+	_back.custom_minimum_size = Vector2(40, NUMBER_SIZE.y)
 	_back.focus_mode = Control.FOCUS_ALL
 	_back.pressed.connect(closed.emit)
 	_back.mouse_entered.connect(_back.grab_focus)
-	row.add_child(_back)
-	row.reset_size()
-	row.position = Vector2(roundf((get_viewport_rect().size.x - row.size.x) / 2.0), BUTTONS_Y)
-	UiFocus.link_row(row.get_children())
+	_sections_row.add_child(_back)
+	_sections_row.reset_size()
+	_sections_row.position = Vector2(roundf((get_viewport_rect().size.x - _sections_row.size.x) / 2.0), SECTIONS_Y)
+	UiFocus.link_row(_sections_row.get_children())
+	_numbers_row = HBoxContainer.new()
+	_numbers_row.add_theme_constant_override("separation", 2)
+	add_child(_numbers_row)
+	_show_section(SaveGame.PLAYABLE_MAP)
 	_buttons[0].grab_focus()
 	_take_pictures()
 
 
 func focus_first() -> void:
-	for i in _stages.size():
-		if _stages[i] == _shown:
-			_buttons[i].grab_focus()
-			return
-	_buttons[0].grab_focus()
+	var at := _button_stages.find(_shown)
+	_buttons[maxi(at, 0)].grab_focus()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	var step := 0
+	if event.is_action_pressed("ui_page_down"):
+		step = 1
+	elif event.is_action_pressed("ui_page_up"):
+		step = -1
+	if step != 0:
+		var to := posmod(_section + step, SaveGame.MAP_COUNT)
+		_show_section(to)
+		_buttons[0].grab_focus()
+		get_viewport().set_input_as_handled()
+
+
+## The lower row becomes `map`'s levels, and its first is shown (unless
+## one of them is already).
+func _show_section(map: int) -> void:
+	if map == _section and not _buttons.is_empty():
+		return
+	_section = map
+	for other in _section_buttons:
+		var color := GOLD if other == map else Color.WHITE
+		for prop in ["font_color", "font_hover_color", "font_focus_color"]:
+			_section_buttons[other].add_theme_color_override(prop, color)
+	for button in _buttons:
+		button.free()
+	_buttons.clear()
+	_button_stages = SaveGame.map_stages(map)
+	for stage in _button_stages:
+		var button := Button.new()
+		button.text = SaveGame.stage_tag(stage)
+		button.custom_minimum_size = NUMBER_SIZE
+		button.focus_mode = Control.FOCUS_ALL
+		button.focus_entered.connect(_show.bind(stage))
+		button.mouse_entered.connect(button.grab_focus)
+		_numbers_row.add_child(button)
+		_buttons.append(button)
+	_numbers_row.reset_size()
+	_numbers_row.position = Vector2(roundf((get_viewport_rect().size.x - _numbers_row.size.x) / 2.0), NUMBERS_Y)
+	UiFocus.link_row(_buttons)
+	# Up from a level goes to its section; down from a section to its levels.
+	for button in _buttons:
+		button.focus_neighbor_top = button.get_path_to(_section_buttons[map])
+	for section in _sections_row.get_children():
+		section.focus_neighbor_bottom = section.get_path_to(_buttons[0])
+	if not _button_stages.has(_shown):
+		_show(_button_stages[0])
 
 
 func _show(stage: String) -> void:

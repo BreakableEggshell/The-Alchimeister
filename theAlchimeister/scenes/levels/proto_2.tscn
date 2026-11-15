@@ -1,0 +1,80 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/puzzle/tnt_level.gd" id="level"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/rope.gd" id="rope"]
+[ext_resource type="Script" path="res://scripts/puzzle/wooden_platform.gd" id="wood"]
+[ext_resource type="Script" path="res://scripts/puzzle/tnt.gd" id="tnt"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+
+[node name="Proto2" instance=ExtResource("base") node_paths=PackedStringArray("bridge")]
+script = ExtResource("level")
+stage_id = "P2"
+stage_size = Vector2(620, 216)
+intro_lines = PackedStringArray("SHELDON: A gate tied shut with a <<rope>>. Burn the rope and up it goes.", "SHELDON (squint): Only... someone tied the TNT's <<fuse>> to that same rope.", "SHELDON (glasses): When that crate goes, so does the <<bridge>>. So once it's lit: <<run>>.")
+intro_teaches = "hint"
+hint_lines = PackedStringArray("SHELDON: One fire potion does both. There's no way around that.", "---", "SHELDON (glasses): Stand right by the gate before you throw. Every hop counts.")
+bridge = NodePath("Level/Bridge")
+bridge_end_x = 466.0
+
+[node name="Knight" parent="."]
+position = Vector2(24, 152)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="GroundL" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 152)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 340, 0, 340, 64, 0, 64)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(70, 152)
+script = ExtResource("chest")
+
+[node name="GateWall" type="StaticBody2D" parent="Level"]
+position = Vector2(298, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 116, 0, 116)
+
+[node name="Rope" type="Area2D" parent="Level"]
+position = Vector2(288, 116)
+script = ExtResource("rope")
+length = 24.0
+
+[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("ropes")]
+position = Vector2(298, 116)
+script = ExtResource("gate")
+size = Vector2(12, 36)
+ropes = [NodePath("../Rope")]
+travel_time = 0.5
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(340, 200)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 120, 0, 120, 16, 0, 16)
+
+[node name="Bridge" type="StaticBody2D" parent="Level"]
+position = Vector2(340, 152)
+script = ExtResource("wood")
+points = PackedVector2Array(0, 0, 120, 0, 120, 5, 0, 5)
+
+[node name="GroundR" type="StaticBody2D" parent="Level"]
+position = Vector2(460, 152)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 160, 0, 160, 64, 0, 64)
+
+[node name="Tnt" type="Area2D" parent="Level"]
+position = Vector2(364, 200)
+script = ExtResource("tnt")
+fuse = PackedVector2Array(-12, -3, -21, -3, -21, -51, -73, -51, -73, -70)
+blast_area = Rect2(-32, -64, 128, 64)
+hurts_knight = false
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(580, 152)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
