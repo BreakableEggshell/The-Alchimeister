@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/puzzle/slime.gd" id="1_slime"]
-[ext_resource type="Texture2D" uid="uid://dhhffus51f0j7" path="res://assets/brackeys_platformer_assets/sprites/slime_green.png" id="2_tex"]
+[ext_resource type="Texture2D" uid="uid://u2fpqay5fgnh" path="res://assets/sprites/characters/slime.png" id="2_tex"]
 
 [sub_resource type="RectangleShape2D" id="Shape_body"]
 size = Vector2(12, 10)
@@ -16,9 +16,8 @@ script = ExtResource("1_slime")
 
 [node name="Sprite" type="Sprite2D" parent="."]
 texture = ExtResource("2_tex")
-offset = Vector2(0, -12)
+offset = Vector2(0, -7)
 hframes = 4
-vframes = 3
 
 [node name="Body" type="CollisionShape2D" parent="."]
 position = Vector2(0, -5)

@@ -7,22 +7,59 @@ const FIRE := &"fire"
 const KNOCKBACK := &"knockback"
 const FREEZE := &"freeze"
 const TRANSLUCENT := &"translucent"
-const KINDS: Array[StringName] = [FIRE, KNOCKBACK, FREEZE, TRANSLUCENT]
+## Brewed from any mix that isn't a recipe. Hidden until first brewed.
+const DEATH := &"death"
+const KINDS: Array[StringName] = [FIRE, KNOCKBACK, FREEZE, TRANSLUCENT, DEATH]
+## Potions the player must brew once before the book and HUD reveal them.
+const DISCOVERABLE: Array[StringName] = [DEATH]
+## Potions whose recipe has to be found (a note in a level) before they can be
+## brewed at all. Until then the book leaves them out of its recipes and their
+## mix shows a lock. New potions like that only need adding here.
+const RECIPE_TO_FIND: Array[StringName] = [DEATH]
+## A recipe shown in the book whose potion can't be brewed yet. Its table mix
+## (one of every ingredient) is reserved so it never brews a Death potion.
+const SECRET := &"secret"
 
 const NAMES := {
 	FIRE: "FIRE",
 	KNOCKBACK: "KNOCKBACK",
 	FREEZE: "FREEZE",
 	TRANSLUCENT: "TRANSLUCENT",
+	DEATH: "DEATH",
+}
+## Short lines for the recipe book.
+const DESCRIPTIONS := {
+	FIRE: "BURNS THINGS TO ASH",
+	KNOCKBACK: "BLASTS THINGS AWAY",
+	FREEZE: "ENCLOSES THINGS IN ICE FOR A WHILE",
+	TRANSLUCENT: "LETS THINGS PASS THROUGH",
+	DEATH: "KILLS ANYTHING IT TOUCHES",
 }
 const COLORS := {
 	FIRE: Color(1.0, 0.45, 0.15),
 	KNOCKBACK: Color(0.55, 0.95, 0.45),
 	FREEZE: Color(0.45, 0.85, 1.0),
 	TRANSLUCENT: Color(0.85, 0.75, 1.0, 0.75),
+	DEATH: Color(0.45, 0.08, 0.2),
 }
 ## Colour for a potion with no kind (the plain prototype potion).
 const PLAIN_COLOR := Color(0.55, 0.95, 0.45)
+const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
+## Potion icons, 10 x 12 each, in KINDS order (no Death potion yet: that one
+## is still drawn).
+const POTION_ICONS := preload("res://assets/ui/icons/potion_icons.png")
+const POTION_ICON_SIZE := Vector2(10, 12)
+## Ingredient icons, 10 x 10 each, in INGREDIENTS order.
+const INGREDIENT_ICONS := preload("res://assets/ui/icons/ingredient_icons.png")
+const INGREDIENT_ICON_SIZE := Vector2(10, 10)
+## The square every slot and box is drawn with (the notebook's, the recipe
+## note's): nb_slot.png, a box with a 2 px shadow along its top so it looks
+## sunk into the page. Drawn as a 9-slice (rounded corners and the shadow kept
+## as drawn, the flat middle stretched), the shadow sitting just above the box.
+const SLOT_BOX := preload("res://assets/ui/nb_slot.png")
+## Rows of shadow above the box itself.
+const SLOT_SHADOW := 2.0
+static var _slot_style: StyleBoxTexture
 
 ## Ingredient kinds, their names and colours.
 const EMBER := &"ember"
@@ -32,8 +69,8 @@ const GHOST_WISP := &"ghost_wisp"
 const INGREDIENT_NAMES := {
 	EMBER: "EMBER",
 	GUST_FEATHER: "GUST FEATHER",
-	FROST_SHARD: "FROST SHARD",
-	GHOST_WISP: "GHOST WISP",
+	FROST_SHARD: "ICE CHUNK",
+	GHOST_WISP: "GHOST TEARS",
 }
 const INGREDIENT_COLORS := {
 	EMBER: Color(1.0, 0.55, 0.2),
@@ -41,16 +78,30 @@ const INGREDIENT_COLORS := {
 	FROST_SHARD: Color(0.6, 0.9, 1.0),
 	GHOST_WISP: Color(0.85, 0.8, 1.0),
 }
+const INGREDIENTS: Array[StringName] = [EMBER, GUST_FEATHER, FROST_SHARD, GHOST_WISP]
 
 ## Effect tuning.
 const SPLASH_RADIUS := 22.0
 const BURN_TIME := 3.0
+## Seconds a burning player has before dying (unless washed off in
+## cleansing water). Longer than monsters, so there's time to get to it.
+const PLAYER_BURN_TIME := 8.0
+## Burning monsters run this many times faster until they burn up.
+const FIRE_SPEED_BOOST := 1.6
+## A burning player runs this many times faster (so jumps much further)
+## until the fire is washed off or burns them up.
+const PLAYER_FIRE_SPEED_BOOST := 2.0
 const FREEZE_TIME := 6.0
 const TRANSLUCENT_TIME := 6.0
+## Seconds the player is frozen in place by a freeze splash (monsters use
+## FREEZE_TIME).
+const PLAYER_FREEZE_TIME := 2.0
 ## Seconds a monster is dazed (still and harmless) after a knockback hit.
-const STUN_TIME := 3.0
+const STUN_TIME := FREEZE_TIME
 const KNOCKBACK_SPEED := 230.0
 const KNOCKBACK_LIFT := 120.0
+## Knockback from the weakest throw, as a fraction of a full-power throw's.
+const KNOCKBACK_MIN_POWER := 0.3
 
 ## Physics layers (bit values), named in project settings.
 const LAYER_WORLD := 1
@@ -65,19 +116,46 @@ const POTION_HIT_MASK := LAYER_WORLD | LAYER_ENEMIES | LAYER_PROPS | LAYER_POTIO
 const SPLASH_MASK := LAYER_PLAYER | LAYER_ENEMIES | LAYER_PROPS
 
 
+## A slot or box (nb_slot.png) filling `rect`.
+static func draw_slot_box(canvas: CanvasItem, rect: Rect2, alpha := 1.0) -> void:
+	if not _slot_style:
+		_slot_style = StyleBoxTexture.new()
+		_slot_style.texture = SLOT_BOX
+		_slot_style.texture_margin_left = 2
+		_slot_style.texture_margin_right = 2
+		_slot_style.texture_margin_top = 4
+		_slot_style.texture_margin_bottom = 2
+	_slot_style.modulate_color = Color(1, 1, 1, alpha)
+	var with_shadow := Rect2(rect.position - Vector2(0, SLOT_SHADOW), rect.size + Vector2(0, SLOT_SHADOW))
+	_slot_style.draw(canvas.get_canvas_item(), with_shadow)
+
+
 static func color_of(kind: StringName) -> Color:
 	return COLORS.get(kind, PLAIN_COLOR)
 
 
+## How hard a potion's splash hits, from how hard it was thrown: 0 for the
+## weakest throw, 1 for a full pull. Only knockback cares.
+static func splash_power(throw_strength: float) -> float:
+	return lerpf(KNOCKBACK_MIN_POWER, 1.0, clampf(throw_strength, 0.0, 1.0))
+
+
 ## Velocity to give a body hit by a knockback splash centred at `origin`.
+## `strength` scales it: the body's own heft times the throw's power.
 static func knockback_velocity(body_center: Vector2, origin: Vector2, strength := 1.0) -> Vector2:
 	var away := body_center - origin
 	var side := signf(away.x) if absf(away.x) > 0.5 else 1.0
 	return Vector2(side * KNOCKBACK_SPEED, -KNOCKBACK_LIFT) * strength
 
 
-## Draws a small potion flask centred at `at`.
-static func draw_potion(canvas: CanvasItem, kind: StringName, at: Vector2) -> void:
+## Draws a potion's icon centred at `at`.
+static func draw_potion(canvas: CanvasItem, kind: StringName, at: Vector2, tint := Color.WHITE) -> void:
+	var index := KINDS.find(kind)
+	if index >= 0 and index < POTION_ICONS.get_width() / int(POTION_ICON_SIZE.x):
+		var source := Rect2(Vector2(index * POTION_ICON_SIZE.x, 0), POTION_ICON_SIZE)
+		canvas.draw_texture_rect_region(POTION_ICONS, Rect2((at - POTION_ICON_SIZE / 2.0).round(), POTION_ICON_SIZE), source, tint)
+		return
+	# No icon for it yet: a small flask.
 	canvas.draw_rect(Rect2(at + Vector2(-1, -6), Vector2(2, 1)), Color(0.6, 0.4, 0.25))
 	canvas.draw_rect(Rect2(at + Vector2(-1, -5), Vector2(2, 2)), Color(0.85, 0.9, 1.0))
 	canvas.draw_circle(at, 3.0, Color(0.85, 0.9, 1.0))
@@ -100,8 +178,19 @@ static func draw_lock_icon(canvas: CanvasItem, at: Vector2, color: Color) -> voi
 	canvas.draw_rect(Rect2(at + Vector2(-0.5, 0), Vector2(1, 2)), Color(0, 0, 0, 0.5))
 
 
+## Draws a "?" centred at `at`: a potion that can be brewed but never has been.
+static func draw_unknown_icon(canvas: CanvasItem, at: Vector2, color: Color, font_size := 8) -> void:
+	var width := FONT.get_string_size("?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	canvas.draw_string(FONT, (at + Vector2(-width / 2.0, font_size / 2.0)).round(), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+
+
 ## Draws a small ingredient icon centred at `at`.
 static func draw_ingredient(canvas: CanvasItem, kind: StringName, at: Vector2) -> void:
+	var index := INGREDIENTS.find(kind)
+	if index >= 0:
+		var source := Rect2(Vector2(index * INGREDIENT_ICON_SIZE.x, 0), INGREDIENT_ICON_SIZE)
+		canvas.draw_texture_rect_region(INGREDIENT_ICONS, Rect2((at - INGREDIENT_ICON_SIZE / 2.0).round(), INGREDIENT_ICON_SIZE), source)
+		return
 	var color: Color = INGREDIENT_COLORS.get(kind, Color.WHITE)
 	match kind:
 		EMBER:
@@ -118,3 +207,23 @@ static func draw_ingredient(canvas: CanvasItem, kind: StringName, at: Vector2) -
 			canvas.draw_colored_polygon(PackedVector2Array([at + Vector2(-3, -1), at + Vector2(3, -1), at + Vector2(1, 5), at + Vector2(0, 2), at + Vector2(-1, 5)]), color)
 			canvas.draw_rect(Rect2(at + Vector2(-2, -2), Vector2(1, 1)), Color(0.2, 0.15, 0.3))
 			canvas.draw_rect(Rect2(at + Vector2(1, -2), Vector2(1, 1)), Color(0.2, 0.15, 0.3))
+
+
+## A rough "how long it lasts" for the notebook, e.g. "5-8 SEC", so it reads
+## as an estimate rather than a promise. Empty for instant potions. Fire shows
+## how long a burning player has to reach water (monsters burn up sooner).
+static func duration_estimate(kind: StringName) -> String:
+	var seconds := 0.0
+	match kind:
+		FIRE:
+			seconds = PLAYER_BURN_TIME
+		FREEZE:
+			seconds = FREEZE_TIME
+		TRANSLUCENT:
+			seconds = TRANSLUCENT_TIME
+	if seconds <= 0.0:
+		return ""
+	for bucket in [[2.5, "1-3"], [4.5, "3-5"], [7.5, "5-8"], [12.0, "8-12"]]:
+		if seconds <= bucket[0]:
+			return "%s SEC" % bucket[1]
+	return "12+ SEC"

@@ -1,0 +1,82 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/puzzle/level_13.gd" id="level13"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/cracked_wall.gd" id="cracked"]
+[ext_resource type="Script" path="res://scripts/puzzle/dynamite.gd" id="dynamite"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+
+[node name="Level13" instance=ExtResource("base")]
+script = ExtResource("level13")
+stage_id = "13"
+stage_size = Vector2(820, 216)
+intro_lines = PackedStringArray("SHELDON: Dynamite! A little fire lights the fuse.", "SHELDON (squint): And then everything near it goes boom. Including us, if we're near it.")
+intro_teaches = "hint"
+hint_lines = PackedStringArray("SHELDON (squint): I'd stand well back for that one. Outside the red, if I had to guess.", "---", "SHELDON: Can't light that one from out here, and can't be in there when it goes.", "SHELDON (glasses): So light it, then run. Really, really run.")
+potions_needed_until_x = 772.0
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 820, 0, 820, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(50, 192)
+script = ExtResource("chest")
+amount = 3
+
+[node name="WallA" type="StaticBody2D" parent="Level"]
+position = Vector2(200, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 156, 0, 156)
+
+[node name="CrackedA" type="StaticBody2D" parent="Level"]
+position = Vector2(200, 156)
+script = ExtResource("cracked")
+points = PackedVector2Array(0, 0, 12, 0, 12, 36, 0, 36)
+
+[node name="Dynamite1" type="Area2D" parent="Level"]
+position = Vector2(184, 192)
+script = ExtResource("dynamite")
+blast_area = Rect2(-78, -96, 112, 96)
+
+[node name="CorridorRoof" type="StaticBody2D" parent="Level"]
+position = Vector2(300, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 472, 0, 472, 140, 0, 140)
+
+[node name="Hurdle1" type="StaticBody2D" parent="Level"]
+position = Vector2(380, 180)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 10, 0, 10, 12, 0, 12)
+
+[node name="Hurdle2" type="StaticBody2D" parent="Level"]
+position = Vector2(520, 180)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 10, 0, 10, 12, 0, 12)
+
+[node name="CrackedB" type="StaticBody2D" parent="Level"]
+position = Vector2(760, 140)
+script = ExtResource("cracked")
+points = PackedVector2Array(0, 0, 12, 0, 12, 52, 0, 52)
+
+[node name="Dynamite2" type="Area2D" parent="Level"]
+position = Vector2(744, 192)
+script = ExtResource("dynamite")
+fuse_time = 3.5
+blast_area = Rect2(-444, -52, 472, 52)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(795, 192)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Guard" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(640, 192)
+speed = 26.0

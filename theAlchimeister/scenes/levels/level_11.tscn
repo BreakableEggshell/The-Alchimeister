@@ -1,0 +1,137 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/castle_door.gd" id="door"]
+[ext_resource type="Script" path="res://scripts/puzzle/heavy_button.gd" id="heavy"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/ice_pillar.gd" id="ice"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+[ext_resource type="PackedScene" path="res://scenes/actors/flyer.tscn" id="flyer"]
+
+[node name="Level11" instance=ExtResource("base")]
+stage_id = "11"
+stage_size = Vector2(940, 216)
+intro_lines = PackedStringArray("SHELDON: Doors! Finally, a normal way through a castle.", "SHELDON (squint): ...Then again, I don't think they lead where they should.")
+hint_lines = PackedStringArray("SHELDON (squint): So many doors. I'd keep track of which colour goes where.", "---", "SHELDON: That button wants something heavy. And something heavy keeps flying over it.", "---", "SHELDON (glasses): Ice in one room, embers in another. Funny how castles work.")
+potions_needed_until_x = 830.0
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 940, 0, 940, 24, 0, 24)
+
+[node name="Wall12" type="StaticBody2D" parent="Level"]
+position = Vector2(220, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 192, 0, 192)
+
+[node name="Wall23" type="StaticBody2D" parent="Level"]
+position = Vector2(452, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 192, 0, 192)
+
+[node name="Wall34" type="StaticBody2D" parent="Level"]
+position = Vector2(684, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 192, 0, 192)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(40, 192)
+script = ExtResource("chest")
+contents = "frost_shard"
+
+[node name="BlueA" type="Area2D" parent="Level" node_paths=PackedStringArray("target")]
+position = Vector2(110, 192)
+script = ExtResource("door")
+target = NodePath("../BlueB")
+color = Color(0.35, 0.55, 1, 1)
+
+[node name="RedA" type="Area2D" parent="Level" node_paths=PackedStringArray("target")]
+position = Vector2(180, 192)
+script = ExtResource("door")
+target = NodePath("../RedB")
+
+[node name="LedgeR2" type="StaticBody2D" parent="Level"]
+position = Vector2(232, 156)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 58, 0, 58, 36, 0, 36)
+
+[node name="RedB" type="Area2D" parent="Level" node_paths=PackedStringArray("target")]
+position = Vector2(258, 156)
+script = ExtResource("door")
+target = NodePath("../RedA")
+
+[node name="FlyButton" type="Area2D" parent="Level"]
+position = Vector2(345, 192)
+script = ExtResource("heavy")
+width = 44.0
+cap_height = 12.0
+press_time = 1.0
+
+[node name="GateWall" type="StaticBody2D" parent="Level"]
+position = Vector2(390, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 156, 0, 156)
+
+[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(390, 156)
+script = ExtResource("gate")
+size = Vector2(12, 36)
+plates = [NodePath("../FlyButton")]
+
+[node name="GreenA" type="Area2D" parent="Level" node_paths=PackedStringArray("target")]
+position = Vector2(427, 192)
+script = ExtResource("door")
+target = NodePath("../GreenB")
+color = Color(0.4, 0.9, 0.4, 1)
+
+[node name="LedgeR3" type="StaticBody2D" parent="Level"]
+position = Vector2(464, 156)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 56, 0, 56, 36, 0, 36)
+
+[node name="BlueB" type="Area2D" parent="Level" node_paths=PackedStringArray("target")]
+position = Vector2(490, 156)
+script = ExtResource("door")
+target = NodePath("../BlueA")
+color = Color(0.35, 0.55, 1, 1)
+
+[node name="EmberChest" type="Area2D" parent="Level"]
+position = Vector2(645, 192)
+script = ExtResource("chest")
+
+[node name="GreenB" type="Area2D" parent="Level" node_paths=PackedStringArray("target")]
+position = Vector2(725, 192)
+script = ExtResource("door")
+target = NodePath("../GreenA")
+color = Color(0.4, 0.9, 0.4, 1)
+
+[node name="IceWall" type="StaticBody2D" parent="Level"]
+position = Vector2(800, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 30, 0, 30, 156, 0, 156)
+
+[node name="DoorIce" type="StaticBody2D" parent="Level"]
+position = Vector2(800, 156)
+script = ExtResource("ice")
+size = Vector2(30, 36)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(900, 192)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="ButtonFlyer" parent="Enemies" instance=ExtResource("flyer")]
+position = Vector2(345, 104)
+speed = 22.0
+patrol_range = 36.0
+
+[node name="RoomGuard" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(580, 192)
+speed = 30.0

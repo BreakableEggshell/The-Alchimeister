@@ -3,6 +3,8 @@ extends CharacterBody2D
 ## A wooden crate the player can push by walking into it. It only moves while
 ## being pushed (or when a knockback splash hits it). Origin is the bottom centre.
 
+const SHEET := preload("res://assets/sprites/props/crate.png")
+
 @export var size := Vector2(20, 20):
 	set(value):
 		size = value
@@ -30,9 +32,10 @@ func push(speed_x: float) -> void:
 	_push_speed = speed_x
 
 
-func apply_potion(kind: StringName, origin: Vector2) -> void:
+## `power` scales knockback with how hard the potion was thrown.
+func apply_potion(kind: StringName, origin: Vector2, power := 1.0) -> void:
 	if kind == PotionData.KNOCKBACK:
-		velocity = PotionData.knockback_velocity(global_position + Vector2(0, -size.y / 2.0), origin, 0.8)
+		velocity = PotionData.knockback_velocity(global_position + Vector2(0, -size.y / 2.0), origin, 0.8 * power)
 
 
 func _physics_process(delta: float) -> void:
@@ -49,10 +52,6 @@ func _physics_process(delta: float) -> void:
 
 
 func _draw() -> void:
-	var box := Rect2(-size.x / 2.0, -size.y, size.x, size.y)
-	draw_rect(box, Color(0.6, 0.4, 0.22))
-	var plank := Color(0.45, 0.28, 0.15)
-	draw_rect(Rect2(box.position + Vector2(2, 2), box.size - Vector2(4, 4)), plank, false)
-	draw_line(box.position + Vector2(3, 3), box.end - Vector2(3, 3), plank, 2.0)
-	# White outline marks it as something the player can interact with.
-	draw_rect(box.grow(0.5), Color.WHITE, false)
+	# The crate (crate.png's top-left 20 x 20) as drawn, standing on its origin
+	# (never stretched: every asset keeps the same pixel scale).
+	draw_texture_rect_region(SHEET, Rect2(-10, -20, 20, 20), Rect2(0, 0, 20, 20))

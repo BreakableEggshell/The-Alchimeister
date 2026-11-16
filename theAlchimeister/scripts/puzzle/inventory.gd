@@ -7,11 +7,15 @@ signal changed
 signal selected_changed(kind: StringName)
 ## Something worth telling the player (a pickup, an empty slot).
 signal message(text: String, color: Color)
+## Tried to throw with no potion picked.
+signal pick_missed
 
 @export var start_fire := 0
 @export var start_knockback := 0
 @export var start_freeze := 0
 @export var start_translucent := 0
+## Debug: every ingredient is always in storage and never runs out.
+@export var unlimited := false
 
 ## Potion kind -> {ingredient kind: amount needed}.
 var recipes := {
@@ -26,6 +30,9 @@ var selected: StringName = &""
 ## keep their places.
 var ingredient_order: Array[StringName] = []
 
+## What storage shows for each ingredient when `unlimited`.
+const UNLIMITED_COUNT := 99
+
 var _potions := {}
 var _ingredients := {}
 
@@ -37,11 +44,22 @@ func _ready() -> void:
 		PotionData.KNOCKBACK: start_knockback,
 		PotionData.FREEZE: start_freeze,
 		PotionData.TRANSLUCENT: start_translucent,
+		PotionData.DEATH: 0,
 	}
+	if unlimited:
+		for kind in PotionData.INGREDIENTS:
+			ingredient_order.append(kind)
+			_ingredients[kind] = UNLIMITED_COUNT
 
 
 func count(kind: StringName) -> int:
 	return _potions.get(kind, 0)
+
+
+## Whether the potion bar and the book's potion counts list this kind.
+## Discoverable potions (Death) only appear while you hold at least one.
+func is_shown(kind: StringName) -> bool:
+	return not PotionData.DISCOVERABLE.has(kind) or count(kind) > 0
 
 
 func ingredient_count(kind: StringName) -> int:
@@ -58,11 +76,15 @@ func select(kind: StringName) -> void:
 func take_selected() -> bool:
 	if selected == &"":
 		message.emit("PICK A POTION FIRST", Color(1, 0.5, 0.5))
+		pick_missed.emit()
 		return false
 	if count(selected) <= 0:
 		message.emit("NO %s POTIONS LEFT" % PotionData.NAMES[selected], Color(1, 0.5, 0.5))
 		return false
 	_potions[selected] -= 1
+	# The last one of a potion that vanishes from the bar can't stay selected.
+	if not is_shown(selected):
+		selected = &""
 	changed.emit()
 	return true
 
@@ -70,6 +92,7 @@ func take_selected() -> bool:
 func add_ingredient(kind: StringName, amount := 1) -> void:
 	for i in amount:
 		_store(kind)
+	Sfx.play(Sfx.PICKUP, self)
 	message.emit("+%d %s" % [amount, PotionData.INGREDIENT_NAMES[kind]], PotionData.INGREDIENT_COLORS[kind])
 	changed.emit()
 
@@ -78,7 +101,8 @@ func add_ingredient(kind: StringName, amount := 1) -> void:
 func take_ingredient(kind: StringName) -> bool:
 	if ingredient_count(kind) <= 0:
 		return false
-	_ingredients[kind] -= 1
+	if not unlimited:
+		_ingredients[kind] -= 1
 	changed.emit()
 	return true
 
@@ -91,7 +115,9 @@ func return_ingredient(kind: StringName) -> void:
 
 ## What these table ingredients brew into, ignoring order and empty entries:
 ## {potion, amount}. A table holding k copies of a recipe makes k potions, so
-## 3 Frost Shards make 3 Freeze potions. Empty potion if nothing matches.
+## 3 Ice Chunks make 3 Freeze potions. Any other mix makes one Death
+## potion, except one of every ingredient: that is the secret recipe, which
+## can't be brewed yet (PotionData.SECRET, amount 0). Empty table: empty potion.
 func match_recipe(kinds: Array) -> Dictionary:
 	var tally := {}
 	for kind in kinds:
@@ -106,6 +132,9 @@ func match_recipe(kinds: Array) -> Dictionary:
 			var copies: int = tally.get(first, 0) / recipe[first]
 			if copies >= 1 and recipe.keys().all(func(ingredient) -> bool: return tally.get(ingredient, 0) == recipe[ingredient] * copies):
 				return {"potion": potion, "amount": copies}
+		if tally.size() == PotionData.INGREDIENTS.size() and PotionData.INGREDIENTS.all(func(ingredient) -> bool: return tally.get(ingredient, 0) == 1):
+			return {"potion": PotionData.SECRET, "amount": 0}
+		return {"potion": PotionData.DEATH, "amount": 1}
 	return {"potion": &"", "amount": 0}
 
 
@@ -116,6 +145,8 @@ func brew(potion: StringName, amount := 1) -> void:
 
 
 func _store(kind: StringName) -> void:
+	if unlimited:
+		return
 	if not ingredient_order.has(kind):
 		ingredient_order.append(kind)
 	_ingredients[kind] = ingredient_count(kind) + 1
