@@ -208,6 +208,16 @@ func _show_map(map: int, take_focus := false, instant := false) -> void:
 	(_previous_map if map > came_from else _next_map).grab_focus()
 
 
+## An arrow was pressed: on to the next map that way. The selection stays on
+## that arrow if there's still a map further that way, else it moves to the
+## other arrow (the only one left).
+func _turn_page(step: int) -> void:
+	_show_map(_map + step)
+	var same := _next_map if step > 0 else _previous_map
+	var other := _previous_map if step > 0 else _next_map
+	(same if same.visible else other).grab_focus()
+
+
 ## How many nodes go in a row for `count` stages: MIN_PER_ROW, or more if
 ## MAX_ROWS rows of that wouldn't fit them all.
 static func per_row(count: int) -> int:
@@ -277,9 +287,9 @@ func _build() -> void:
 	_screen.add_child(_outlined_label("SELECT LEVEL", 16, 12.0))
 
 	_previous_map = _arrow("<", 4.0)
-	_previous_map.pressed.connect(func() -> void: _show_map(_map - 1, true))
+	_previous_map.pressed.connect(_turn_page.bind(-1))
 	_next_map = _arrow(">", screen.x - ARROW_SIZE.x - 4.0)
-	_next_map.pressed.connect(func() -> void: _show_map(_map + 1, true))
+	_next_map.pressed.connect(_turn_page.bind(1))
 
 	_back = Button.new()
 	_back.text = "BACK"
@@ -473,6 +483,8 @@ func _level_node(stage: String, map: int) -> Button:
 	else:
 		node.focus_mode = Control.FOCUS_NONE
 	node.draw.connect(_draw_node.bind(node, SaveGame.stage_tag(stage)))
+	# The selection marks the stone, not the number under it.
+	node.set_meta("selection_rect", Rect2(Vector2(roundf((NODE_SIZE.x - NODE_TEXTURE.get_width()) / 2.0), 1.0), NODE_TEXTURE.get_size()))
 	return node
 
 
@@ -482,8 +494,6 @@ func _draw_node(node: Button, number: String) -> void:
 	node.draw_texture(NODE_TEXTURE, art, LOCKED_TINT if locked else Color.WHITE)
 	if locked:
 		PotionData.draw_lock_icon(node, art + NODE_TEXTURE.get_size() / 2.0, Color(1, 1, 1, 0.85))
-	elif node.has_focus():
-		node.draw_rect(Rect2(art, NODE_TEXTURE.get_size()).grow(1.5), GOLD, false, 1.0)
 	var font := node.get_theme_font("font")
 	var color := GOLD if node.has_focus() else (Color(1, 1, 1, 0.6) if locked else Color.WHITE)
 	var at := Vector2(0, NUMBER_BASELINE)

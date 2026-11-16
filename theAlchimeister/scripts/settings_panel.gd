@@ -56,8 +56,9 @@ func build(panel_size: Vector2) -> void:
 	fullscreen.add_theme_color_override("font_pressed_color", INK)
 	fullscreen.add_theme_color_override("font_hover_pressed_color", INK)
 	# Plain text on the page, not the dark HUD button box.
-	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 		fullscreen.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	fullscreen.add_theme_stylebox_override("focus", UiFocus.SELECTION)
 	fullscreen.position = Vector2(66, 104)
 	fullscreen.toggled.connect(SaveGame.set_fullscreen)
 	add_child(fullscreen)

@@ -3,7 +3,8 @@ extends RefCounted
 ## The player's key bindings: which actions can be remapped, what they're
 ## bound to now, and the key names shown around the game. SaveGame stores them;
 ## the notebook's SETTINGS > CONTROLS page changes them.
-## Menus always move with WASD and back out with Esc, whatever is bound here.
+## Menus always move with WASD or the arrow keys and back out with Esc,
+## whatever is bound here.
 
 ## Name on the controls page, and the input action.
 const REMAPPABLE: Array[Array] = [
