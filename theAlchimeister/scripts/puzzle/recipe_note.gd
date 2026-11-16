@@ -150,7 +150,7 @@ func _draw() -> void:
 	var table := paper.position + Vector2(36, 34)
 	for i in 4:
 		var cell := Rect2(table + Vector2(i % 2, floori(i / 2.0)) * (CELL + 1.0), Vector2(CELL, CELL))
-		draw_rect(cell, IngredientSlot.FILL)
+		PotionData.draw_slot_box(self, cell)
 		if i < _mix.size() and _mix[i] != &"":
 			PotionData.draw_ingredient(self, _mix[i], cell.get_center())
 	var mid_y := table.y + CELL + 0.5
@@ -158,7 +158,7 @@ func _draw() -> void:
 	draw_line(Vector2(from_x, mid_y), Vector2(from_x + 22.0, mid_y), INK, 2.0)
 	draw_colored_polygon(PackedVector2Array([Vector2(from_x + 25.0, mid_y), Vector2(from_x + 20.0, mid_y - 4), Vector2(from_x + 20.0, mid_y + 4)]), INK)
 	var result := Rect2(from_x + 32.0, mid_y - 12.0, 24.0, 24.0)
-	draw_rect(result, IngredientSlot.FILL)
+	PotionData.draw_slot_box(self, result)
 	PotionData.draw_potion(self, PotionData.DEATH, result.get_center() + Vector2(0, 1))
 	for i in TEXT.size():
 		draw_string(font, paper.position + Vector2(0, 92 + i * 11), TEXT[i], HORIZONTAL_ALIGNMENT_CENTER, paper.size.x, 8, INK)

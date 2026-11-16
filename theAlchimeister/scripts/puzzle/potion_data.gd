@@ -45,6 +45,21 @@ const COLORS := {
 ## Colour for a potion with no kind (the plain prototype potion).
 const PLAIN_COLOR := Color(0.55, 0.95, 0.45)
 const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
+## Potion icons, 10 x 12 each, in KINDS order (no Death potion yet: that one
+## is still drawn).
+const POTION_ICONS := preload("res://assets/ui/icons/potion_icons.png")
+const POTION_ICON_SIZE := Vector2(10, 12)
+## Ingredient icons, 10 x 10 each, in INGREDIENTS order.
+const INGREDIENT_ICONS := preload("res://assets/ui/icons/ingredient_icons.png")
+const INGREDIENT_ICON_SIZE := Vector2(10, 10)
+## The square every slot and box is drawn with (the notebook's, the recipe
+## note's): nb_slot.png, a box with a 2 px shadow along its top so it looks
+## sunk into the page. Drawn as a 9-slice (rounded corners and the shadow kept
+## as drawn, the flat middle stretched), the shadow sitting just above the box.
+const SLOT_BOX := preload("res://assets/ui/nb_slot.png")
+## Rows of shadow above the box itself.
+const SLOT_SHADOW := 2.0
+static var _slot_style: StyleBoxTexture
 
 ## Ingredient kinds, their names and colours.
 const EMBER := &"ember"
@@ -54,8 +69,8 @@ const GHOST_WISP := &"ghost_wisp"
 const INGREDIENT_NAMES := {
 	EMBER: "EMBER",
 	GUST_FEATHER: "GUST FEATHER",
-	FROST_SHARD: "FROST SHARD",
-	GHOST_WISP: "GHOST WISP",
+	FROST_SHARD: "ICE CHUNK",
+	GHOST_WISP: "GHOST TEARS",
 }
 const INGREDIENT_COLORS := {
 	EMBER: Color(1.0, 0.55, 0.2),
@@ -101,6 +116,20 @@ const POTION_HIT_MASK := LAYER_WORLD | LAYER_ENEMIES | LAYER_PROPS | LAYER_POTIO
 const SPLASH_MASK := LAYER_PLAYER | LAYER_ENEMIES | LAYER_PROPS
 
 
+## A slot or box (nb_slot.png) filling `rect`.
+static func draw_slot_box(canvas: CanvasItem, rect: Rect2, alpha := 1.0) -> void:
+	if not _slot_style:
+		_slot_style = StyleBoxTexture.new()
+		_slot_style.texture = SLOT_BOX
+		_slot_style.texture_margin_left = 2
+		_slot_style.texture_margin_right = 2
+		_slot_style.texture_margin_top = 4
+		_slot_style.texture_margin_bottom = 2
+	_slot_style.modulate_color = Color(1, 1, 1, alpha)
+	var with_shadow := Rect2(rect.position - Vector2(0, SLOT_SHADOW), rect.size + Vector2(0, SLOT_SHADOW))
+	_slot_style.draw(canvas.get_canvas_item(), with_shadow)
+
+
 static func color_of(kind: StringName) -> Color:
 	return COLORS.get(kind, PLAIN_COLOR)
 
@@ -119,8 +148,14 @@ static func knockback_velocity(body_center: Vector2, origin: Vector2, strength :
 	return Vector2(side * KNOCKBACK_SPEED, -KNOCKBACK_LIFT) * strength
 
 
-## Draws a small potion flask centred at `at`.
-static func draw_potion(canvas: CanvasItem, kind: StringName, at: Vector2) -> void:
+## Draws a potion's icon centred at `at`.
+static func draw_potion(canvas: CanvasItem, kind: StringName, at: Vector2, tint := Color.WHITE) -> void:
+	var index := KINDS.find(kind)
+	if index >= 0 and index < POTION_ICONS.get_width() / int(POTION_ICON_SIZE.x):
+		var source := Rect2(Vector2(index * POTION_ICON_SIZE.x, 0), POTION_ICON_SIZE)
+		canvas.draw_texture_rect_region(POTION_ICONS, Rect2((at - POTION_ICON_SIZE / 2.0).round(), POTION_ICON_SIZE), source, tint)
+		return
+	# No icon for it yet: a small flask.
 	canvas.draw_rect(Rect2(at + Vector2(-1, -6), Vector2(2, 1)), Color(0.6, 0.4, 0.25))
 	canvas.draw_rect(Rect2(at + Vector2(-1, -5), Vector2(2, 2)), Color(0.85, 0.9, 1.0))
 	canvas.draw_circle(at, 3.0, Color(0.85, 0.9, 1.0))
@@ -151,6 +186,11 @@ static func draw_unknown_icon(canvas: CanvasItem, at: Vector2, color: Color, fon
 
 ## Draws a small ingredient icon centred at `at`.
 static func draw_ingredient(canvas: CanvasItem, kind: StringName, at: Vector2) -> void:
+	var index := INGREDIENTS.find(kind)
+	if index >= 0:
+		var source := Rect2(Vector2(index * INGREDIENT_ICON_SIZE.x, 0), INGREDIENT_ICON_SIZE)
+		canvas.draw_texture_rect_region(INGREDIENT_ICONS, Rect2((at - INGREDIENT_ICON_SIZE / 2.0).round(), INGREDIENT_ICON_SIZE), source)
+		return
 	var color: Color = INGREDIENT_COLORS.get(kind, Color.WHITE)
 	match kind:
 		EMBER:

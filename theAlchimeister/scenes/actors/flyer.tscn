@@ -8,3 +8,5 @@ flying = true
 
 [node name="Sprite" parent="." index="0"]
 texture = ExtResource("2_tex")
+offset = Vector2(0, -12)
+vframes = 3

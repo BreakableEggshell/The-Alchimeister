@@ -238,6 +238,10 @@ func _blocked(direction: int, reach: float) -> bool:
 		wall.melt()
 	elif wall:
 		return true
+	# Pebbles are lower than the look above: a second look, near the ground.
+	var low := global_position - down * 2.0
+	if _hit(low, low + along * reach) is Pebble:
+		return true
 	if not on_wall and not is_on_floor():
 		return false
 	var ahead := global_position + along * reach
@@ -256,14 +260,16 @@ func _hurt_overlapping_player() -> void:
 		return
 	for body in _hurtbox.get_overlapping_bodies():
 		if body.has_method("die") and not body.is_translucent():
-			body.die(GameOver.CAUGHT)
+			body.die(GameOver.CAUGHT, global_position)
 
 
 func _animate(delta: float) -> void:
 	_anim_clock += delta
 	if not is_frozen():
 		_sprite.frame = int(_anim_clock * anim_fps) % FRAME_COUNT
-	_sprite.flip_h = _direction < 0
+	# Facing the way it moves. On a wall it's turned a quarter, so its front
+	# points up a wall on its right (wall_side 1) and down one on its left.
+	_sprite.flip_h = _direction == wall_side if on_wall else _direction < 0
 	_update_blink(delta)
 	var tint := Color.WHITE
 	if _shows(_freeze_left, PotionData.FREEZE_TIME):

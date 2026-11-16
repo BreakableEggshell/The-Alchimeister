@@ -3,10 +3,11 @@ class_name Solid
 extends StaticBody2D
 ## A piece of level geometry: draws its polygon and collides with it.
 ## Rectangles and ramps are both just polygons.
-## Drawn with the tiles in tiles.png (`tiled`): the floor tile along every top
+## Drawn with the tiles in castle_bricks_bg.png (`tiled`): the floor tile along every top
 ## surface something can stand on (not the very top of the stage, where walls
 ## hang from), and the brick (below-floor) tile everywhere else, walls hanging
-## from the ceiling included. The wall tile is for the room behind (Board).
+## from the ceiling included. The wall tiles (15 of them) are for the room
+## behind (Board).
 ## Tiles line up with the world, so pieces side by side join seamlessly.
 ## Planks (`one_way`) are drawn as wood instead.
 
@@ -29,17 +30,22 @@ extends StaticBody2D
 
 const PLANK_COLOR := Color(0.55, 0.38, 0.22)
 const PLANK_DARK := Color(0.38, 0.25, 0.14)
-const TILES := preload("res://assets/tiles.png")
-## Each tile's square size, and where it sits in the sheet.
+const TILES := preload("res://assets/tiles/castle_bricks_bg.png")
+## Each tile's square size, and where it sits in the sheet (tiles 2 px apart).
 const TILE_SIZE := 28
+const TILE_STEP := 30
 const FLOOR_AT := Vector2i(0, 0)
-const WALL_AT := Vector2i(30, 0)
 const BELOW_FLOOR_AT := Vector2i(0, 30)
+## The wall tiles: 5 across, 3 down, right of the floor ones.
+const WALL_COLUMNS := 5
+const WALL_ROWS := 3
+const WALLS_AT := Vector2i(30, 0)
 ## The outline around a tiled piece: the dark of the mortar.
 const TILED_EDGE := Color(0.13, 0.11, 0.17)
 
 ## The tiles cut out of the sheet, each on its own so it can repeat.
 static var _wall_tile: Texture2D
+static var _wall_tiles: Array[Texture2D] = []
 static var _floor_tile: Texture2D
 static var _below_floor_tile: Texture2D
 
@@ -148,17 +154,27 @@ func _bounds() -> Rect2:
 	return bounds
 
 
-## The wall tile on its own, for the room backdrop (Board).
+## The first wall tile on its own.
 static func wall_texture() -> Texture2D:
 	_cut_tiles()
 	return _wall_tile
 
 
-## Splits tiles.png into its tiles, once.
+## Every wall tile, for the room backdrop (Board) to mix.
+static func wall_textures() -> Array[Texture2D]:
+	_cut_tiles()
+	return _wall_tiles
+
+
+## Splits the sheet into its tiles, once.
 static func _cut_tiles() -> void:
 	if _wall_tile:
 		return
 	var sheet := TILES.get_image()
-	_wall_tile = ImageTexture.create_from_image(sheet.get_region(Rect2i(WALL_AT, Vector2i(TILE_SIZE, TILE_SIZE))))
+	for row in WALL_ROWS:
+		for column in WALL_COLUMNS:
+			var at := WALLS_AT + Vector2i(column, row) * TILE_STEP
+			_wall_tiles.append(ImageTexture.create_from_image(sheet.get_region(Rect2i(at, Vector2i(TILE_SIZE, TILE_SIZE)))))
+	_wall_tile = _wall_tiles[0]
 	_floor_tile = ImageTexture.create_from_image(sheet.get_region(Rect2i(FLOOR_AT, Vector2i(TILE_SIZE, TILE_SIZE))))
 	_below_floor_tile = ImageTexture.create_from_image(sheet.get_region(Rect2i(BELOW_FLOOR_AT, Vector2i(TILE_SIZE, TILE_SIZE))))

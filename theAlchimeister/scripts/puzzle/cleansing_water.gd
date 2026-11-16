@@ -15,12 +15,16 @@ extends Area2D
 		width = value
 		queue_redraw()
 
+## The water: frames of a tile that repeats up the column (each frame is a
+## step of the loop: bubbles rise 4 px a frame, 28 over the loop).
+const SHEET := preload("res://assets/sprites/props/cleansing_water.png")
+const TILE := Vector2(10, 28)
+const FRAMES := 7
+const FPS := 8.0
+## The notebook's small water icon is still drawn with these.
 const WATER := Color(0.3, 0.6, 1.0, 0.4)
 const EDGE := Color(0.55, 0.85, 1.0, 0.9)
 const BUBBLE := Color(0.8, 0.95, 1.0, 0.85)
-const BUBBLE_COUNT := 10
-## Bubble rise speed in pixels per second.
-const RISE_SPEED := 24.0
 
 var _clock := 0.0
 
@@ -64,17 +68,13 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	var half := width / 2.0
-	draw_rect(Rect2(-half, -height, width, height), WATER)
-	# Wavy bright edges.
-	for side in [-half, half]:
-		var points := PackedVector2Array()
-		for y in range(0, int(height) + 1, 6):
-			points.append(Vector2(side + sin(_clock * 4.0 + y * 0.3) * 1.0, -y))
-		draw_polyline(points, EDGE)
-	# Bubbles drifting upward, each in its own lane.
-	for i in BUBBLE_COUNT:
-		var lane := -half + 2.0 + fmod(i * 3.7, width - 4.0)
-		var y := fmod(_clock * RISE_SPEED + i * height / BUBBLE_COUNT, height)
-		var wobble := sin(_clock * 3.0 + i) * 1.0
-		draw_circle(Vector2(lane + wobble, -y), 1.0 + (i % 2) * 0.5, BUBBLE)
+	# cleansing_water.png: FRAMES frames of a 10 x 28 tile, stacked from the
+	# floor up (the top one cut short), looping.
+	var frame := int(_clock * FPS) % FRAMES
+	var x := -roundf(TILE.x / 2.0)
+	var bottom := 0.0
+	while bottom > -height:
+		var piece := minf(TILE.y, height + bottom)
+		var source := Rect2(frame * TILE.x, TILE.y - piece, TILE.x, piece)
+		draw_texture_rect_region(SHEET, Rect2(x, bottom - piece, TILE.x, piece), source)
+		bottom -= piece

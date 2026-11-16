@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="6_exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="7_slime"]
 [ext_resource type="Script" path="res://scripts/puzzle/controls_hint.gd" id="8_controls"]
+[ext_resource type="Script" path="res://scripts/puzzle/pebble.gd" id="pebble"]
 
 [node name="Tutorial1" instance=ExtResource("1_base")]
 stage_id = "1-1"
@@ -79,9 +80,8 @@ script = ExtResource("3_plate")
 width = 24.0
 
 [node name="Curb" type="StaticBody2D" parent="Level"]
-position = Vector2(694, 88)
-script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 10, 0, 10, 8, 0, 8)
+position = Vector2(699, 96)
+script = ExtResource("pebble")
 
 [node name="Lintel" type="StaticBody2D" parent="Level"]
 position = Vector2(732, 0)

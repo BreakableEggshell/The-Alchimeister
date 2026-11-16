@@ -14,7 +14,7 @@ extends StaticBody2D
 ## so a closing gate shuts the gap before anyone can dash under it.
 ## A wire runs from each linked button through the floor or wall to the
 ## gate, lit in the button's colour (green while free, red while pressed).
-## A ghost gate (`ghostable`: pale bars, a wisp over the doorway) turns ghostly
+## A ghost gate (`ghostable`: pale bars, ghost tears over the doorway) turns ghostly
 ## for a while when a translucent potion splashes it, and everything passes
 ## through it, potions included. It blinks before turning solid again, and
 ## waits until nothing is inside it.
@@ -59,6 +59,14 @@ const GHOST_ALPHA := 0.3
 const GHOST_TIME := PotionData.TRANSLUCENT_TIME * 1.5
 ## Seconds before turning solid again that a ghost gate starts blinking.
 const GHOST_WARN_TIME := 1.5
+## gate.png: the bars' bottom piece, a middle piece that repeats above it
+## (both 12 x 28), and the top piece the bars rise into (12 x 4).
+const SHEET := preload("res://assets/sprites/props/gate.png")
+const BOTTOM_PIECE := Rect2(0, 0, 12, 28)
+const MIDDLE_PIECE := Rect2(30, 0, 12, 28)
+const TOP_PIECE := Rect2(58, 0, 12, 4)
+## Ghost gates' bars are tinted pale.
+const GHOST_TINT := Color(0.85, 0.8, 1.15)
 const EYE_WHITE := Color(0.95, 0.92, 0.82)
 const EYE_ALARM := Color(1.0, 0.3, 0.3)
 
@@ -263,19 +271,26 @@ func _set_open_amount(amount: float) -> void:
 
 func _draw() -> void:
 	_draw_marks()
-	var height := size.y * (1.0 - _open_amount)
-	if height <= 0.5:
-		return
-	var bars := GHOST_BAR_COLOR if ghostable else BAR_COLOR
-	draw_rect(Rect2(0, 0, size.x, height), Color(0.12, 0.11, 0.16))
-	for x in [2.0, size.x / 2.0, size.x - 2.0]:
-		draw_line(Vector2(x, 0), Vector2(x, height), bars, 2.0)
-	for y in range(12, int(height), 24):
-		draw_line(Vector2(0, y), Vector2(size.x, y), bars, 2.0)
-	draw_rect(Rect2(0, height - 3, size.x, 3), bars.lightened(0.25))
+	var height := roundf(size.y * (1.0 - _open_amount))
+	var tint := GHOST_TINT if ghostable else Color.WHITE
+	# The art is 12 wide, drawn as is (never stretched), centred on wider gates.
+	var x := roundf((size.x - BOTTOM_PIECE.size.x) / 2.0)
+	var art_width := BOTTOM_PIECE.size.x
+	# The bars: the bottom piece at their lower end, middle pieces stacked
+	# above it, all cut off at the top, where they've risen into the top piece.
+	var piece_bottom := height
+	var piece := BOTTOM_PIECE
+	while piece_bottom > 0.0:
+		var top := piece_bottom - piece.size.y
+		var cut := maxf(-top, 0.0)
+		var source := Rect2(piece.position + Vector2(0, cut), piece.size - Vector2(0, cut))
+		draw_texture_rect_region(SHEET, Rect2(x, top + cut, art_width, source.size.y), source, tint)
+		piece_bottom = top
+		piece = MIDDLE_PIECE
+	draw_texture_rect_region(SHEET, Rect2(Vector2(x, 0), TOP_PIECE.size), TOP_PIECE, tint)
 
 
-## Over the doorway: a wisp on a ghost gate, an eye on a watched one.
+## Over the doorway: ghost tears on a ghost gate, an eye on a watched one.
 func _draw_marks() -> void:
 	var at := Vector2(size.x / 2.0, -7.0)
 	if ghostable:

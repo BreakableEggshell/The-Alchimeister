@@ -14,6 +14,10 @@ extends PressurePlate
 ## Green while up, red once pressed. Origin is the floor at its centre.
 
 @export var press_time := 1.5
+const HEAVY_SHEET := preload("res://assets/sprites/props/button_heavy.png")
+## Each frame: a 36-wide cap on its base. Wider buttons stretch the middle.
+const HEAVY_FRAME := Vector2(42, 16)
+const HEAVY_END := 4.0
 ## Heavy things that must be on it at the same time.
 @export var needs := 1:
 	set(value):
@@ -129,10 +133,16 @@ func _draw() -> void:
 	var color := FREE_COLOR.lerp(PRESSED_COLOR, progress)
 	var half := width / 2.0
 	var cap := Rect2(-half, -top, width, top - BASE_HEIGHT)
-	draw_rect(Rect2(-half - 3.0, -BASE_HEIGHT, width + 6.0, BASE_HEIGHT), Color(0.15, 0.14, 0.2))
-	draw_rect(cap, color)
-	draw_rect(Rect2(cap.position, Vector2(width, 1.0)), color.lightened(0.35))
-	draw_rect(cap, color.darkened(0.45), false, 1.0)
+	# button_heavy.png: up, then pressed (once it's down for good). Sinking,
+	# the up frame's top is cut off to the cap's height.
+	# The art is 2 px taller than the cap's top (its rim and base).
+	var down := pressed and progress >= 1.0
+	var shown := minf(ceilf(top) + 2.0, HEAVY_FRAME.y)
+	var frame := Rect2(Vector2(0, HEAVY_FRAME.y - shown), Vector2(HEAVY_FRAME.x, shown))
+	if down:
+		frame = Rect2(Vector2(HEAVY_FRAME.x, 0), HEAVY_FRAME)
+		shown = HEAVY_FRAME.y
+	PressurePlate.draw_stretched(self, HEAVY_SHEET, frame, Rect2(-half - 3.0, -shown, width + 6.0, shown), HEAVY_END)
 	if needs > 1:
 		# One mark per heavy thing needed, lit (ice blue) per one on it.
 		var mark := 4.0

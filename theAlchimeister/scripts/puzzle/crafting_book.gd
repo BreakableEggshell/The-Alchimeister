@@ -55,7 +55,10 @@ const PAGE_SIZE := Vector2(174, 176)
 const LEFT_PAGE := Vector2(5, 5)
 const RIGHT_PAGE := Vector2(181, 5)
 const SLOT := 22.0
-const GAP := 2.0
+## Points from the brewing table to the result.
+const CRAFT_ARROW := preload("res://assets/ui/craft_arrow.png")
+## Space between the slots (their 2 px shadow sits in it).
+const GAP := 4.0
 const STORAGE_COLUMNS := 6
 const STORAGE_ROWS := 2
 ## Positions on the left page.
@@ -120,7 +123,9 @@ const GEAR_HOLE := 1.5
 const CLEANSING_WATER_TEXT := "WASHES OFF ANY EFFECT"
 ## Top of the recipe list on the right page.
 const RECIPES_TOP := 22.0
-const RECIPE_ROW_HEIGHT := 18.0
+const RECIPE_ROW_HEIGHT := 20.0
+## Space between a recipe's boxes.
+const RECIPE_BOX_GAP := 3.0
 const RECIPE_BOX := 14.0
 ## Baseline of the page titles.
 const TITLE_BASELINE := 14.0
@@ -294,8 +299,8 @@ func focus_first() -> bool:
 	return true
 
 
-## What keyboard focus starts on: the first storage box on the brewing
-## spread, otherwise the page arrow (or the X).
+## What keyboard focus starts on: the first storage (inventory) box on the
+## brewing spread, otherwise the page arrow (or the X).
 func _focus_default() -> void:
 	if _hint_prompt.visible:
 		_hint_no.grab_focus()
@@ -617,9 +622,7 @@ func _build() -> void:
 	close_button.pressed.connect(close)
 	close_button.draw.connect(func() -> void:
 		var color := ACTIVE_INK if close_button.is_hovered() or close_button.has_focus() else INK
-		close_button.draw_string(get_theme_font("font", "Label"), Vector2(0, 10), "X", HORIZONTAL_ALIGNMENT_CENTER, close_button.size.x, 8, color)
-		if close_button.has_focus():
-			_draw_focus_box(close_button))
+		close_button.draw_string(get_theme_font("font", "Label"), Vector2(0, 10), "X", HORIZONTAL_ALIGNMENT_CENTER, close_button.size.x, 8, color))
 	_book.add_child(close_button)
 
 	_recipe_scroll = ScrollContainer.new()
@@ -1097,10 +1100,6 @@ func _add_slot(role: IngredientSlot.Role, index: int, at: Vector2, side: float) 
 
 
 ## The box around the X or a page arrow while the keyboard is on it.
-func _draw_focus_box(button: Control) -> void:
-	button.draw_rect(Rect2(Vector2(0.5, 0.5), button.size - Vector2.ONE), ACTIVE_INK, false, 1.0)
-
-
 ## A hand-drawn page-turn arrow; `direction` 1 points right, -1 left.
 func _page_arrow(direction: int, at: Vector2) -> Button:
 	var button := Button.new()
@@ -1120,9 +1119,7 @@ func _page_arrow(direction: int, at: Vector2) -> Button:
 		var tip := button.size.x - 2.0 if direction > 0 else 2.0
 		var tail := 2.0 if direction > 0 else button.size.x - 2.0
 		button.draw_line(Vector2(tail, y), Vector2(tip - 3.0 * direction, y), color, 2.0)
-		button.draw_colored_polygon(PackedVector2Array([Vector2(tip, y), Vector2(tip - 5.0 * direction, y - 4), Vector2(tip - 5.0 * direction, y + 4)]), color)
-		if button.has_focus():
-			_draw_focus_box(button))
+		button.draw_colored_polygon(PackedVector2Array([Vector2(tip, y), Vector2(tip - 5.0 * direction, y - 4), Vector2(tip - 5.0 * direction, y + 4)]), color))
 	_book.add_child(button)
 	return button
 
@@ -1219,7 +1216,9 @@ func _draw_book() -> void:
 	# Left page: crafting.
 	_page_text(font, "BREWING", LEFT_PAGE + Vector2(0, 12), INK)
 	var arrow_y := LEFT_PAGE.y + TABLE_AT.y + SLOT + GAP / 2.0
-	_draw_arrow(_book, LEFT_PAGE.x + TABLE_AT.x + 2.0 * SLOT + GAP + 6.0, LEFT_PAGE.x + RESULT_AT.x - 6.0, arrow_y)
+	# The arrow from the table to the result (craft_arrow.png), centred between them.
+	var arrow_x := (LEFT_PAGE.x + TABLE_AT.x + 2.0 * SLOT + GAP + LEFT_PAGE.x + RESULT_AT.x) / 2.0
+	_book.draw_texture(CRAFT_ARROW, (Vector2(arrow_x, arrow_y) - CRAFT_ARROW.get_size() / 2.0).round())
 	if _status_alpha > 0.0:
 		_page_text(font, _status, LEFT_PAGE + Vector2(0, STATUS_Y), Color(_status_color, _status_alpha))
 	# The key that brews, under the result box.
@@ -1255,7 +1254,7 @@ func _draw_effect(font: Font, kind: StringName, at: Vector2) -> float:
 	var found := kind != PotionData.SECRET and _recipe_found(kind)
 	var known := kind == CLEANSING_WATER or (found and SaveGame.is_potion_known(kind))
 	var box := Rect2(at, Vector2(14, 14))
-	_book.draw_rect(box, IngredientSlot.FILL)
+	PotionData.draw_slot_box(_book, box)
 	var icon_at := box.get_center() + Vector2(0, 1)
 	var name := "???"
 	var text := "???"
@@ -1342,14 +1341,14 @@ func _draw_bulk(font: Font) -> void:
 func _draw_bulk_row(font: Font, ingredient: StringName, count: int, at: Vector2) -> void:
 	for i in 4:
 		var cell := Rect2(at + Vector2(i % 2, floori(i / 2.0)) * (BULK_BOX + 1.0), Vector2(BULK_BOX, BULK_BOX))
-		_book.draw_rect(cell, IngredientSlot.FILL)
+		PotionData.draw_slot_box(_book, cell)
 		if i < count:
 			PotionData.draw_ingredient(_book, ingredient, cell.get_center())
 	var mid_y := at.y + BULK_BOX + 0.5
 	var table_end := at.x + 2.0 * BULK_BOX + 1.0
 	_draw_arrow(_book, table_end + 6.0, table_end + 26.0, mid_y)
 	var result := Rect2(table_end + 32.0, mid_y - 9.0, 18.0, 18.0)
-	_book.draw_rect(result, IngredientSlot.FILL)
+	PotionData.draw_slot_box(_book, result)
 	var potion := _potion_from(ingredient)
 	PotionData.draw_potion(_book, potion, result.get_center() + Vector2(0, 1))
 	_book.draw_string(font, Vector2(result.end.x + 4.0, mid_y + 4.0), "x%d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, INK)
@@ -1403,20 +1402,12 @@ func _draw_potion_counts(font: Font) -> void:
 	for kind in kinds:
 		var amount := inventory.count(kind)
 		var faded := 1.0 if amount > 0 else 0.35
-		_book.draw_rect(Rect2(x, y - 8, 16, 16), Color(IngredientSlot.FILL, faded))
+		PotionData.draw_slot_box(_book, Rect2(x, y - 8, 16, 16), faded)
 		var icon_at := Vector2(x + 8, y + 1)
-		if amount > 0:
-			PotionData.draw_potion(_book, kind, icon_at)
-		else:
-			_draw_grey_potion(icon_at)
+		# None held: the icon greyed out.
+		PotionData.draw_potion(_book, kind, icon_at, Color.WHITE if amount > 0 else Color(0.45, 0.42, 0.4, 0.6))
 		_book.draw_string(font, Vector2(x + 17, y + 4), "x%d" % amount, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(INK, faded))
 		x += step
-
-
-func _draw_grey_potion(at: Vector2) -> void:
-	var grey := Color(0.55, 0.55, 0.55)
-	_book.draw_rect(Rect2(at + Vector2(-1, -6), Vector2(2, 3)), grey)
-	_book.draw_circle(at, 3.0, grey)
 
 
 # --- Recipe list
@@ -1442,7 +1433,7 @@ func _recipe_layout(entry: Dictionary) -> Dictionary:
 	var x := 3.0
 	for ingredient in entry.ingredients:
 		boxes.append(Rect2(x, box_y, RECIPE_BOX, RECIPE_BOX))
-		x += RECIPE_BOX + 1.0
+		x += RECIPE_BOX + RECIPE_BOX_GAP
 	var title := _recipe_title(entry)
 	var title_width := get_theme_font("font", "Label").get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 	return {
@@ -1469,12 +1460,12 @@ func _draw_recipes() -> void:
 		var mid_y: float = top.y + layout.boxes[0].get_center().y
 		for i in layout.boxes.size():
 			var box: Rect2 = layout.boxes[i]
-			_recipe_list.draw_rect(Rect2(top + box.position, box.size), IngredientSlot.FILL)
+			PotionData.draw_slot_box(_recipe_list, Rect2(top + box.position, box.size))
 			if entry.ingredients[i] != &"":
 				PotionData.draw_ingredient(_recipe_list, entry.ingredients[i], top + box.get_center())
 		_draw_arrow(_recipe_list, layout.arrow.x, layout.arrow.y, mid_y)
 		var potion_box: Rect2 = layout.potion_box
-		_recipe_list.draw_rect(Rect2(top + potion_box.position, potion_box.size), IngredientSlot.FILL)
+		PotionData.draw_slot_box(_recipe_list, Rect2(top + potion_box.position, potion_box.size))
 		var icon_at := top + potion_box.get_center() + Vector2(0, 1)
 		if entry.known:
 			PotionData.draw_potion(_recipe_list, entry.potion, icon_at)

@@ -1,11 +1,18 @@
 @tool
 class_name WoodenPlatform
 extends Solid
-## A wooden plank that a translucent potion turns ghostly for a while:
+## A crystal platform (it was a wooden plank: the name stayed) that a
+## translucent potion turns ghostly for a while:
 ## everything on it (a rock, the knight) falls straight through. It blinks
 ## before it turns solid again, and waits until nothing is inside it.
 ## A blast (TNT, dynamite) splinters it for good.
 
+## crystal_platform.png: a left end, a middle that repeats, a right end. Any
+## width works: the middle repeats (cut short at the end) between the two ends.
+const CRYSTAL := preload("res://assets/sprites/props/crystal_platform.png")
+const LEFT_END := Rect2(0, 0, 14, 8)
+const MIDDLE := Rect2(30, 0, 20, 8)
+const RIGHT_END := Rect2(60, 0, 18, 8)
 ## Fade while translucent, like translucent monsters.
 const TRANSLUCENT_ALPHA := 0.35
 ## Seconds before turning solid again that it starts blinking.
@@ -32,6 +39,33 @@ func _ready() -> void:
 	for child in get_children():
 		if child is CollisionPolygon2D:
 			_shape = child
+
+
+## A crystal platform across the top of its box.
+func _draw() -> void:
+	var bounds := _bounds()
+	var x := bounds.position.x
+	var y := bounds.position.y
+	var width := bounds.size.x
+	if width < LEFT_END.size.x + RIGHT_END.size.x:
+		# Too short for both ends whole: the left half of one, the right of the other.
+		var half := floorf(width / 2.0)
+		_crystal(Rect2(LEFT_END.position, Vector2(half, LEFT_END.size.y)), Vector2(x, y))
+		var rest := width - half
+		_crystal(Rect2(RIGHT_END.position + Vector2(RIGHT_END.size.x - rest, 0), Vector2(rest, RIGHT_END.size.y)), Vector2(x + half, y))
+		return
+	_crystal(LEFT_END, Vector2(x, y))
+	var at := x + LEFT_END.size.x
+	var stop := bounds.end.x - RIGHT_END.size.x
+	while at < stop:
+		var piece := minf(MIDDLE.size.x, stop - at)
+		_crystal(Rect2(MIDDLE.position, Vector2(piece, MIDDLE.size.y)), Vector2(at, y))
+		at += piece
+	_crystal(RIGHT_END, Vector2(stop, y))
+
+
+func _crystal(source: Rect2, at: Vector2) -> void:
+	draw_texture_rect_region(CRYSTAL, Rect2(at, source.size), source)
 
 
 func apply_potion(kind: StringName, _origin: Vector2, _power := 1.0) -> void:
@@ -68,7 +102,7 @@ func blast() -> void:
 	splinters.gravity = Vector2(0, 500)
 	splinters.scale_amount_min = 1.0
 	splinters.scale_amount_max = 2.0
-	splinters.color = Color(0.6, 0.42, 0.26)
+	splinters.color = Color(0.72, 0.66, 0.95)
 	add_child(splinters)
 	splinters.emitting = true
 	# The plank is gone at once; only the splinters (children) still show.

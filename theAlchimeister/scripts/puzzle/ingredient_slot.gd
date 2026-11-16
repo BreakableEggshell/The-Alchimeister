@@ -95,11 +95,7 @@ func _drop_data(_at: Vector2, data: Variant) -> void:
 
 func _draw() -> void:
 	var box := Rect2(Vector2.ZERO, size)
-	draw_rect(box, FILL)
-	var lit := (_hover and (role != Role.STORAGE or kind != &"")) or has_focus()
-	draw_rect(box.grow(-0.5), HOVER_BORDER if lit else BORDER, false)
-	if has_focus():
-		draw_rect(box.grow(-1.5), Color(HOVER_BORDER, 0.5), false)
+	PotionData.draw_slot_box(self, box)
 	var center := size / 2.0
 	if locked:
 		PotionData.draw_lock_icon(self, center + Vector2(0, 1), BORDER.lightened(0.4))

@@ -115,7 +115,7 @@ func return_ingredient(kind: StringName) -> void:
 
 ## What these table ingredients brew into, ignoring order and empty entries:
 ## {potion, amount}. A table holding k copies of a recipe makes k potions, so
-## 3 Frost Shards make 3 Freeze potions. Any other mix makes one Death
+## 3 Ice Chunks make 3 Freeze potions. Any other mix makes one Death
 ## potion, except one of every ingredient: that is the secret recipe, which
 ## can't be brewed yet (PotionData.SECRET, amount 0). Empty table: empty potion.
 func match_recipe(kinds: Array) -> Dictionary:

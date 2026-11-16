@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://ddxyoskuyx8fl" path="res://scripts/puzzle/exit_door.gd" id="6_exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="7_slime"]
 [ext_resource type="Script" uid="uid://bfk1ff0h8ik6e" path="res://scripts/puzzle/throw_hint.gd" id="8_hint"]
+[ext_resource type="Script" path="res://scripts/puzzle/pebble.gd" id="pebble"]
 
 [node name="Tutorial2" unique_id=759354436 instance=ExtResource("1_base")]
 stage_id = "1-2"
@@ -60,16 +61,14 @@ position = Vector2(730, 192)
 script = ExtResource("6_exit")
 
 [node name="WallStopTop" type="StaticBody2D" parent="Level" index="7" unique_id=538101714]
-texture_repeat = 2
-position = Vector2(252, 30)
-script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 12, 0, 12, 4, 0, 4)
+position = Vector2(264, 32)
+rotation = -1.5707964
+script = ExtResource("pebble")
 
 [node name="WallStopBottom" type="StaticBody2D" parent="Level" index="8" unique_id=995053618]
-texture_repeat = 2
-position = Vector2(252, 100)
-script = ExtResource("2_solid")
-points = PackedVector2Array(0, 0, 12, 0, 12, 4, 0, 4)
+position = Vector2(264, 102)
+rotation = -1.5707964
+script = ExtResource("pebble")
 
 [node name="FeatherChest" type="Area2D" parent="Level" index="9" unique_id=1523282242]
 position = Vector2(350, 192)

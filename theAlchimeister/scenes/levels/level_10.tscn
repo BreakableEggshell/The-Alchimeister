@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/puzzle/pressure_plate.gd" id="plate"]
 [ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+[ext_resource type="Script" path="res://scripts/puzzle/pebble.gd" id="pebble"]
 
 [node name="Level10" instance=ExtResource("base")]
 stage_id = "10"
@@ -54,9 +55,8 @@ size = Vector2(12, 36)
 ghostable = true
 
 [node name="Curb2" type="StaticBody2D" parent="Level"]
-position = Vector2(356, 184)
-script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 8, 0, 8, 8, 0, 8)
+position = Vector2(360, 192)
+script = ExtResource("pebble")
 
 [node name="ChamberPlate" type="Area2D" parent="Level"]
 position = Vector2(386, 192)
@@ -85,14 +85,12 @@ size = Vector2(12, 36)
 ghostable = true
 
 [node name="Curb4" type="StaticBody2D" parent="Level"]
-position = Vector2(646, 184)
-script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 8, 0, 8, 8, 0, 8)
+position = Vector2(650, 192)
+script = ExtResource("pebble")
 
 [node name="Curb5" type="StaticBody2D" parent="Level"]
-position = Vector2(812, 184)
-script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 8, 0, 8, 8, 0, 8)
+position = Vector2(816, 192)
+script = ExtResource("pebble")
 
 [node name="Exit" type="Area2D" parent="Level"]
 position = Vector2(860, 192)

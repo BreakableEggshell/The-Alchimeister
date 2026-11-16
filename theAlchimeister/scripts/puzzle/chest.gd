@@ -12,6 +12,11 @@ extends Area2D
 signal opened
 
 const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
+## Closed and open, side by side, 16 x 19 each, standing on their bottom edge.
+const SHEET := preload("res://assets/sprites/props/chest.png")
+## How far above the floor the "[E]Open" tag's bottom edge sits.
+const PROMPT_RISE := 45.0
+const FRAME_SIZE := Vector2(16, 19)
 const OUTLINE := Color.WHITE
 const SPARKLE := Color(1, 0.95, 0.65)
 ## Where each sparkle twinkles, relative to the origin, and when in the cycle.
@@ -115,7 +120,7 @@ func _on_body_moved(body: Node, entered: bool) -> void:
 		_prompt.visible = entered and not _opened
 
 
-## A small "[E]Open" tag sitting just above the lid. It's a button so it can
+## A small "[E]Open" tag up above the chest, clear of the knight's head. It's a button so it can
 ## be tapped on touch screens.
 func _make_prompt() -> Button:
 	var prompt := Button.new()
@@ -131,8 +136,8 @@ func _make_prompt() -> Button:
 	style.set_border_width_all(1)
 	style.content_margin_left = 2
 	style.content_margin_right = 2
-	style.content_margin_top = 1
-	style.content_margin_bottom = 1
+	style.content_margin_top = 3
+	style.content_margin_bottom = 3
 	prompt.add_theme_stylebox_override("normal", style)
 	var hover := style.duplicate()
 	hover.bg_color = Color(0.3, 0.25, 0.45, 0.95)
@@ -143,7 +148,7 @@ func _make_prompt() -> Button:
 	return prompt
 
 
-## Shrinks the prompt to its text and centres it just above the lid. Runs once
+## Shrinks the prompt to its text and centres it PROMPT_RISE above the floor. Runs once
 ## it's in the tree, when its small font is actually in effect.
 func _prompt_text() -> String:
 	return "[%s]Open" % Controls.key_name(&"interact")
@@ -156,7 +161,7 @@ func _label_prompt() -> void:
 
 func _place_prompt() -> void:
 	_prompt.size = Vector2.ZERO
-	_prompt.position = Vector2(-roundf(_prompt.size.x / 2.0), -14.0 - _prompt.size.y)
+	_prompt.position = Vector2(-roundf(_prompt.size.x / 2.0), -PROMPT_RISE - _prompt.size.y)
 
 
 ## Shows an ingredient rising out of the chest and fading.
@@ -172,19 +177,9 @@ func _float_icon(kind: StringName, x: float) -> void:
 
 
 func _draw() -> void:
-	var wood := Color(0.55, 0.33, 0.18)
-	var band := Color(0.95, 0.8, 0.35)
-	draw_rect(Rect2(-8, -8, 16, 8), wood)
-	draw_rect(Rect2(-8, -8, 16, 1), band)
-	if _opened:
-		draw_rect(Rect2(-8, -14, 16, 3), wood.darkened(0.2))
-		draw_rect(Rect2(-6, -9, 12, 1), Color(1, 0.95, 0.6, 0.8))
-		draw_rect(Rect2(-8.5, -14.5, 17, 3), OUTLINE, false)
-		draw_rect(Rect2(-8.5, -8.5, 17, 8.5), OUTLINE, false)
-	else:
-		draw_rect(Rect2(-8, -12, 16, 4), wood.lightened(0.1))
-		draw_rect(Rect2(-1, -10, 2, 3), band)
-		draw_rect(Rect2(-8.5, -12.5, 17, 12.5), OUTLINE, false)
+	var frame := Rect2(Vector2(FRAME_SIZE.x if _opened else 0.0, 0), FRAME_SIZE)
+	draw_texture_rect_region(SHEET, Rect2(Vector2(-FRAME_SIZE.x / 2.0, -FRAME_SIZE.y), FRAME_SIZE), frame)
+	if not _opened:
 		_draw_sparkles()
 
 
