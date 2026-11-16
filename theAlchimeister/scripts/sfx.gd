@@ -6,6 +6,8 @@ extends RefCounted
 const KNOCKBACK := preload("res://assets/audio/sfx/knockback.wav")
 const PICKUP := preload("res://assets/audio/sfx/pickup.wav")
 const POTION_BREW := preload("res://assets/audio/sfx/potion_brew.wav")
+## The first 3.5 seconds of "Small Audience Chatter Talking", faded out at the end.
+const AUDIENCE_CHATTER := preload("res://assets/audio/sfx/audience_chatter.wav")
 
 
 ## Plays `stream` once. With `at`, it sounds from that spot in the world

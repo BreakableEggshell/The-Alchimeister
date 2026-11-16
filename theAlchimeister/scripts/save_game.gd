@@ -9,6 +9,8 @@ signal controls_changed
 
 const START_MENU := "res://scenes/menu/start_menu.tscn"
 const LEVEL_SELECT := "res://scenes/menu/level_select.tscn"
+## Played after START, before the first level.
+const INTRO_COMIC := "res://scenes/menu/intro_comic.tscn"
 ## The levels, on four maps (`map`: which one). The first two levels have
 ## stages; the rest are a single stage each (picked straight from level
 ## select). A level with no stages is always locked. Stage ids are only names:

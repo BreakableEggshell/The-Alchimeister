@@ -201,7 +201,7 @@ func focus_first() -> bool:
 	return true
 
 
-## START: blink, slide away, then the first level opens from black.
+## START: blink, slide away, then the intro comic, then the first level.
 func _start_new_run() -> void:
 	if _leaving:
 		return
@@ -213,8 +213,8 @@ func _start_new_run() -> void:
 	PUZZLE_LEVEL._hints_heard.clear()
 	PUZZLE_LEVEL._hint_taken_at.clear()
 	CHEST.forget_heard()
-	# Straight in under the black: the level opens with its own iris.
-	get_tree().change_scene_to_file(SaveGame.STAGE_SCENES[SaveGame.FIRST_STAGE])
+	# Under the black, the intro comic, which then opens the first level.
+	get_tree().change_scene_to_file(SaveGame.INTRO_COMIC)
 
 
 ## CONTINUE: slide away, then the level select.
