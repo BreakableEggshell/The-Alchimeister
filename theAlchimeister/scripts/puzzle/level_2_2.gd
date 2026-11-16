@@ -4,15 +4,13 @@ extends "res://scripts/puzzle/puzzle_level.gd"
 ## washes the effect off before two more guards, so the second potion has to
 ## go on yourself too. Sheldon drops hints:
 ## - running out of translucent potions without ever turning translucent
-##   yourself gets a nudge (blunt from the 7th attempt on);
-## - from the 3rd attempt, a wink at the start (not when the hint reminder
-##   plays instead).
+##   yourself gets a nudge (blunt from the 7th attempt on).
+## (The "Who says potions are only for throwing at monsters?" wink is part of
+## its HINT now.)
 
 const RUN_OUT_LINE := "SHELDON (squint): Darn, we don't have that much potions. If only we can be translucent ourselves."
-const WINK_LINE := "SHELDON (squint): Who says potions are only for throwing at monsters? *Wink* *Wink*"
 const BLUNT_LINE := "SHELDON (glasses): Throw. The. Translucent. Potion. To. Your. Feet."
-## Attempts (restarts) before each hint kicks in.
-const WINK_AFTER_RESTARTS := 2
+## Attempts (restarts) before the run-out nudge turns blunt.
 const BLUNT_AFTER_RESTARTS := 6
 ## Seconds to let the last potion land before deciding it was wasted.
 const RUN_OUT_DELAY := 1.2
@@ -25,13 +23,6 @@ var _run_out_shown := false
 func _ready() -> void:
 	super()
 	inventory.changed.connect(_check_run_out)
-
-
-func _on_stage_start(attempt: int) -> void:
-	if attempt == 0:
-		super(attempt)
-	elif attempt >= WINK_AFTER_RESTARTS and attempt < BLUNT_AFTER_RESTARTS and not is_nudge_attempt(attempt):
-		hud.dialogue.play(PackedStringArray([WINK_LINE]), &"hint")
 
 
 func _physics_process(_delta: float) -> void:

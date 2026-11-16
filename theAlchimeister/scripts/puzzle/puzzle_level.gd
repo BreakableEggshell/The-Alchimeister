@@ -68,7 +68,7 @@ const HINT_BREAK := "---"
 ## Every this many retries, Sheldon reminds the player about hints.
 const NUDGE_EVERY := 5
 const NUDGE_LINE := "SHELDON: You know, you can always use the hint feature in the notebook."
-const NO_HINT_NUDGE_LINE := "SHELDON (squint): If something doesn't work, why not try another way?"
+const NO_HINT_NUDGE_LINE := "SHELDON: If something doesn't work, why not try another way?"
 const HINT_COST_ONE := "YOU WON'T BE ABLE TO USE HINTS ON THE NEXT LEVEL."
 const HINT_COST_MANY := "YOU WON'T BE ABLE TO USE HINTS ON THE NEXT %d LEVELS."
 ## Seconds between checks for being stuck without potions.
