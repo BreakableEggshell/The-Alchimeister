@@ -25,6 +25,19 @@ var _burn_left := 0.0
 var _freeze_left := 0.0
 var _flames: CPUParticles2D
 var _dead := false
+## The death: knight_death.png's frames (48 px squares), its white and magenta
+## recoloured by GameOver.FADE_COLORS.
+const DEATH_SHEET := preload("res://assets/sprites/characters/knight_death.png")
+const DEATH_SHADER := preload("res://scripts/puzzle/knight_death.gdshader")
+const DEATH_FRAMES := 11
+## Knocked back by what killed him (see die): how hard (across, up), the
+## least time in the air, and the most before the death plays anyway.
+const DEATH_KNOCK := Vector2(110, 150)
+const DEATH_MIN_FLIGHT := 0.12
+const DEATH_KNOCK_TIME := 0.7
+var _death_cause: StringName
+var _knocked_left := 0.0
+const DEATH_FPS := 11.0
 var _talking := false
 const FLOAT_TEXT_TIME := 0.5
 ## Death messages last through the iris closing.
@@ -110,18 +123,69 @@ func clear_potion_effects() -> void:
 		float_text("[EFFECTS CLEARED]", Color(0.55, 0.85, 1.0))
 
 
-func die(cause: StringName = GameOver.CAUGHT) -> void:
+## Dies of `cause`. With `from` (where the hit came from: the slime, the
+## blast), he's first knocked back away from it, flashing red, and the death
+## animation plays once he lands.
+func die(cause: StringName = GameOver.CAUGHT, from = null) -> void:
 	if _dead:
 		return
 	_dead = true
 	if _flames:
 		_flames.emitting = false
+	if _ice:
+		_ice.hide()
+	_death_cause = cause
+	if from is Vector2:
+		var side := signf(global_position.x - from.x)
+		velocity = Vector2((side if side != 0.0 else 1.0) * DEATH_KNOCK.x, -DEATH_KNOCK.y)
+		_knocked_left = DEATH_KNOCK_TIME
+		_sprite.modulate = Color(1.0, 0.35, 0.35)
+		return
 	set_physics_process(false)
-	_sprite.modulate = Color(1.0, 0.35, 0.35)
-	if GameOver.TEXT.has(cause):
-		_show_float(GameOver.TEXT[cause], GameOver.TEXT_COLOR, DEATH_TEXT_TIME, SKULL_ROWS[0].length() + SKULL_GAP)
+	_finish_dying()
+
+
+## The fade, the death text, and the stage told.
+func _finish_dying() -> void:
+	velocity = Vector2.ZERO
+	set_physics_process(false)
+	var colors: Array = GameOver.FADE_COLORS.get(_death_cause, GameOver.FADE_COLORS[GameOver.CRUSHED])
+	_play_death(colors[0], colors[1])
+	if GameOver.TEXT.has(_death_cause):
+		_show_float(GameOver.TEXT[_death_cause], GameOver.TEXT_COLOR, DEATH_TEXT_TIME, SKULL_ROWS[0].length() + SKULL_GAP)
 		_show_skull()
-	died.emit(cause)
+	died.emit(_death_cause)
+
+
+## Flying back from the hit: falls, slows along the ground, and once he's
+## landed (or after DEATH_KNOCK_TIME) the death plays.
+func _fly_dead(delta: float) -> void:
+	_knocked_left -= delta
+	velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
+	if is_on_floor() and velocity.y >= 0.0:
+		velocity.x = move_toward(velocity.x, 0.0, friction * delta)
+	move_and_slide()
+	var landed := is_on_floor() and _knocked_left < DEATH_KNOCK_TIME - DEATH_MIN_FLIGHT
+	if landed or _knocked_left <= 0.0:
+		_finish_dying()
+
+
+## knight_death.png: he crumbles and fades away in `base` and `accent`.
+func _play_death(base: Color, accent: Color) -> void:
+	var flipped := _sprite.flip_h
+	_sprite.texture = DEATH_SHEET
+	_sprite.hframes = DEATH_FRAMES
+	_sprite.vframes = 1
+	_sprite.frame = 0
+	_sprite.flip_h = flipped
+	_sprite.modulate = Color.WHITE
+	var material := ShaderMaterial.new()
+	material.shader = DEATH_SHADER
+	material.set_shader_parameter("base", base)
+	material.set_shader_parameter("accent", accent)
+	_sprite.material = material
+	var fade := create_tween()
+	fade.tween_property(_sprite, "frame", DEATH_FRAMES - 1, (DEATH_FRAMES - 1) / DEATH_FPS).from(0)
 
 
 ## Shows `text` just above the head; it drifts up and fades out.
@@ -280,6 +344,9 @@ func _draw_chat_icon() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _dead:
+		_fly_dead(delta)
+		return
 	if _held_by_dialogue:
 		velocity.x = 0.0
 		if not is_on_floor():

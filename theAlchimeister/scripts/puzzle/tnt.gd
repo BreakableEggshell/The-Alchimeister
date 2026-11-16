@@ -304,7 +304,7 @@ func _catch_everything() -> void:
 			thing.blast()
 		elif thing.has_method("die"):
 			if hurts_knight:
-				thing.die(GameOver.BLOWN_UP)
+				thing.die(GameOver.BLOWN_UP, global_position + CRATE.get_center())
 		elif thing is Node and thing.is_in_group("enemies"):
 			thing.apply_potion(PotionData.DEATH, global_position)
 	# Planks are one-way, which shape queries don't see.
