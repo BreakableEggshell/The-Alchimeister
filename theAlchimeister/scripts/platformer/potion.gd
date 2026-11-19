@@ -76,6 +76,7 @@ func _physics_process(delta: float) -> void:
 	velocity = result.velocity
 	if result.has("bounced"):
 		result.bounced.wobble()
+		Sfx.play(Sfx.JELLY_BOUNCE, self, global_position)
 		_bounced_off(result.bounced)
 	rotation += spin_speed * delta * signf(velocity.x)
 	if result.hit:
@@ -135,8 +136,13 @@ func _shatter(normal: Vector2) -> void:
 func _apply_splash() -> void:
 	if kind == &"":
 		return
-	if kind == PotionData.KNOCKBACK:
-		Sfx.play(Sfx.KNOCKBACK, self, global_position)
+	match kind:
+		PotionData.KNOCKBACK:
+			Sfx.play(Sfx.KNOCKBACK, self, global_position)
+		PotionData.FIRE:
+			Sfx.play(Sfx.POTION_FIRE, self, global_position)
+		PotionData.DEATH:
+			Sfx.play(Sfx.POTION_DEATH, self, global_position)
 	var circle := CircleShape2D.new()
 	circle.radius = PotionData.SPLASH_RADIUS
 	var query := PhysicsShapeQueryParameters2D.new()

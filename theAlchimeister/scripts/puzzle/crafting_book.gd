@@ -49,6 +49,8 @@ signal hint_requested
 signal restart_requested
 ## The player asked for the main menu (from the pause menu).
 signal main_menu_requested
+## The player asked for the level select (from the pause menu).
+signal levels_requested
 
 const BOOK_SIZE := Vector2(360, 186)
 const PAGE_SIZE := Vector2(174, 176)
@@ -70,7 +72,7 @@ const COUNTS_Y := 88.0
 const STORAGE_AT := Vector2(16, 100)
 ## Gap between the top buttons and the book.
 const BUTTONS_GAP := 2.0
-const PAGE_ARROW_SIZE := Vector2(12, 14)
+const PAGE_ARROW_SIZE := Vector2(18, 20)
 const CHECKLIST := ["Meet the Demon Lord", "Use ??? potion on the Demon Lord", "Remove the curse"]
 const CHECKLIST_TOP := 26.0
 const CHECKLIST_SPACING := 30.0
@@ -92,8 +94,8 @@ const POSTER_INK := Color(0.45, 0.1, 0.08)
 ## Seconds a note above the buttons stays up.
 const NOTE_TIME := 2.0
 ## The effects spread: first entry's top, and each entry's height.
-const EFFECTS_TOP := 22.0
-const EFFECT_HEIGHT := 26.0
+const EFFECTS_TOP := 20.0
+const EFFECT_HEIGHT := 24.0
 ## Gap between the two lines of a wrapped description.
 const EFFECT_LINE := 8.0
 ## Effect descriptions are a touch smaller than the names above them. Scaled
@@ -140,20 +142,24 @@ const PAGE_COLOR := Color8(255, 244, 205)
 ## BOOK_SIZE as a nine-patch (one per page) so its corners, cover edges and the
 ## dips at the spine stay pixel for pixel, at the same scale as the text.
 const NOTEBOOK := preload("res://assets/notebook.png")
-## Each page's part of the art, and how much of each edge stays unstretched:
+## Each page's part of the art, and how much of each edge stays unstretched
+## (all of every corner and cover edge: only the plain straight middle
+## stretches):
 ## [region, left, top, right, bottom].
 const NOTEBOOK_PAGES := [
-	[Rect2(0, 0, 40, 58), 8, 7, 9, 10],
-	[Rect2(40, 0, 39, 58), 8, 7, 8, 10],
+	[Rect2(0, 0, 40, 86), 14, 23, 10, 21],
+	[Rect2(40, 0, 39, 86), 9, 23, 14, 21],
 ]
-## notebook.png's other two frames (79 x 58 each, beside the book) show the
-## same book with its page-turn tabs and with its closing bookmark: these are
+## notebook.png's other two frames (79 x 86 each, beside the book): the same
+## book with its page-turn tabs, and the closing ribbon on its own. These are
 ## those parts, drawn 1:1 as the buttons, as far from the book's edges as in
-## the art (so they stay in its corners however wide it's drawn).
+## the art (so they stay in its corners however wide it's drawn). The ribbon
+## lies on top of whatever's on the page.
 const NOTEBOOK_FRAME := 79.0
-const PREVIOUS_TAB := Rect2(79 + 7, 37, 12, 14)
-const NEXT_TAB := Rect2(79 + 60, 37, 12, 14)
-const CLOSE_TAB := Rect2(158 + 58, 1, 11, 16)
+const NOTEBOOK_HEIGHT := 86.0
+const PREVIOUS_TAB := Rect2(79 + 7, 59, 18, 20)
+const NEXT_TAB := Rect2(79 + 54, 59, 18, 20)
+const CLOSE_TAB := Rect2(158 + 50, 0, 13, 29)
 ## Hovered or picked with the keys.
 const TAB_LIT := Color(1.2, 1.2, 1.2)
 const INK := Color(0.35, 0.22, 0.14)
@@ -339,11 +345,28 @@ func _close_settings() -> void:
 	_settings_button.grab_focus()
 
 
+## Where a word of the PAUSE MENU title is on screen (0 PAUSE, 1 MENU): on
+## phones, tapping them as the DebugCode's taps (PAUSE left, MENU right, see
+## DebugCode.feed_tap) opens the debug tools, as typing the code does. Clicks
+## work the same on a PC.
+func _gear_title_word(which: int) -> Rect2:
+	var font := _gear_title.get_theme_font("font")
+	var font_size := _gear_title.get_theme_font_size("font_size")
+	var words := _gear_title.text.split(" ")
+	var whole := font.get_string_size(_gear_title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var before := 0.0 if which == 0 else font.get_string_size(words[0] + " ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var width := font.get_string_size(words[which], HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var title := _gear_title.get_global_rect()
+	var left := title.get_center().x - whole / 2.0 + before
+	return Rect2(left, title.position.y, width, title.size.y).grow(2.0)
+
+
 func _input(event: InputEvent) -> void:
 	# Nothing in the book reacts while Sheldon talks over it.
 	if not is_open or not enabled:
 		return
-	if _code.feed(event) and _gear_menu.visible:
+	var tapped := _gear_menu.visible and _code.feed_tap(event, _gear_title_word(0), _gear_title_word(1))
+	if (_code.feed(event) or tapped) and _gear_menu.visible:
 		SaveGame.debug_unlocked = true
 		_refresh_gear_buttons()
 		_open_debug_menu()
@@ -494,7 +517,7 @@ func _on_slot_dropped(target: IngredientSlot, source: IngredientSlot) -> void:
 func _brew() -> void:
 	var result := inventory.match_recipe(_table)
 	var potion: StringName = result.potion
-	if potion == PotionData.SECRET or (potion != &"" and not _recipe_found(potion)):
+	if potion != &"" and not _recipe_found(potion):
 		_flash_status("THE MIX WON'T SETTLE...", Color(INK, 0.8))
 		return
 	if potion == &"":
@@ -515,6 +538,10 @@ func _brew() -> void:
 ## the table goes back first, since it would spoil the mix.
 func _put_recipe_on_table(potion: StringName) -> void:
 	var recipe: Dictionary = inventory.recipes.get(potion, {})
+	if potion == PotionData.SECRET and _recipe_found(potion):
+		# The ??? potion: one of every ingredient.
+		for ingredient in PotionData.INGREDIENTS:
+			recipe[ingredient] = 1
 	if recipe.is_empty():
 		return
 	for ingredient in recipe:
@@ -573,7 +600,7 @@ func _refresh() -> void:
 	var result := inventory.match_recipe(_table)
 	var potion: StringName = result.potion
 	# A lock until the recipe is found, then a "?" until it's first brewed.
-	var locked := potion == PotionData.SECRET or (potion != &"" and not _recipe_found(potion))
+	var locked := potion != &"" and not _recipe_found(potion)
 	var unknown := not locked and potion != &"" and not SaveGame.is_potion_known(potion)
 	_result_slot.show_contents(potion, result.amount, locked, unknown)
 	_book.queue_redraw()
@@ -669,10 +696,12 @@ func _build() -> void:
 	_crafting_nodes.append(_recipe_scroll)
 
 	# The page-turn tabs, in the bottom corners as in the art.
-	var tab_y := BOOK_SIZE.y - (58.0 - NEXT_TAB.position.y)
+	var tab_y := BOOK_SIZE.y - (NOTEBOOK_HEIGHT - NEXT_TAB.position.y)
 	_next_page = _page_arrow(1, Vector2(BOOK_SIZE.x - (NOTEBOOK_FRAME - (NEXT_TAB.position.x - NOTEBOOK_FRAME)), tab_y))
 	_previous_page = _page_arrow(-1, Vector2(PREVIOUS_TAB.position.x - NOTEBOOK_FRAME, tab_y))
 	_checklist = _build_checklist()
+	# The ribbon lies over the pages, whatever's on them.
+	_close_button.move_to_front()
 
 	# Above the book, lined up with its right edge; they slide with it.
 	_buttons = HBoxContainer.new()
@@ -793,7 +822,9 @@ func _build_gear_menu() -> Control:
 	var restart := _page_button("RESTART", _gear_list)
 	restart.pressed.connect(_restart_level)
 	var levels := _page_button("LEVELS", _gear_list)
-	levels.pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
+	levels.pressed.connect(func() -> void:
+		modal.hide()
+		levels_requested.emit())
 	_skip_button = _page_button("SKIP LEVEL", _gear_list)
 	_skip_button.pressed.connect(skip_requested.emit)
 	_settings_button = _page_button("SETTINGS", _gear_list)
@@ -1261,7 +1292,7 @@ func _draw_effects(font: Font) -> void:
 ## One entry: icon, name and a rough duration, and the description underneath, wrapped onto a
 ## second line if it's too wide for the page. Returns the extra height used.
 func _draw_effect(font: Font, kind: StringName, at: Vector2) -> float:
-	var found := kind != PotionData.SECRET and _recipe_found(kind)
+	var found := _recipe_found(kind)
 	var known := kind == CLEANSING_WATER or (found and SaveGame.is_potion_known(kind))
 	var box := Rect2(at, Vector2(14, 14))
 	PotionData.draw_box(_book, box)
@@ -1423,15 +1454,17 @@ func _draw_potion_counts(font: Font) -> void:
 # --- Recipe list
 
 ## Every recipe row in order: {ingredients, potion, known, locked}. Recipes
-## still to be found are left out. The secret recipe comes last, locked.
+## still to be found are left out. The ??? recipe comes last: locked until it's
+## been found (one of every ingredient), then a recipe like the rest.
 func _recipe_entries() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for potion in PotionData.KINDS:
-		if not _recipe_found(potion):
+		if potion == PotionData.SECRET or not _recipe_found(potion):
 			continue
 		var ingredients := _death_preview if potion == PotionData.DEATH else _recipe_ingredients(potion)
 		entries.append({"ingredients": ingredients, "potion": potion, "known": SaveGame.is_potion_known(potion), "locked": false})
-	entries.append({"ingredients": PotionData.INGREDIENTS, "potion": PotionData.SECRET, "known": false, "locked": true})
+	var found := _recipe_found(PotionData.SECRET)
+	entries.append({"ingredients": PotionData.INGREDIENTS, "potion": PotionData.SECRET, "known": found and SaveGame.is_potion_known(PotionData.SECRET), "locked": not found})
 	return entries
 
 

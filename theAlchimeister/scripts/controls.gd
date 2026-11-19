@@ -20,6 +20,7 @@ const REMAPPABLE: Array[Array] = [
 	["POTION 3", &"potion_3"],
 	["POTION 4", &"potion_4"],
 	["POTION 5", &"potion_5"],
+	["POTION 6", &"potion_6"],
 ]
 
 ## Action -> its keys from the project settings, read before any remapping.

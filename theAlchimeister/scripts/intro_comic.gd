@@ -58,6 +58,7 @@ var _sound_fades := {}
 
 func _ready() -> void:
 	add_to_group(UiFocus.SCREENS)
+	Music.play(Music.OPENING)
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var screen := get_viewport_rect().size
@@ -190,6 +191,7 @@ func _finish() -> void:
 	black.modulate.a = 0.0
 	add_child(black)
 	_fade_sounds_now(OUT_TIME)
+	Music.stop(OUT_TIME)
 	var fade := create_tween()
 	fade.tween_property(black, "modulate:a", 1.0, OUT_TIME)
 	await fade.finished

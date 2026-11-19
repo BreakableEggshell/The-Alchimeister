@@ -45,6 +45,7 @@ func _ready() -> void:
 		PotionData.FREEZE: start_freeze,
 		PotionData.TRANSLUCENT: start_translucent,
 		PotionData.DEATH: 0,
+		PotionData.SECRET: 0,
 	}
 	if unlimited:
 		for kind in PotionData.INGREDIENTS:
@@ -116,8 +117,9 @@ func return_ingredient(kind: StringName) -> void:
 ## What these table ingredients brew into, ignoring order and empty entries:
 ## {potion, amount}. A table holding k copies of a recipe makes k potions, so
 ## 3 Ice Chunks make 3 Freeze potions. Any other mix makes one Death
-## potion, except one of every ingredient: that is the secret recipe, which
-## can't be brewed yet (PotionData.SECRET, amount 0). Empty table: empty potion.
+## potion, except one of every ingredient: that is the ??? recipe
+## (PotionData.SECRET), one potion once its recipe has been found and none
+## before. Empty table: empty potion.
 func match_recipe(kinds: Array) -> Dictionary:
 	var tally := {}
 	for kind in kinds:
@@ -133,7 +135,10 @@ func match_recipe(kinds: Array) -> Dictionary:
 			if copies >= 1 and recipe.keys().all(func(ingredient) -> bool: return tally.get(ingredient, 0) == recipe[ingredient] * copies):
 				return {"potion": potion, "amount": copies}
 		if tally.size() == PotionData.INGREDIENTS.size() and PotionData.INGREDIENTS.all(func(ingredient) -> bool: return tally.get(ingredient, 0) == 1):
-			return {"potion": PotionData.SECRET, "amount": 0}
+			# The SaveGame autoload, looked up (this class also loads outside the game).
+			var save: Node = get_node_or_null("/root/SaveGame") if is_inside_tree() else null
+			var found: bool = unlimited or (save != null and save.is_recipe_found(PotionData.SECRET))
+			return {"potion": PotionData.SECRET, "amount": 1 if found else 0}
 		return {"potion": PotionData.DEATH, "amount": 1}
 	return {"potion": &"", "amount": 0}
 

@@ -6,6 +6,15 @@ extends RefCounted
 const KNOCKBACK := preload("res://assets/audio/sfx/knockback.wav")
 const PICKUP := preload("res://assets/audio/sfx/pickup.wav")
 const POTION_BREW := preload("res://assets/audio/sfx/potion_brew.wav")
+## A fire potion's splash, and a Death potion's.
+const POTION_FIRE := preload("res://assets/audio/sfx/potion_fire_sfx.wav")
+const POTION_DEATH := preload("res://assets/audio/sfx/potion_death_sfx.mp3")
+## Anything bouncing off jelly: a potion, or the knight.
+const JELLY_BOUNCE := preload("res://assets/audio/sfx/jelly_bounce_sfx.wav")
+## The knight: jumping, landing from a fall, and dying.
+const KNIGHT_JUMP := preload("res://assets/audio/sfx/knight_jump_sfx.wav")
+const KNIGHT_LAND := preload("res://assets/audio/sfx/knight_land.wav")
+const KNIGHT_DEATH := preload("res://assets/audio/sfx/knight_death_sfx.wav")
 ## The first 3.5 seconds of "Small Audience Chatter Talking", faded out at the end.
 const AUDIENCE_CHATTER := preload("res://assets/audio/sfx/audience_chatter.wav")
 

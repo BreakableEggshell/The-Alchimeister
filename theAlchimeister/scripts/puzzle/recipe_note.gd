@@ -1,7 +1,9 @@
 extends Control
-## A note found in a chest: the Death potion's recipe on a scrap of paper in
-## the middle of the screen, over a dim. Its mix cycles through mixes that
-## would brew it, like the notebook's row. "[TAP TO CLOSE]" comes up after
+## A note found in a chest: a potion's recipe on a scrap of paper in the
+## middle of the screen, over a dim. By default the Death potion's, whose mix
+## cycles through mixes that would brew it, like the notebook's row. Set
+## `potion`, `title`, `text` and `fixed_mix` before adding it for another one
+## (the ??? potion): a fixed mix stays put. "[TAP TO CLOSE]" comes up after
 ## CLOSE_AFTER seconds; from then a click or tap anywhere (or Enter, Space or
 ## the interact key) closes it. Before that, three quick taps (TRIPLE_TAP_TIME)
 ## close it too. Closing slides it down off the screen as the dim fades. Until
@@ -11,12 +13,23 @@ extends Control
 signal closed
 
 const CLOSE_AFTER := 3.0
-const PAPER_SIZE := Vector2(240, 124)
-const PAPER := Color(0.92, 0.86, 0.7)
-const PAPER_EDGE := Color(0.7, 0.6, 0.44)
+const PAPER_SIZE := Vector2(200, 160)
+## The paper: note.png as a 9-slice, the folded top-left corner (13 px) and
+## the edges kept as drawn, only the flat paper stretched.
+const PAPER := preload("res://assets/note.png")
+const PAPER_MARGINS := [13, 13, 2, 2]
+static var _style: StyleBoxTexture
 const INK := Color(0.35, 0.22, 0.14)
 const DIM := Color(0, 0, 0, 0.6)
-const CELL := 16.0
+## The mix drawn as the notebook's brewing table (crafting_book.gd): its
+## slots, the gap between them, the result slot and how far it sits from the
+## table, and the arrow between. MIX_TOP: the table's top on the paper.
+const SLOT := 22.0
+const GAP := 4.0
+const RESULT_SIZE := 26.0
+const RESULT_GAP := 30.0
+const ARROW := preload("res://assets/ui/craft_arrow.png")
+const MIX_TOP := 44.0
 const CYCLE_TIME := 1.0
 const TITLE := "WHEN ALL ELSE FAILS"
 const TEXT := ["ANY MIX THAT", "ISN'T A RECIPE"]
@@ -34,12 +47,21 @@ var _taps: Array[int] = []
 ## Sliding away: 0 in place, 1 gone below the screen (the dim fades with it).
 var _away := 0.0
 var _closing := false
+## What the note is for (see the top).
+var potion := PotionData.DEATH
+var title := TITLE
+var text: Array = TEXT
+## The mix shown, fixed; empty: mixes that brew `potion` cycle (Death's way).
+var fixed_mix: Array[StringName] = []
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if not fixed_mix.is_empty():
+		_mix = fixed_mix
+		return
 	_roll_mix()
 	var cycle := Timer.new()
 	cycle.wait_time = CYCLE_TIME
@@ -132,35 +154,44 @@ func _roll_mix() -> void:
 	_mix = mix
 
 
+static func _paper_style() -> StyleBoxTexture:
+	if not _style:
+		_style = StyleBoxTexture.new()
+		_style.texture = PAPER
+		_style.texture_margin_left = PAPER_MARGINS[0]
+		_style.texture_margin_top = PAPER_MARGINS[1]
+		_style.texture_margin_right = PAPER_MARGINS[2]
+		_style.texture_margin_bottom = PAPER_MARGINS[3]
+	return _style
+
+
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(DIM, DIM.a * (1.0 - clampf(_away, 0.0, 1.0))))
 	var font := get_theme_font("font", "Label")
 	var paper := Rect2(((size - PAPER_SIZE) / 2.0).round(), PAPER_SIZE)
 	# Sliding away: from the middle to just below the bottom edge.
 	paper.position.y += _away * (size.y - paper.position.y + 24.0)
-	# A scrap of paper: an edge, and a folded-down corner.
-	draw_rect(paper.grow(1.0), PAPER_EDGE)
-	draw_rect(paper, PAPER)
-	var corner := paper.position + Vector2(paper.size.x, 0)
-	draw_colored_polygon(PackedVector2Array([corner, corner + Vector2(-12, 0), corner + Vector2(0, 12)]), PAPER_EDGE)
-	draw_colored_polygon(PackedVector2Array([corner + Vector2(-12, 0), corner + Vector2(-12, 12), corner + Vector2(0, 12)]), PAPER.darkened(0.12))
-	draw_string(font, paper.position + Vector2(0, 18), TITLE, HORIZONTAL_ALIGNMENT_CENTER, paper.size.x, 8, INK)
-	draw_line(paper.position + Vector2(20, 24), paper.position + Vector2(paper.size.x - 20, 24), Color(INK, 0.4))
-	# The mix, an arrow, and what it brews.
-	var table := paper.position + Vector2(36, 34)
+	# The scrap of paper: note.png, its folded corner kept whole (9-slice).
+	draw_style_box(_paper_style(), paper)
+	draw_string(font, paper.position + Vector2(0, 24), title, HORIZONTAL_ALIGNMENT_CENTER, paper.size.x, 8, INK)
+	draw_line(paper.position + Vector2(24, 30), paper.position + Vector2(paper.size.x - 24, 30), Color(INK, 0.4))
+	# The mix, the arrow and what it brews: the notebook's brewing table (its
+	# crafting slots and arrow), centred on the paper.
+	var table_size := Vector2(SLOT * 2.0 + GAP, SLOT * 2.0 + GAP)
+	var width := table_size.x + RESULT_GAP + RESULT_SIZE
+	var table := (paper.position + Vector2((paper.size.x - width) / 2.0, MIX_TOP)).round()
 	for i in 4:
-		var cell := Rect2(table + Vector2(i % 2, floori(i / 2.0)) * (CELL + 1.0), Vector2(CELL, CELL))
-		PotionData.draw_box(self, cell)
+		var cell := Rect2(table + Vector2(i % 2, floori(i / 2.0)) * (SLOT + GAP), Vector2(SLOT, SLOT))
+		PotionData.draw_slot_box(self, cell)
 		if i < _mix.size() and _mix[i] != &"":
 			PotionData.draw_ingredient(self, _mix[i], cell.get_center())
-	var mid_y := table.y + CELL + 0.5
-	var from_x := table.x + CELL * 2.0 + 8.0
-	draw_line(Vector2(from_x, mid_y), Vector2(from_x + 22.0, mid_y), INK, 2.0)
-	draw_colored_polygon(PackedVector2Array([Vector2(from_x + 25.0, mid_y), Vector2(from_x + 20.0, mid_y - 4), Vector2(from_x + 20.0, mid_y + 4)]), INK)
-	var result := Rect2(from_x + 32.0, mid_y - 12.0, 24.0, 24.0)
-	PotionData.draw_box(self, result)
-	PotionData.draw_potion(self, PotionData.DEATH, result.get_center())
-	for i in TEXT.size():
-		draw_string(font, paper.position + Vector2(0, 92 + i * 11), TEXT[i], HORIZONTAL_ALIGNMENT_CENTER, paper.size.x, 8, INK)
+	var mid_y := table.y + table_size.y / 2.0
+	var result := Rect2(Vector2(table.x + table_size.x + RESULT_GAP, mid_y - RESULT_SIZE / 2.0).round(), Vector2(RESULT_SIZE, RESULT_SIZE))
+	var arrow_at := Vector2((table.x + table_size.x + result.position.x) / 2.0, mid_y)
+	draw_texture(ARROW, (arrow_at - ARROW.get_size() / 2.0).round())
+	PotionData.draw_slot_box(self, result)
+	PotionData.draw_potion(self, potion, result.get_center() + Vector2(0, 1))
+	for i in text.size():
+		draw_string(font, paper.position + Vector2(0, 118 + i * 11), text[i], HORIZONTAL_ALIGNMENT_CENTER, paper.size.x, 8, INK)
 	if _close_alpha > 0.0:
 		draw_string(font, Vector2(0, paper.end.y + 14), CLOSE_TEXT, HORIZONTAL_ALIGNMENT_CENTER, size.x, 8, Color(1, 1, 1, _close_alpha))

@@ -9,6 +9,8 @@ extends Control
 ## Each cloud also casts a soft shadow that drifts along the grass with it.
 ## The shadows fall only on the picture's grass colours (GRASS_COLORS), so
 ## they pass behind anything standing on it, like the start menu's figures.
+## With `sky_only`, the clouds likewise show only on the sky's colour
+## (SKY_COLORS), so they drift behind the darkness on the later maps.
 
 const BACKGROUND := preload("res://assets/map1.png")
 const CLOUDS := preload("res://assets/map1_clouds.png")
@@ -28,6 +30,8 @@ const CLOUD_LAYOUT: Array[Dictionary] = [
 
 ## The picture's grass, the only thing cloud shadows fall on.
 const GRASS_COLORS: Array[Color] = [Color8(168, 202, 89), Color8(112, 167, 66)]
+## The picture's sky, the only place clouds show with sky_only.
+const SKY_COLORS: Array[Color] = [Color8(143, 211, 255)]
 ## A shadow's colour (its strength is the alpha), how far right of its cloud
 ## it falls, and how flat it is.
 const SHADOW_COLOR := Color(0.12, 0.2, 0.05, 0.28)
@@ -38,8 +42,12 @@ const SHADOW_SQUASH := 0.6
 const SHADOW_TOP := 86.0
 const SHADOW_SPREAD := 1.8
 
-## Each picture's grass mask, made once: grass opaque, everything else clear.
-static var _grass_masks := {}
+## Each picture's masks, made once ([picture, colours] -> mask): those
+## colours opaque, everything else clear.
+static var _masks := {}
+## The masks with nothing in them (a clip by one hides nothing, so what it
+## would clip is left out instead).
+static var _empty_masks := {}
 
 ## What's drawn behind the clouds, stretched over the whole screen.
 @export var picture: Texture2D = BACKGROUND
@@ -48,44 +56,70 @@ static var _grass_masks := {}
 ## With new_heights: how low a cloud's bottom edge can go (where the sky
 ## meets the hills).
 @export var sky_bottom := 46.0
+## Clouds show only on the sky (SKY_COLORS), not over the rest of the picture.
+@export var sky_only := false
 
 ## How far each cloud has drifted from where it starts.
 var drift: Array[float] = []
 ## Draws the grass mask, which clips the shadows drawn by its child.
 var _grass: Control
 var _shadows: Control
+## Draws the clouds; with sky_only, clipped by its parent's sky mask.
+var _clouds: Control
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# A cloud wrapping round is drawn just past an edge too; that mustn't show
+	# on the page beside this one.
+	clip_contents = true
 	for cloud in CLOUD_LAYOUT:
 		drift.append(0.0)
+	var cloud_parent: Control = self
+	if sky_only:
+		var sky := Control.new()
+		sky.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		sky.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+		sky.draw.connect(func() -> void: sky.draw_texture_rect(_mask(SKY_COLORS), Rect2(Vector2.ZERO, size), false))
+		add_child(sky)
+		cloud_parent = sky
+	_clouds = Control.new()
+	_clouds.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_clouds.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_clouds.draw.connect(_draw_clouds)
+	_clouds.visible = not sky_only or not _is_empty(SKY_COLORS)
+	cloud_parent.add_child(_clouds)
 	_grass = Control.new()
 	_grass.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_grass.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_grass.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
-	_grass.draw.connect(func() -> void: _grass.draw_texture_rect(_grass_mask(), Rect2(Vector2.ZERO, size), false))
+	_grass.draw.connect(func() -> void: _grass.draw_texture_rect(_mask(GRASS_COLORS), Rect2(Vector2.ZERO, size), false))
 	add_child(_grass)
 	_shadows = Control.new()
 	_shadows.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_shadows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_shadows.draw.connect(_draw_shadows)
 	_grass.add_child(_shadows)
+	_grass.visible = not _is_empty(GRASS_COLORS)
 
 
 func _process(delta: float) -> void:
 	for i in drift.size():
 		drift[i] += CLOUD_LAYOUT[i].speed * delta
-	queue_redraw()
+	_clouds.queue_redraw()
 	_shadows.queue_redraw()
 
 
-## The map, then each cloud where it has drifted to. Whatever part of a cloud
-## has gone off the right edge is already coming back in on the left. Not
-## rounded to art pixels, so they glide smoothly.
 func _draw() -> void:
 	draw_texture_rect(picture, Rect2(Vector2.ZERO, size), false)
+
+
+## Each cloud where it has drifted to, over the map. Whatever part of a cloud
+## has gone off the right edge is already coming back in on the left. Not
+## rounded to art pixels, so they glide smoothly.
+func _draw_clouds() -> void:
 	var width := size.x
 	for i in CLOUD_LAYOUT.size():
 		var cloud: Dictionary = CLOUD_LAYOUT[i]
@@ -95,8 +129,8 @@ func _draw() -> void:
 		# The copy leaving on the right is this time round; the one coming in
 		# on the left is the next.
 		var lap := floori(travelled / width)
-		draw_texture_rect_region(CLOUDS, Rect2(Vector2(x, _height(i, lap)), region.size), region)
-		draw_texture_rect_region(CLOUDS, Rect2(Vector2(x - width, _height(i, lap + 1)), region.size), region)
+		_clouds.draw_texture_rect_region(CLOUDS, Rect2(Vector2(x, _height(i, lap)), region.size), region)
+		_clouds.draw_texture_rect_region(CLOUDS, Rect2(Vector2(x - width, _height(i, lap + 1)), region.size), region)
 
 
 ## Each cloud's shadow on the grass, drifting with it (clipped to the grass by
@@ -115,24 +149,33 @@ func _draw_shadows() -> void:
 			_shadows.draw_texture_rect_region(CLOUDS, Rect2(Vector2(at[0], y), shadow_size), region, SHADOW_COLOR)
 
 
-## The picture's grass as a mask (see GRASS_COLORS), made the first time it's
-## needed.
-func _grass_mask() -> Texture2D:
-	if _grass_masks.has(picture):
-		return _grass_masks[picture]
+## The picture's `colors` (GRASS_COLORS, SKY_COLORS) as a mask, made the
+## first time it's needed.
+func _mask(colors: Array[Color]) -> Texture2D:
+	var key := [picture, colors]
+	if _masks.has(key):
+		return _masks[key]
 	var source := picture.get_image()
 	source.decompress()
 	var mask := Image.create(source.get_width(), source.get_height(), false, Image.FORMAT_RGBA8)
 	for y in source.get_height():
 		for x in source.get_width():
 			var color := source.get_pixel(x, y)
-			for grass in GRASS_COLORS:
-				if color.is_equal_approx(grass):
+			for wanted in colors:
+				if color.is_equal_approx(wanted):
 					mask.set_pixel(x, y, Color.WHITE)
 					break
 	var texture := ImageTexture.create_from_image(mask)
-	_grass_masks[picture] = texture
+	_masks[key] = texture
+	if mask.is_invisible():
+		_empty_masks[key] = true
 	return texture
+
+
+## Whether the picture has none of `colors`.
+func _is_empty(colors: Array[Color]) -> bool:
+	_mask(colors)
+	return _empty_masks.has([picture, colors])
 
 
 ## Where cloud `i` floats on its `lap`th time across: where CLOUD_LAYOUT puts

@@ -34,6 +34,8 @@ const DEATH_FRAMES := 11
 ## rises; at the top of the hop the death plays where he is.
 const DEATH_KNOCK := Vector2(70, 120)
 var _death_cause: StringName
+## Falling at least this fast (px/s) as he lands plays the landing sound.
+const LAND_SOUND_SPEED := 150.0
 const DEATH_FPS := 11.0
 var _talking := false
 const FLOAT_TEXT_TIME := 0.5
@@ -127,6 +129,7 @@ func die(cause: StringName = GameOver.CAUGHT, from = null) -> void:
 	if _dead:
 		return
 	_dead = true
+	Sfx.play(Sfx.KNIGHT_DEATH, self)
 	if _flames:
 		_flames.emitting = false
 	if _ice:
@@ -377,8 +380,16 @@ func _physics_process(delta: float) -> void:
 ## the jelly's strength, minus a little so bounces die down on green jelly.
 func _slide() -> void:
 	var incoming := velocity
+	var was_on_floor := is_on_floor()
 	move_and_slide()
 	var bounced := false
+	# Landing from a jump or a fall (not stepping off a kerb).
+	if not was_on_floor and is_on_floor() and incoming.y >= LAND_SOUND_SPEED and not _dead:
+		var on_jelly := false
+		for i in get_slide_collision_count():
+			on_jelly = on_jelly or get_slide_collision(i).get_collider() is Jelly
+		if not on_jelly:
+			Sfx.play(Sfx.KNIGHT_LAND, self)
 	for i in get_slide_collision_count():
 		var collision := get_slide_collision(i)
 		if is_burning() and (collision.get_collider() is IcePillar or collision.get_collider() is ElementPlatform):
@@ -397,6 +408,7 @@ func _slide() -> void:
 		# Swap the part of the velocity going into the jelly for the bounce.
 		velocity = incoming + normal * (into + out)
 		jelly.wobble()
+		Sfx.play(Sfx.JELLY_BOUNCE, self)
 		bounced = true
 
 

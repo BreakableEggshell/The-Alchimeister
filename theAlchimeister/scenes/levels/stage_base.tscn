@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="10_dialogue"]
 [ext_resource type="Texture2D" uid="uid://dw1ptbv33huoa" path="res://assets/ui/btn.png" id="11_btn"]
 [ext_resource type="StyleBox" path="res://scenes/ui/selection_style.tres" id="sel_style"]
+[ext_resource type="Script" path="res://scripts/puzzle/touch_controls.gd" id="12_touch"]
 
 [sub_resource type="RectangleShape2D" id="Shape_knight"]
 size = Vector2(12, 28)
@@ -316,3 +317,13 @@ tooltip_text = "RECIPE BOOK (ESC)"
 
 [node name="DialogueBox" parent="HUD/Hud" instance=ExtResource("10_dialogue")]
 layout_mode = 1
+
+[node name="TouchControls" type="Control" parent="HUD/Hud"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("12_touch")
