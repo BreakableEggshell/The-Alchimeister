@@ -24,6 +24,11 @@ extends CharacterBody2D
 ## the ice and the dizzy stars stay put until the effect ends.
 
 const FRAME_COUNT := 4
+## The green slime sheet, and its stunned look (same frames), shown while a
+## knockback has it dazed. Other sheets (the purple flyer) have no stunned
+## version yet, and are tinted instead.
+const SHEET := preload("res://assets/sprites/characters/slime.png")
+const STUN_SHEET := preload("res://assets/sprites/characters/slime_stun.png")
 ## How far ahead of its middle it checks for walls and ledges (half its width,
 ## plus a little), and the height of its middle.
 const LOOK_AHEAD := 8.0
@@ -67,6 +72,14 @@ const WING_EDGE := Color(0.08, 0.05, 0.1)
 ## Flyers only: how far either side of where it starts it patrols. 0 turns
 ## only at walls.
 @export var patrol_range := 0.0
+## Its look while frozen (one frame), shown inside the ice box. Empty: the
+## normal sprite, tinted icy, inside the ice box.
+@export var frozen_texture: Texture2D
+## Flyers only: bat wings drawn either side. Off for art with its own wings
+## (the fly bush).
+@export var drawn_wings := true
+## The art faces left (the fly bush), so it's flipped when going right.
+@export var faces_left := false
 ## Size of the box potions shatter on, centred over the slime. Bigger than its
 ## body so throws that clip the sprite count as hits.
 @export var potion_hitbox_size := Vector2(20, 18)
@@ -82,6 +95,8 @@ var _stun_left := 0.0
 var _dead := false
 var _dropped := false
 var _anim_clock := 0.0
+## The sprite's own sheet, for coming back from frozen_texture.
+var _base_texture: Texture2D
 var _blink_phase := 0.0
 ## False during the "off" half of a warning blink.
 var _blink_on := true
@@ -265,18 +280,34 @@ func _hurt_overlapping_player() -> void:
 
 func _animate(delta: float) -> void:
 	_anim_clock += delta
-	if not is_frozen():
-		_sprite.frame = int(_anim_clock * anim_fps) % FRAME_COUNT
+	if not _base_texture:
+		_base_texture = _sprite.texture
+	_update_blink(delta)
+	# Its frozen look, held, blinking back to normal only as the freeze is
+	# about to wear off (HURRY_TIME).
+	var frozen_art := frozen_texture != null and _shows(_freeze_left, HURRY_TIME)
+	if frozen_art:
+		_sprite.texture = frozen_texture
+		_sprite.hframes = 1
+		_sprite.frame = 0
+	else:
+		if _sprite.texture == frozen_texture:
+			_sprite.texture = _base_texture
+			_sprite.hframes = FRAME_COUNT
+		if _base_texture == SHEET:
+			_sprite.texture = STUN_SHEET if is_stunned() else SHEET
+		if not is_frozen():
+			_sprite.frame = int(_anim_clock * anim_fps) % FRAME_COUNT
+	var stun_art := _base_texture == SHEET
 	# Facing the way it moves. On a wall it's turned a quarter, so its front
 	# points up a wall on its right (wall_side 1) and down one on its left.
-	_sprite.flip_h = _direction == wall_side if on_wall else _direction < 0
-	_update_blink(delta)
+	_sprite.flip_h = _direction == wall_side if on_wall else (_direction > 0 if faces_left else _direction < 0)
 	var tint := Color.WHITE
-	if _shows(_freeze_left, PotionData.FREEZE_TIME):
+	if _shows(_freeze_left, PotionData.FREEZE_TIME) and not frozen_art:
 		tint = Color(0.6, 0.85, 1.4)
 	elif is_burning():
 		tint = Color(1.5, 0.75, 0.45) if int(_anim_clock * 12.0) % 2 == 0 else Color(1.3, 0.5, 0.3)
-	elif _shows(_stun_left, PotionData.STUN_TIME):
+	elif _shows(_stun_left, PotionData.STUN_TIME) and not stun_art:
 		tint = Color(1.15, 1.1, 0.75)
 	tint.a = 1.0
 	if _shows(_stun_left, PotionData.STUN_TIME):
@@ -318,10 +349,11 @@ func _shows(left: float, warn := WARN_TIME) -> bool:
 func _draw() -> void:
 	if _dead:
 		return
-	if flying and not is_frozen():
+	if flying and drawn_wings and not is_frozen():
 		_draw_wings()
 	if is_frozen():
-		var ice := Rect2(-9, -14, 18, 14)
+		# The ice cube, round the frozen art too (the fly bush is wider).
+		var ice := Rect2(-16, -17, 32, 17) if frozen_texture else Rect2(-9, -14, 18, 14)
 		draw_rect(ice, Color(0.6, 0.9, 1.0, 0.3))
 		draw_rect(ice, Color(0.8, 0.95, 1.0, 0.8), false)
 	if is_stunned():
