@@ -18,7 +18,7 @@ const PUZZLE_LEVEL := preload("res://scripts/puzzle/puzzle_level.gd")
 const CHEST := preload("res://scripts/puzzle/chest.gd")
 const NAME_PROMPT := preload("res://scripts/puzzle/name_prompt.gd")
 const BACKGROUND := preload("res://assets/startmenu_bg.png")
-const BUTTON_ART := preload("res://assets/btn.png")
+const BUTTON_ART := preload("res://assets/ui/btn.png")
 ## The menu's buttons are btn.png scaled up whole by this much (not stretched
 ## to some other shape), so its pixels stay square.
 const MENU_BUTTON_SCALE := 2.0
