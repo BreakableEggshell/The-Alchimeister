@@ -275,7 +275,9 @@ func show_end_buttons(has_next: bool, next_label := "NEXT STAGE") -> void:
 	if _banner_sub.visible:
 		_end_buttons.position.y = _banner_sub.get_rect().end.y + 2.0
 	_end_buttons.show()
+	# NEXT first; the first key press shows it there (see UiFocus.hide_mark).
 	(_next_button if has_next else _levels_button).grab_focus()
+	UiFocus.hide_mark()
 
 
 ## See UiFocus.

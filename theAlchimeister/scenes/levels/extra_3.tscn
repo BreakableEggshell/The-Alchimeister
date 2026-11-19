@@ -1,0 +1,172 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/pebble.gd" id="pebble"]
+[ext_resource type="Script" path="res://scripts/puzzle/wooden_platform.gd" id="crystal"]
+[ext_resource type="Script" path="res://scripts/puzzle/castle_door.gd" id="door"]
+[ext_resource type="Script" path="res://scripts/puzzle/tnt.gd" id="tnt"]
+[ext_resource type="Script" path="res://scripts/puzzle/rope.gd" id="rope"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+
+[node name="Extra3" instance=ExtResource("base")]
+stage_id = "X3"
+stage_size = Vector2(1200, 216)
+intro_lines = PackedStringArray("SHELDON (squint): Ghost gates, crystal floors, slimes everywhere. This place is half a haunted house.", "SHELDON (glasses): Translucent potions, then. And think about what else the splash lands on.")
+hint_lines = PackedStringArray("SHELDON: One splash can turn the gate <<and>> you see-through, if you're standing close enough.", "---", "SHELDON (squint): That door's down below the crystal. Crystal goes see-through too.", "---", "SHELDON (glasses): Potions fly right through a ghost gate. Fire on the far end of that fuse, then wait clear of the red box.", "---", "SHELDON: A crystal bridge drops whatever's standing on it. Slimes included.")
+potions_needed_until_x = 1100.0
+
+[node name="Knight" parent="."]
+position = Vector2(24, 150)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="FloorA" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 150)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 380, 0, 380, 66, 0, 66)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(60, 150)
+script = ExtResource("chest")
+contents = "ghost_wisp"
+amount = 2
+extra_contents = "ember"
+
+[node name="GhostWall" type="StaticBody2D" parent="Level"]
+position = Vector2(150, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 106, 0, 106)
+
+[node name="GhostGate" type="StaticBody2D" parent="Level"]
+position = Vector2(150, 106)
+script = ExtResource("gate")
+size = Vector2(12, 44)
+ghostable = true
+
+[node name="Curb" type="StaticBody2D" parent="Level"]
+position = Vector2(178, 150)
+script = ExtResource("pebble")
+
+[node name="Curb2" type="StaticBody2D" parent="Level"]
+position = Vector2(352, 150)
+script = ExtResource("pebble")
+
+[node name="Crystal" type="StaticBody2D" parent="Level"]
+position = Vector2(380, 150)
+script = ExtResource("crystal")
+points = PackedVector2Array(0, 0, 140, 0, 140, 6, 0, 6)
+
+[node name="ChamberFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(380, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 140, 0, 140, 24, 0, 24)
+
+[node name="ChamberWall" type="StaticBody2D" parent="Level"]
+position = Vector2(520, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 216, 0, 216)
+
+[node name="BlueA" type="Area2D" parent="Level" node_paths=PackedStringArray("target")]
+position = Vector2(470, 192)
+script = ExtResource("door")
+target = NodePath("../BlueB")
+color = Color(0.35, 0.55, 1, 1)
+
+[node name="FloorB" type="StaticBody2D" parent="Level"]
+position = Vector2(532, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 428, 0, 428, 24, 0, 24)
+
+[node name="BlueB" type="Area2D" parent="Level" node_paths=PackedStringArray("target")]
+position = Vector2(566, 192)
+script = ExtResource("door")
+target = NodePath("../BlueA")
+color = Color(0.35, 0.55, 1, 1)
+
+[node name="Chest2" type="Area2D" parent="Level"]
+position = Vector2(620, 192)
+script = ExtResource("chest")
+contents = "ghost_wisp"
+amount = 3
+
+[node name="GhostWall2" type="StaticBody2D" parent="Level"]
+position = Vector2(700, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 148, 0, 148)
+
+[node name="GhostGate2" type="StaticBody2D" parent="Level"]
+position = Vector2(700, 148)
+script = ExtResource("gate")
+size = Vector2(12, 44)
+ghostable = true
+
+[node name="Tnt" type="Area2D" parent="Level"]
+position = Vector2(800, 192)
+script = ExtResource("tnt")
+fuse = PackedVector2Array(-12, -3, -76, -3)
+blast_area = Rect2(-32, -132, 132, 140)
+
+[node name="RopeWall" type="StaticBody2D" parent="Level"]
+position = Vector2(880, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 148, 0, 148)
+
+[node name="Rope" type="Area2D" parent="Level"]
+position = Vector2(898, 104)
+script = ExtResource("rope")
+
+[node name="RopeGate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("ropes")]
+position = Vector2(880, 148)
+script = ExtResource("gate")
+size = Vector2(12, 44)
+ropes = [NodePath("../Rope")]
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(960, 212)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 120, 0, 120, 4, 0, 4)
+
+[node name="Bridge" type="StaticBody2D" parent="Level"]
+position = Vector2(960, 192)
+script = ExtResource("crystal")
+points = PackedVector2Array(0, 0, 120, 0, 120, 6, 0, 6)
+
+[node name="BridgeCurb" type="StaticBody2D" parent="Level"]
+position = Vector2(968, 192)
+script = ExtResource("pebble")
+
+[node name="BridgeCurb2" type="StaticBody2D" parent="Level"]
+position = Vector2(1072, 192)
+script = ExtResource("pebble")
+
+[node name="FloorC" type="StaticBody2D" parent="Level"]
+position = Vector2(1080, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 120, 0, 120, 24, 0, 24)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(1170, 192)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="WallSlime" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(162.5, 60)
+speed = 25.0
+on_wall = true
+wall_side = -1
+
+[node name="Guard" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(230, 150)
+
+[node name="Guard2" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(310, 150)
+speed = 40.0
+start_direction = -1
+
+[node name="BridgeSlime" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(1020, 192)

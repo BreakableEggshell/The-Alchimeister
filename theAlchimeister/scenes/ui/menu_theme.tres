@@ -1,7 +1,7 @@
 [gd_resource type="Theme" format=3 uid="uid://bxf1h7w00v5rm"]
 
 [ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/fonts/PixelOperator8.ttf" id="1_font"]
-[ext_resource type="Texture2D" uid="uid://dw1ptbv33huoa" path="res://assets/btn.png" id="2_btn"]
+[ext_resource type="Texture2D" uid="uid://dw1ptbv33huoa" path="res://assets/ui/btn.png" id="2_btn"]
 [ext_resource type="StyleBox" path="res://scenes/ui/selection_style.tres" id="sel_style"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBox_disabled"]

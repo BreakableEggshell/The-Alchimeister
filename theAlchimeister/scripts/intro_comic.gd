@@ -17,6 +17,13 @@ const PANELS: Array[Texture2D] = [
 const BACKGROUND := Color.BLACK
 ## Sounds as panels come in: panel number (from 1) -> sound.
 const PANEL_SOUNDS := {1: Sfx.AUDIENCE_CHATTER}
+## Those sounds fade out gradually: starting this many seconds in, over this
+## long (the chatter is 3.5 s), down to SOUND_FADE_DB, evenly in dB so it
+## sounds steady all the way down rather than holding and then dropping.
+## Leaving the comic early fades them out with the picture (OUT_TIME).
+const SOUND_FADE_FROM := 0.8
+const SOUND_FADE_TIME := 2.7
+const SOUND_FADE_DB := -40.0
 ## Seconds of black before the first panel comes in.
 const START_PAUSE := 0.9
 ## Seconds from one panel coming in to the next, if nothing is tapped.
@@ -45,10 +52,13 @@ var _tween: Tween
 var _wait := START_PAUSE
 var _continue: Button
 var _leaving := false
+## Panel sounds still playing -> their fade.
+var _sound_fades := {}
 
 
 func _ready() -> void:
 	add_to_group(UiFocus.SCREENS)
+	Music.play(Music.OPENING)
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var screen := get_viewport_rect().size
@@ -134,12 +144,33 @@ func _next() -> void:
 	_shown += 1
 	var sound: AudioStream = PANEL_SOUNDS.get(_shown)
 	if sound:
-		Sfx.play(sound, self)
+		_fade_out(Sfx.play(sound, self))
 	panel.position = PANEL_FROM.get(_shown, Vector2(0, -PANEL_DROP))
 	var time: float = SLIDE_IN_TIME if PANEL_FROM.has(_shown) else PANEL_IN_TIME
 	_tween = create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_tween.tween_property(panel, "modulate:a", 1.0, time)
 	_tween.tween_property(panel, "position", Vector2.ZERO, time)
+
+
+## Turns `player` down smoothly over its last seconds (see SOUND_FADE_FROM).
+func _fade_out(player: Node) -> void:
+	if not player:
+		return
+	var fade := player.create_tween()
+	fade.tween_interval(SOUND_FADE_FROM)
+	fade.tween_property(player, "volume_db", SOUND_FADE_DB, SOUND_FADE_TIME)
+	fade.tween_property(player, "volume_db", -80.0, 0.1)
+	_sound_fades[player] = fade
+	player.tree_exited.connect(func() -> void: _sound_fades.erase(player))
+
+
+## Leaving: whatever's still playing fades out with the picture.
+func _fade_sounds_now(time: float) -> void:
+	for player: Node in _sound_fades:
+		if not is_instance_valid(player):
+			continue
+		_sound_fades[player].kill()
+		player.create_tween().tween_property(player, "volume_db", -80.0, time).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 
 func _show_continue() -> void:
@@ -159,6 +190,8 @@ func _finish() -> void:
 	black.size = get_viewport_rect().size
 	black.modulate.a = 0.0
 	add_child(black)
+	_fade_sounds_now(OUT_TIME)
+	Music.stop(OUT_TIME)
 	var fade := create_tween()
 	fade.tween_property(black, "modulate:a", 1.0, OUT_TIME)
 	await fade.finished

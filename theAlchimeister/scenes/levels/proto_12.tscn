@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/puzzle/boss_level.gd" id="level"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/demon_lord.gd" id="boss"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+
+[node name="Proto12" instance=ExtResource("base") node_paths=PackedStringArray("boss", "exit_door", "chest")]
+script = ExtResource("level")
+stage_id = "P12"
+stage_size = Vector2(576, 324)
+part = 2
+boss = NodePath("Level/DemonLord")
+exit_door = NodePath("Level/Exit")
+chest = NodePath("Level/Chest")
+
+[node name="Knight" parent="."]
+position = Vector2(40, 300)
+
+[node name="Camera" parent="Knight"]
+zoom = Vector2(0.666667, 0.666667)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 300)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 576, 0, 576, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(288, 300)
+script = ExtResource("chest")
+amount = 0
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(540, 300)
+script = ExtResource("exit")
+
+[node name="DemonLord" type="Area2D" parent="Level"]
+position = Vector2(-40, 0)
+script = ExtResource("boss")
+
+[node name="Enemies" type="Node2D" parent="."]

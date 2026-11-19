@@ -18,7 +18,7 @@ const PUZZLE_LEVEL := preload("res://scripts/puzzle/puzzle_level.gd")
 const CHEST := preload("res://scripts/puzzle/chest.gd")
 const NAME_PROMPT := preload("res://scripts/puzzle/name_prompt.gd")
 const BACKGROUND := preload("res://assets/startmenu_bg.png")
-const BUTTON_ART := preload("res://assets/btn.png")
+const BUTTON_ART := preload("res://assets/ui/btn.png")
 ## The menu's buttons are btn.png scaled up whole by this much (not stretched
 ## to some other shape), so its pixels stay square.
 const MENU_BUTTON_SCALE := 2.0
@@ -95,12 +95,18 @@ var _rename_save: Button
 var _renaming: Dictionary
 var _confirm_no: Button
 var _code := DebugCode.new()
+## The two silhouettes in the background, tapped for the debug code on phones:
+## the left one from the left edge, the right one up to the right edge (only
+## their widths and tops count; they run down to the bottom).
+const LEFT_SILHOUETTE := Rect2(0, 74, 122, 142)
+const RIGHT_SILHOUETTE := Rect2(282, 136, 102, 80)
 ## Leaving for a level or the level select: the menu no longer reacts.
 var _leaving := false
 
 
 func _ready() -> void:
 	add_to_group(UiFocus.SCREENS)
+	Music.play(Music.MAIN_MENU)
 	# The start menu picture and its drifting clouds, behind everything. Each
 	# cloud comes back round at a new height.
 	var background := MapBackground.new()
@@ -302,9 +308,14 @@ func _close_settings() -> void:
 	_settings_button.grab_focus()
 
 
-## Opens the debug tools once the DebugCode has been typed on the main menu.
+## Opens the debug tools once the DebugCode has been typed on the main menu,
+## or tapped on the silhouettes (phones: see DebugCode.feed_tap).
 func _watch_for_code(event: InputEvent) -> void:
-	if _code.feed(event) and _on_main_menu() and not _leaving:
+	var screen := get_viewport_rect().size
+	var left := Rect2(0, LEFT_SILHOUETTE.position.y, LEFT_SILHOUETTE.size.x, screen.y - LEFT_SILHOUETTE.position.y)
+	var right := Rect2(screen.x - RIGHT_SILHOUETTE.size.x, RIGHT_SILHOUETTE.position.y, RIGHT_SILHOUETTE.size.x, screen.y - RIGHT_SILHOUETTE.position.y)
+	var tapped := _code.feed_tap(event, left, right)
+	if (_code.feed(event) or tapped) and _on_main_menu() and not _leaving:
 		_open_debug()
 		get_viewport().set_input_as_handled()
 

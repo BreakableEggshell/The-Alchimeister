@@ -100,7 +100,8 @@ func open() -> void:
 	_prompt.hide()
 	queue_redraw()
 	var gifts := [[contents, amount], [extra_contents, extra_amount], [third_contents, third_amount]]
-	gifts = gifts.filter(func(gift: Array) -> bool: return gift[0] != "none")
+	# An amount of 0 gives nothing (a chest holding only a note).
+	gifts = gifts.filter(func(gift: Array) -> bool: return gift[0] != "none" and gift[1] > 0)
 	for i in gifts.size():
 		inventory.add_ingredient(StringName(gifts[i][0]), gifts[i][1])
 		# Icons side by side, centred over the chest.

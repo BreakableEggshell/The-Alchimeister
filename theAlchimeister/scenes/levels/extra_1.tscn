@@ -1,0 +1,152 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/pebble.gd" id="pebble"]
+[ext_resource type="Script" path="res://scripts/puzzle/ice_pillar.gd" id="ice"]
+[ext_resource type="Script" path="res://scripts/puzzle/tnt.gd" id="tnt"]
+[ext_resource type="Script" path="res://scripts/puzzle/cracked_wall.gd" id="cracked"]
+[ext_resource type="Script" path="res://scripts/puzzle/element_platform.gd" id="slab"]
+[ext_resource type="Script" path="res://scripts/puzzle/cleansing_water.gd" id="water"]
+[ext_resource type="Script" path="res://scripts/puzzle/heavy_button.gd" id="heavy"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+
+[node name="Extra1" instance=ExtResource("base")]
+stage_id = "X1"
+stage_size = Vector2(1220, 216)
+intro_lines = PackedStringArray("SHELDON (squint): Ice, fire, smoke, and a crate of TNT. Somebody's been busy.", "SHELDON: Go easy on the potions. There's a lot of castle between us and that door.")
+hint_lines = PackedStringArray("SHELDON (squint): A slime on fire runs straight through ice.", "---", "SHELDON (glasses): A blast melts ice too. One <<fire:fire>> potion on that fuse could do two jobs.", "SHELDON: Then <<freeze:freeze>> the smoke when it's high enough to climb.", "---", "SHELDON: Put the fire out, let it rise, light it again. Then run for the water before you burn up.", "---", "SHELDON (squint): That button wants something heavy. A frozen slime is plenty heavy.")
+potions_needed_until_x = 1150.0
+
+[node name="Knight" parent="."]
+position = Vector2(24, 192)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 560, 0, 560, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(60, 192)
+script = ExtResource("chest")
+amount = 2
+extra_contents = "frost_shard"
+
+[node name="Curb" type="StaticBody2D" parent="Level"]
+position = Vector2(110, 192)
+script = ExtResource("pebble")
+
+[node name="DoorWall" type="StaticBody2D" parent="Level"]
+position = Vector2(200, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 16, 0, 16, 152, 0, 152)
+
+[node name="DoorIce" type="StaticBody2D" parent="Level"]
+position = Vector2(200, 152)
+script = ExtResource("ice")
+size = Vector2(16, 40)
+
+[node name="Tnt" type="Area2D" parent="Level"]
+position = Vector2(500, 192)
+script = ExtResource("tnt")
+fuse = PackedVector2Array(-12, -3, -150, -3)
+blast_area = Rect2(-34, -120, 154, 128)
+
+[node name="IceStep" type="StaticBody2D" parent="Level"]
+position = Vector2(528, 184)
+script = ExtResource("slab")
+
+[node name="Ledge" type="StaticBody2D" parent="Level"]
+position = Vector2(560, 144)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 140, 0, 140, 72, 0, 72)
+
+[node name="WallTop" type="StaticBody2D" parent="Level"]
+position = Vector2(600, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 88, 0, 88)
+
+[node name="CrackedWall" type="StaticBody2D" parent="Level"]
+position = Vector2(600, 88)
+script = ExtResource("cracked")
+points = PackedVector2Array(0, 0, 12, 0, 12, 56, 0, 56)
+
+[node name="Chest2" type="Area2D" parent="Level"]
+position = Vector2(650, 144)
+script = ExtResource("chest")
+extra_contents = "frost_shard"
+extra_amount = 2
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(700, 200)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 120, 0, 120, 16, 0, 16)
+
+[node name="FireStep" type="StaticBody2D" parent="Level"]
+position = Vector2(744, 192)
+script = ExtResource("slab")
+form = 1
+
+[node name="LedgeR" type="StaticBody2D" parent="Level"]
+position = Vector2(820, 144)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 180, 0, 180, 72, 0, 72)
+
+[node name="IceWall" type="StaticBody2D" parent="Level"]
+position = Vector2(900, 96)
+script = ExtResource("ice")
+size = Vector2(16, 48)
+
+[node name="Water" type="Area2D" parent="Level"]
+position = Vector2(960, 144)
+script = ExtResource("water")
+height = 70.0
+
+[node name="FloorR" type="StaticBody2D" parent="Level"]
+position = Vector2(1000, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 220, 0, 220, 24, 0, 24)
+
+[node name="Curb2" type="StaticBody2D" parent="Level"]
+position = Vector2(1056, 192)
+script = ExtResource("pebble")
+
+[node name="Button" type="Area2D" parent="Level"]
+position = Vector2(1090, 192)
+script = ExtResource("heavy")
+width = 56.0
+cap_height = 12.0
+press_time = 1.0
+
+[node name="Curb3" type="StaticBody2D" parent="Level"]
+position = Vector2(1124, 192)
+script = ExtResource("pebble")
+
+[node name="GateWall" type="StaticBody2D" parent="Level"]
+position = Vector2(1160, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 148, 0, 148)
+
+[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(1160, 148)
+script = ExtResource("gate")
+size = Vector2(12, 44)
+plates = [NodePath("../Button")]
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(1196, 192)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="DoorSlime" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(160, 192)
+drop = &"frost_shard"
+
+[node name="ButtonSlime" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(1090, 180)

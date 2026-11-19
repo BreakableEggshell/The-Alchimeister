@@ -1,17 +1,18 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scripts/puzzle/puzzle_level.gd" id="1_level"]
+[ext_resource type="Script" uid="uid://d1qibuemnj2ho" path="res://scripts/puzzle/puzzle_level.gd" id="1_level"]
 [ext_resource type="Script" uid="uid://decaxrq438krk" path="res://scripts/board.gd" id="2_board"]
-[ext_resource type="Script" path="res://scripts/puzzle/inventory.gd" id="3_inventory"]
-[ext_resource type="Script" path="res://scripts/puzzle/puzzle_knight.gd" id="4_knight"]
+[ext_resource type="Script" uid="uid://byttdub5hyek0" path="res://scripts/puzzle/inventory.gd" id="3_inventory"]
+[ext_resource type="Script" uid="uid://bby0urc5llj3c" path="res://scripts/puzzle/puzzle_knight.gd" id="4_knight"]
 [ext_resource type="Texture2D" uid="uid://dt4xl5be6fivb" path="res://assets/sprites/characters/knight_spritesheet.png" id="5_knight_tex"]
-[ext_resource type="Script" path="res://scripts/platformer/potion_thrower.gd" id="6_thrower"]
-[ext_resource type="Script" path="res://scripts/puzzle/potion_hud.gd" id="7_hud"]
+[ext_resource type="Script" uid="uid://dyanxybxys52g" path="res://scripts/platformer/potion_thrower.gd" id="6_thrower"]
+[ext_resource type="Script" uid="uid://bp30phxej2o4y" path="res://scripts/puzzle/potion_hud.gd" id="7_hud"]
 [ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/fonts/PixelOperator8.ttf" id="8_font"]
-[ext_resource type="PackedScene" path="res://scenes/ui/crafting_book.tscn" id="9_book"]
+[ext_resource type="PackedScene" uid="uid://kmm6orml7jm5" path="res://scenes/ui/crafting_book.tscn" id="9_book"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="10_dialogue"]
-[ext_resource type="Texture2D" uid="uid://dw1ptbv33huoa" path="res://assets/btn.png" id="11_btn"]
+[ext_resource type="Texture2D" uid="uid://dw1ptbv33huoa" path="res://assets/ui/btn.png" id="11_btn"]
 [ext_resource type="StyleBox" path="res://scenes/ui/selection_style.tres" id="sel_style"]
+[ext_resource type="Script" path="res://scripts/puzzle/touch_controls.gd" id="12_touch"]
 
 [sub_resource type="RectangleShape2D" id="Shape_knight"]
 size = Vector2(12, 28)
@@ -316,3 +317,13 @@ tooltip_text = "RECIPE BOOK (ESC)"
 
 [node name="DialogueBox" parent="HUD/Hud" instance=ExtResource("10_dialogue")]
 layout_mode = 1
+
+[node name="TouchControls" type="Control" parent="HUD/Hud"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("12_touch")

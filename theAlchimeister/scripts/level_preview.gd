@@ -81,7 +81,7 @@ func _ready() -> void:
 	add_child(_sections_row)
 	for map in SaveGame.MAP_COUNT:
 		var section := Button.new()
-		section.text = SaveGame.MAP_NAMES[map]
+		section.text = SaveGame.MAP_SHORT_NAMES[map]
 		section.custom_minimum_size.y = NUMBER_SIZE.y
 		section.focus_mode = Control.FOCUS_ALL
 		section.focus_entered.connect(_show_section.bind(map))

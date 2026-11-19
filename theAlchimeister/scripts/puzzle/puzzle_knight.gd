@@ -30,13 +30,12 @@ var _dead := false
 const DEATH_SHEET := preload("res://assets/sprites/characters/knight_death.png")
 const DEATH_SHADER := preload("res://scripts/puzzle/knight_death.gdshader")
 const DEATH_FRAMES := 11
-## Knocked back by what killed him (see die): how hard (across, up), the
-## least time in the air, and the most before the death plays anyway.
-const DEATH_KNOCK := Vector2(110, 150)
-const DEATH_MIN_FLIGHT := 0.12
-const DEATH_KNOCK_TIME := 0.7
+## Knocked back by what killed him (see die): how hard (across, up). He only
+## rises; at the top of the hop the death plays where he is.
+const DEATH_KNOCK := Vector2(70, 120)
 var _death_cause: StringName
-var _knocked_left := 0.0
+## Falling at least this fast (px/s) as he lands plays the landing sound.
+const LAND_SOUND_SPEED := 150.0
 const DEATH_FPS := 11.0
 var _talking := false
 const FLOAT_TEXT_TIME := 0.5
@@ -124,12 +123,13 @@ func clear_potion_effects() -> void:
 
 
 ## Dies of `cause`. With `from` (where the hit came from: the slime, the
-## blast), he's first knocked back away from it, flashing red, and the death
-## animation plays once he lands.
+## blast), he first hops back and up away from it, flashing red, and the death
+## animation plays at the top of the hop.
 func die(cause: StringName = GameOver.CAUGHT, from = null) -> void:
 	if _dead:
 		return
 	_dead = true
+	Sfx.play(Sfx.KNIGHT_DEATH, self)
 	if _flames:
 		_flames.emitting = false
 	if _ice:
@@ -138,7 +138,6 @@ func die(cause: StringName = GameOver.CAUGHT, from = null) -> void:
 	if from is Vector2:
 		var side := signf(global_position.x - from.x)
 		velocity = Vector2((side if side != 0.0 else 1.0) * DEATH_KNOCK.x, -DEATH_KNOCK.y)
-		_knocked_left = DEATH_KNOCK_TIME
 		_sprite.modulate = Color(1.0, 0.35, 0.35)
 		return
 	set_physics_process(false)
@@ -157,16 +156,15 @@ func _finish_dying() -> void:
 	died.emit(_death_cause)
 
 
-## Flying back from the hit: falls, slows along the ground, and once he's
-## landed (or after DEATH_KNOCK_TIME) the death plays.
+## Hopping back from the hit: he rises, slowing, and once he stops rising (or
+## bumps a ceiling) the death plays right there, in the air.
 func _fly_dead(delta: float) -> void:
-	_knocked_left -= delta
-	velocity.y = minf(velocity.y + gravity * delta, max_fall_speed)
-	if is_on_floor() and velocity.y >= 0.0:
-		velocity.x = move_toward(velocity.x, 0.0, friction * delta)
+	velocity.y += gravity * delta
+	if velocity.y >= 0.0:
+		_finish_dying()
+		return
 	move_and_slide()
-	var landed := is_on_floor() and _knocked_left < DEATH_KNOCK_TIME - DEATH_MIN_FLIGHT
-	if landed or _knocked_left <= 0.0:
+	if is_on_ceiling():
 		_finish_dying()
 
 
@@ -382,11 +380,19 @@ func _physics_process(delta: float) -> void:
 ## the jelly's strength, minus a little so bounces die down on green jelly.
 func _slide() -> void:
 	var incoming := velocity
+	var was_on_floor := is_on_floor()
 	move_and_slide()
 	var bounced := false
+	# Landing from a jump or a fall (not stepping off a kerb).
+	if not was_on_floor and is_on_floor() and incoming.y >= LAND_SOUND_SPEED and not _dead:
+		var on_jelly := false
+		for i in get_slide_collision_count():
+			on_jelly = on_jelly or get_slide_collision(i).get_collider() is Jelly
+		if not on_jelly:
+			Sfx.play(Sfx.KNIGHT_LAND, self)
 	for i in get_slide_collision_count():
 		var collision := get_slide_collision(i)
-		if is_burning() and collision.get_collider() is IcePillar:
+		if is_burning() and (collision.get_collider() is IcePillar or collision.get_collider() is ElementPlatform):
 			collision.get_collider().melt()
 		var jelly := collision.get_collider() as Jelly
 		if not jelly or bounced:
@@ -402,6 +408,7 @@ func _slide() -> void:
 		# Swap the part of the velocity going into the jelly for the bounce.
 		velocity = incoming + normal * (into + out)
 		jelly.wobble()
+		Sfx.play(Sfx.JELLY_BOUNCE, self)
 		bounced = true
 
 

@@ -80,6 +80,7 @@ var _pick_misses := 0
 
 func _ready() -> void:
 	get_tree().paused = false
+	Music.play(_music())
 	SaveGame.set_last_stage(stage_id)
 	_setup_bounds()
 	player.died.connect(_on_player_died)
@@ -111,6 +112,9 @@ func _ready() -> void:
 	# MAIN MENU: the iris closes on the knight, and the menu opens from black.
 	hud.book.main_menu_requested.connect(func() -> void:
 		SaveGame.go_to_with_iris(SaveGame.START_MENU, _iris_focus()))
+	# LEVELS in the pause menu: the same, to the level select.
+	hud.book.levels_requested.connect(func() -> void:
+		SaveGame.go_to_with_iris(SaveGame.LEVEL_SELECT, _iris_focus()))
 	hud.book.set_level_label(SaveGame.stage_label(stage_id))
 	hud.dialogue.set_level_label(SaveGame.stage_label(stage_id))
 	hud.book.set_can_skip(SaveGame.next_stage(stage_id) != "")
@@ -299,7 +303,10 @@ func _exit_lines() -> PackedStringArray:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("restart") and not player._dead:
 		restart()
-	elif _over and event.is_action_pressed("ui_accept") and SaveGame.next_stage(stage_id) != "":
+	# Enter for the next stage, unless a button is selected (LEVELS, say): then
+	# Enter is that button's.
+	elif _over and event.is_action_pressed("ui_accept") and SaveGame.next_stage(stage_id) != "" \
+			and not get_viewport().gui_get_focus_owner():
 		_go_next()
 
 
@@ -370,3 +377,9 @@ func _setup_bounds() -> void:
 		shape.position = edge[0]
 		edges.add_child(shape)
 	add_child(edges)
+
+
+## This stage's music (see Music); carries on from the stage before if it's
+## the same.
+func _music() -> AudioStream:
+	return Music.LEVELS

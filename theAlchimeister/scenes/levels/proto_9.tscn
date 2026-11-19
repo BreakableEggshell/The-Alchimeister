@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/jelly.gd" id="jelly"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+
+[node name="Proto9" instance=ExtResource("base")]
+stage_id = "P9"
+intro_lines = PackedStringArray("SHELDON (squint): That gap's far too wide to jump.", "SHELDON (glasses): Blue jelly throws back more than you give it. Even a <<knockback:knockback>> potion.")
+hint_lines = PackedStringArray("SHELDON: A potion that's bounced off jelly doesn't care who it hits. Even you.", "---", "SHELDON (glasses): Stand near the edge, back to the jelly, and throw hard. Let it knock you across.")
+
+[node name="Knight" parent="."]
+position = Vector2(120, 128)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="LedgeL" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 128)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 170, 0, 170, 88, 0, 88)
+
+[node name="Jelly" type="StaticBody2D" parent="Level"]
+position = Vector2(24, 80)
+script = ExtResource("jelly")
+size = Vector2(16, 48)
+strength = 2.0
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(70, 128)
+script = ExtResource("chest")
+contents = "gust_feather"
+amount = 2
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(170, 200)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 110, 0, 110, 16, 0, 16)
+
+[node name="LedgeR" type="StaticBody2D" parent="Level"]
+position = Vector2(280, 160)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 104, 0, 104, 56, 0, 56)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(344, 160)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]

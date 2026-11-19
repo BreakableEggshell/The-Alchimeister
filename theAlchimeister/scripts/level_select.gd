@@ -1,6 +1,7 @@
 extends Control
-## Level select: one page per SaveGame map it shows (the first always; the
+## Level select: pages for the SaveGame maps it shows (the first always; the
 ## others as the debug menu here says, see SaveGame.shown_maps), side by side,
+## one per map, except the first map, spread over several (PLAYABLE_PAGES),
 ## with one node per stage, numbered as SaveGame.stage_tag says ("5", "P2").
 ## One page shows at a time; the arrows at the screen's edges, PgUp / PgDn,
 ## or left / right past a page's last column slide to the next. The special
@@ -8,12 +9,22 @@ extends Control
 ## Nodes wind across their map in rows (at most MAX_ROWS), placed from however
 ## many stages it has. Clicking an unlocked node plays that stage; locked ones
 ## are dimmed with a padlock and can't be picked. A map with nothing unlocked
-## says COMING SOON. Behind each map, its picture with drifting clouds
-## (MapBackground; the later maps use the first one's picture for now).
-## Typing the DebugCode (wwssadad) here opens a small debug menu that turns
-## the later pages on and off.
+## says COMING SOON. Behind each page, its picture with drifting clouds
+## (MapBackground; the later maps use map1's picture for now).
+## Typing the DebugCode (wwssadad) here, or tapping the title 5 times, opens a
+## small debug menu that turns the later pages on and off.
 
 const NODE_TEXTURE := preload("res://assets/map1_levelnode.png")
+const MAP1 := preload("res://assets/map1.png")
+## The first map's pages: how many of its stages each holds, in order, and its
+## picture. The last page takes whatever stages are left. `extra`: stages
+## from other maps shown there too, after its own (and not on their own map's
+## page): the Demon Lord's, at his throne.
+const PLAYABLE_PAGES: Array[Dictionary] = [
+	{"stages": 3, "picture": MAP1},
+	{"stages": 5, "picture": preload("res://assets/map2_1.png")},
+	{"stages": -1, "picture": preload("res://assets/map2_2.png"), "extra": ["P11", "P12", "P13"]},
+]
 const GOLD := Color(0.95, 0.85, 0.55)
 ## A picked node blinks this many times, over this long, before the iris.
 const PICK_BLINKS := 3
@@ -38,7 +49,7 @@ const WOBBLE := 10.0
 ## The arrows that slide to the next map.
 const ARROW_SIZE := Vector2(18, 24)
 ## The debug menu's panel.
-const DEBUG_SIZE := Vector2(176, 92)
+const DEBUG_SIZE := Vector2(196, 110)
 
 ## Every node, in play order.
 var _nodes: Array[Button] = []
@@ -46,7 +57,7 @@ var _nodes: Array[Button] = []
 var _node_of := {}
 ## Each page's nodes, in play order.
 var _map_nodes: Array = []
-## Which SaveGame map each page is.
+## Which SaveGame map each page is from.
 var _page_maps: Array[int] = []
 ## Everything built from the maps (rebuilt when the debug menu changes them).
 var _screen: Control
@@ -58,12 +69,16 @@ var _map_tween: Tween
 var _previous_map: Button
 var _next_map: Button
 var _back: Button
-## The first map's background.
-var _sky: MapBackground
 ## A level has been picked, or BACK pressed: nothing else can be until the
 ## screen has changed.
 var _picked := false
 var _code := DebugCode.new()
+## The SELECT LEVEL title, and the taps on it so far (see _title_tapped).
+var _title: Label
+var _title_taps := 0
+var _title_tapped_at := -10.0
+const TITLE_TAPS := 5
+const TITLE_TAP_GAP := 1.0
 var _debug: Control
 ## The debug menu's toggles: map -> its button.
 var _debug_toggles := {}
@@ -71,12 +86,20 @@ var _debug_toggles := {}
 
 func _ready() -> void:
 	add_to_group(UiFocus.SCREENS)
+	# The main menu's music carries on here.
+	Music.play(Music.MAIN_MENU)
 	_build()
 	_debug = _build_debug()
 	if SaveGame.slide_in_level_select:
 		SaveGame.slide_in_level_select = false
 		_slide_in()
 	_open_on(_starting_node())
+	# Arriving from a level's pause menu: its iris closed, so open it.
+	if Iris.is_closed:
+		Iris.cover()
+		await get_tree().process_frame
+		if is_inside_tree():
+			Iris.open()
 
 
 ## Straight to the page `node` is on, without sliding there, picking it.
@@ -91,17 +114,41 @@ func _starting_node() -> Button:
 	var last: Button = _node_of.get(SaveGame.last_stage)
 	if last and not last.disabled:
 		return last
-	var first_map: Array = _map_nodes[0]
-	for i in range(first_map.size() - 1, -1, -1):
-		if not first_map[i].disabled:
-			return first_map[i]
+	var stages := SaveGame.map_stages(SaveGame.PLAYABLE_MAP)
+	for i in range(stages.size() - 1, -1, -1):
+		var node: Button = _node_of.get(stages[i])
+		if node and not node.disabled:
+			return node
 	return _nodes[0]
 
 
 func _input(event: InputEvent) -> void:
-	if _code.feed(event) and not _picked and not _debug.visible:
+	if (_code.feed(event) or _title_tapped(event)) and not _picked and not _debug.visible:
 		_open_debug()
 		get_viewport().set_input_as_handled()
+
+
+## Phones have no keys: tapping the SELECT LEVEL title TITLE_TAPS times in a
+## row (each within TITLE_TAP_GAP seconds of the last) opens the debug menu
+## too. A click does the same on a PC.
+func _title_tapped(event: InputEvent) -> bool:
+	var press := event as InputEventMouseButton
+	if not press or not press.pressed or press.button_index != MOUSE_BUTTON_LEFT:
+		return false
+	var font := _title.get_theme_font("font")
+	var width := font.get_string_size(_title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _title.get_theme_font_size("font_size")).x
+	var words := Rect2(_title.get_global_rect().get_center() - Vector2(width / 2.0, _title.size.y / 2.0), Vector2(width, _title.size.y)).grow(3.0)
+	var now := Time.get_ticks_msec() / 1000.0
+	if not words.has_point(press.position) or now - _title_tapped_at > TITLE_TAP_GAP:
+		_title_taps = 0
+	_title_tapped_at = now
+	if not words.has_point(press.position):
+		return false
+	_title_taps += 1
+	if _title_taps < TITLE_TAPS:
+		return false
+	_title_taps = 0
+	return true
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -219,9 +266,10 @@ func _turn_page(step: int) -> void:
 
 
 ## How many nodes go in a row for `count` stages: MIN_PER_ROW, or more if
-## MAX_ROWS rows of that wouldn't fit them all.
+## MAX_ROWS rows of that wouldn't fit them all; fewer stages than that are one
+## row, spread across the map.
 static func per_row(count: int) -> int:
-	return maxi(MIN_PER_ROW, ceili(float(count) / MAX_ROWS))
+	return clampi(count, 1, maxi(MIN_PER_ROW, ceili(float(count) / MAX_ROWS)))
 
 
 ## Where node `index` of the `count` on a map goes: rows that snake left to
@@ -231,7 +279,7 @@ static func node_center(index: int, count: int) -> Vector2:
 	var rows := ceili(float(count) / across)
 	var row := index / across
 	var column := _column_of(index, across)
-	var x := MAP_AREA.position.x + MAP_AREA.size.x * column / (across - 1)
+	var x := MAP_AREA.position.x + (MAP_AREA.size.x * column / (across - 1) if across > 1 else MAP_AREA.size.x / 2.0)
 	var y := MAP_AREA.position.y + (MAP_AREA.size.y * row / (rows - 1) if rows > 1 else MAP_AREA.size.y / 2.0)
 	return Vector2(x, y + (WOBBLE if column % 2 == 1 else -WOBBLE))
 
@@ -249,42 +297,31 @@ func _build() -> void:
 	var screen := get_viewport_rect().size
 	_screen = Control.new()
 	_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_screen.size = screen
 	add_child(_screen)
+	# Follows the window, so what's pinned to its edges (BACK) stays on screen.
+	_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_maps = Control.new()
 	_maps.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_screen.add_child(_maps)
 	for map in SaveGame.MAP_COUNT:
 		if not SaveGame.is_map_shown(map):
 			continue
-		var page_index := _page_maps.size()
-		_page_maps.append(map)
-		var page := Control.new()
-		page.position = Vector2(page_index * screen.x, 0)
-		page.size = screen
-		page.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_maps.add_child(page)
-		var sky := MapBackground.new()
-		page.add_child(sky)
-		if map == SaveGame.PLAYABLE_MAP:
-			_sky = sky
 		var stages := SaveGame.map_stages(map)
-		var nodes: Array[Button] = []
-		for i in stages.size():
-			var node := _level_node(stages[i], page_index)
-			page.add_child(node)
-			node.size = NODE_SIZE
-			node.position = (node_center(i, stages.size()) - NODE_SIZE / 2.0).round()
-			nodes.append(node)
-			_nodes.append(node)
-			_node_of[stages[i]] = node
-		_map_nodes.append(nodes)
-		if SaveGame.MAP_PREFIX.has(map):
-			page.add_child(_outlined_label(SaveGame.MAP_NAMES[map], 8, 32.0))
-		if nodes.all(func(node: Button) -> bool: return node.disabled):
-			page.add_child(_outlined_label("COMING SOON", 8, 36.0))
+		if map != SaveGame.PLAYABLE_MAP:
+			# Less any already shown on a page of the first map.
+			var left: Array[String] = []
+			left.assign(stages.filter(func(stage: String) -> bool: return not _node_of.has(stage)))
+			_build_page(map, left, MAP1)
+			continue
+		for part in PLAYABLE_PAGES:
+			var count: int = part.stages if part.stages >= 0 else stages.size()
+			var shown := stages.slice(0, count)
+			shown.append_array(part.get("extra", []))
+			_build_page(map, shown, part.picture)
+			stages = stages.slice(count)
 
-	_screen.add_child(_outlined_label("SELECT LEVEL", 16, 12.0))
+	_title = _outlined_label("SELECT LEVEL", 16, 12.0)
+	_screen.add_child(_title)
 
 	_previous_map = _arrow("<", 4.0)
 	_previous_map.pressed.connect(_turn_page.bind(-1))
@@ -293,12 +330,48 @@ func _build() -> void:
 
 	_back = Button.new()
 	_back.text = "BACK"
-	_back.position = Vector2(8, screen.y - 24)
-	_back.size = Vector2(56, 16)
 	_back.pressed.connect(_back_to_menu)
 	_screen.add_child(_back)
+	# Its real size (the theme's button can be taller than asked), pinned 8 px
+	# in from the bottom-left corner, so it stays on screen however the window
+	# is sized, now or later.
+	_back.size = Vector2(56, 16).max(_back.get_combined_minimum_size())
+	_back.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_KEEP_SIZE, 8)
 	_link_keys()
 	_show_map(0, false, true)
+
+
+## A page of the level select: `stages` (from SaveGame map `map`) over
+## `picture`, after the pages built so far.
+func _build_page(map: int, stages: Array[String], picture: Texture2D) -> void:
+	var screen := get_viewport_rect().size
+	var page_index := _page_maps.size()
+	_page_maps.append(map)
+	var page := Control.new()
+	page.position = Vector2(page_index * screen.x, 0)
+	page.size = screen
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_maps.add_child(page)
+	var sky := MapBackground.new()
+	sky.picture = picture
+	# The darkness on the later pictures hides the clouds.
+	sky.sky_only = picture != MAP1
+	page.add_child(sky)
+	var nodes: Array[Button] = []
+	for i in stages.size():
+		var node := _level_node(stages[i], page_index)
+		page.add_child(node)
+		node.size = NODE_SIZE
+		node.position = (node_center(i, stages.size()) - NODE_SIZE / 2.0).round()
+		nodes.append(node)
+		_nodes.append(node)
+		_node_of[stages[i]] = node
+	_map_nodes.append(nodes)
+	if SaveGame.MAP_PREFIX.has(map):
+		page.add_child(_outlined_label(SaveGame.MAP_NAMES[map], 8, 32.0))
+	# The first map's later pages are just the levels not reached yet.
+	if map != SaveGame.PLAYABLE_MAP and nodes.all(func(node: Button) -> bool: return node.disabled):
+		page.add_child(_outlined_label("COMING SOON", 8, 36.0))
 
 
 ## The debug menu changed which maps show: everything built again, with the

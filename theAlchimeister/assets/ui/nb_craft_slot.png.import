@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dw1ptbv33huoa"
-path="res://.godot/imported/btn.png-ba92942352d7f75685d9ece45749918b.ctex"
+uid="uid://bb8spocdxio72"
+path="res://.godot/imported/nb_craft_slot.png-b66ec4ffd27d889e7ccb5c812a605780.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/btn.png"
-dest_files=["res://.godot/imported/btn.png-ba92942352d7f75685d9ece45749918b.ctex"]
+source_file="res://assets/ui/nb_craft_slot.png"
+dest_files=["res://.godot/imported/nb_craft_slot.png-b66ec4ffd27d889e7ccb5c812a605780.ctex"]
 
 [params]
 
