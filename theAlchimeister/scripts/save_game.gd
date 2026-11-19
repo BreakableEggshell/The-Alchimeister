@@ -11,18 +11,19 @@ const START_MENU := "res://scenes/menu/start_menu.tscn"
 const LEVEL_SELECT := "res://scenes/menu/level_select.tscn"
 ## Played after START, before the first level.
 const INTRO_COMIC := "res://scenes/menu/intro_comic.tscn"
-## The levels, on four maps (`map`: which one). The first two levels have
+## The levels, on five maps (`map`: which one). The first two levels have
 ## stages; the rest are a single stage each (picked straight from level
 ## select). A level with no stages is always locked. Stage ids are only names:
 ## the order here is the play order.
 ## Map 0 (PLAYABLE_MAP) is the game for now: it ends with "14" (THE ONLY WAY
 ## OUT), the end of the game. Map 1 (SECRET_MAP) is for later: clearing map 0
 ## doesn't lead into it, so its levels only open through the debug tools
-## (unlock_all_levels). Maps 2 and 3 (SPECIAL_MAP, PROTOTYPE_MAP) are for
-## trying things out: levels with mechanics set aside, and new ones being
-## worked on. Their levels are always open, and they're numbered on their own
-## ("S1", "P1"; see MAP_PREFIX). Which of the later maps the level select
-## shows is a debug setting (shown_maps).
+## (unlock_all_levels). Maps 2, 3 and 4 (SPECIAL_MAP, PROTOTYPE_MAP,
+## EXTRA_MAP) are for trying things out: levels with mechanics set aside, new
+## ones being worked on, and longer ones putting them all together. Their
+## levels are always open, and they're numbered on their own ("S1", "P1",
+## "X1"; see MAP_PREFIX). Which of the later maps the level select shows is a
+## debug setting (shown_maps).
 const LEVELS: Array[Dictionary] = [
 	{"title": "TUTORIAL", "stages": ["1-1", "1-2", "1-3"], "map": 0},
 	{"title": "I'M AFFECTED TOO", "stages": ["2-1", "2-2"], "map": 0},
@@ -42,9 +43,18 @@ const LEVELS: Array[Dictionary] = [
 	{"title": "CUT THE ROPE", "stages": ["P2"], "map": 3},
 	{"title": "COLD FEET", "stages": ["P3"], "map": 3},
 	{"title": "SPREAD THE FIRE", "stages": ["P4"], "map": 3},
+	{"title": "LET OFF STEAM", "stages": ["P5"], "map": 3},
+	{"title": "SECOND WIND", "stages": ["P6"], "map": 3},
+	{"title": "HOT STEPPING", "stages": ["P7"], "map": 3},
+	{"title": "FIRE GOES LAST", "stages": ["P8"], "map": 3},
+	{"title": "SPRING BACK", "stages": ["P9"], "map": 3},
+	{"title": "BANK SHOT", "stages": ["P10"], "map": 3},
+	{"title": "SMOKE SIGNALS", "stages": ["X1"], "map": 4},
+	{"title": "RICOCHET", "stages": ["X2"], "map": 4},
+	{"title": "GHOST TOWN", "stages": ["X3"], "map": 4},
 ]
 ## How many maps the level select has.
-const MAP_COUNT := 4
+const MAP_COUNT := 5
 ## The map that's the game for now; speedrun times only count its levels.
 const PLAYABLE_MAP := 0
 ## The later levels players can't reach yet.
@@ -53,12 +63,16 @@ const SECRET_MAP := 1
 const SPECIAL_MAP := 2
 ## New levels being tried out.
 const PROTOTYPE_MAP := 3
+## Longer levels putting everything so far together.
+const EXTRA_MAP := 4
 ## Each map's name (level select, level preview, the debug toggles).
-const MAP_NAMES: Array[String] = ["MAP 1", "SECRET LEVELS", "SPECIAL", "PROTOTYPES"]
+const MAP_NAMES: Array[String] = ["MAP 1", "SECRET LEVELS", "SPECIAL", "PROTOTYPES", "EXTRA PROTOTYPES"]
+## Shorter names, for the level preview's row of section tabs.
+const MAP_SHORT_NAMES: Array[String] = ["MAP 1", "SECRET", "SPECIAL", "PROTOTYPES", "EXTRA"]
 ## Maps numbered on their own: their stages are "S1", "S2" (and "SPECIAL 1"
 ## in game). Their levels are always open.
-const MAP_PREFIX := {SPECIAL_MAP: "S", PROTOTYPE_MAP: "P"}
-const MAP_STAGE_NAMES := {SPECIAL_MAP: "SPECIAL", PROTOTYPE_MAP: "PROTOTYPE"}
+const MAP_PREFIX := {SPECIAL_MAP: "S", PROTOTYPE_MAP: "P", EXTRA_MAP: "X"}
+const MAP_STAGE_NAMES := {SPECIAL_MAP: "SPECIAL", PROTOTYPE_MAP: "PROTOTYPE", EXTRA_MAP: "EXTRA"}
 const STAGE_SCENES := {
 	"1-1": "res://scenes/levels/tutorial_1.tscn",
 	"1-2": "res://scenes/levels/tutorial_2.tscn",
@@ -81,6 +95,15 @@ const STAGE_SCENES := {
 	"P2": "res://scenes/levels/proto_2.tscn",
 	"P3": "res://scenes/levels/proto_3.tscn",
 	"P4": "res://scenes/levels/proto_4.tscn",
+	"P5": "res://scenes/levels/proto_5.tscn",
+	"P6": "res://scenes/levels/proto_6.tscn",
+	"P7": "res://scenes/levels/proto_7.tscn",
+	"P8": "res://scenes/levels/proto_8.tscn",
+	"P9": "res://scenes/levels/proto_9.tscn",
+	"P10": "res://scenes/levels/proto_10.tscn",
+	"X1": "res://scenes/levels/extra_1.tscn",
+	"X2": "res://scenes/levels/extra_2.tscn",
+	"X3": "res://scenes/levels/extra_3.tscn",
 }
 const FIRST_STAGE := "1-1"
 ## Debug: free play with every mechanic, outside the levels and their progress.
@@ -128,7 +151,7 @@ var slide_in_start_menu := false
 ## through RESET. To start with, only the secret map shows (as COMING SOON
 ## until its levels are unlocked).
 var shown_maps := {}
-const DEFAULT_SHOWN_MAPS := {SECRET_MAP: true, SPECIAL_MAP: false, PROTOTYPE_MAP: false}
+const DEFAULT_SHOWN_MAPS := {SECRET_MAP: true, SPECIAL_MAP: false, PROTOTYPE_MAP: false, EXTRA_MAP: false}
 ## Everyone who finished a full run: [{name, seconds, splits, date}] (runs
 ## from before splits and dates were kept have neither). Kept through START and RESET, which only
 ## wipe progress.

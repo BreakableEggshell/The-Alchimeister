@@ -7,6 +7,8 @@ extends Node2D
 const GLASS_COLOR := Color(0.85, 0.9, 1.0)
 ## Safety net: free the potion if it somehow never hits anything.
 const MAX_LIFETIME := 5.0
+## Most a splash's power can grow to, bouncing off springy jelly.
+const MAX_BOUNCED_POWER := 2.5
 
 ## One of PotionData.KINDS, or empty for a plain potion with no effect.
 var kind: StringName = &""
@@ -74,9 +76,24 @@ func _physics_process(delta: float) -> void:
 	velocity = result.velocity
 	if result.has("bounced"):
 		result.bounced.wobble()
+		_bounced_off(result.bounced)
 	rotation += spin_speed * delta * signf(velocity.x)
 	if result.hit:
 		_shatter(result.normal)
+
+
+## Off a jelly, the potion is the jelly's throw, not the knight's: it can
+## break on the knight now (a throw straight from his hand flies through him;
+## its splash still reaches him), and springy jelly sends it back harder.
+func _bounced_off(jelly: Jelly) -> void:
+	exclude.clear()
+	hit_mask = Potion.after_bounce_mask(hit_mask)
+	power = minf(power * jelly.strength, MAX_BOUNCED_POWER)
+
+
+## The hit mask once a potion has bounced off jelly: the knight too.
+static func after_bounce_mask(mask: int) -> int:
+	return mask | PotionData.LAYER_PLAYER
 
 
 func _draw() -> void:
@@ -125,7 +142,8 @@ func _apply_splash() -> void:
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = circle
 	query.transform = Transform2D(0.0, global_position)
-	query.collision_mask = PotionData.SPLASH_MASK
+	# Smoke (ElementPlatform) is only a potion target, so that's searched too.
+	query.collision_mask = PotionData.SPLASH_MASK | PotionData.LAYER_POTION_TARGETS
 	# Some props are areas (dynamite).
 	query.collide_with_areas = true
 	var touched := {}

@@ -38,7 +38,7 @@ const WOBBLE := 10.0
 ## The arrows that slide to the next map.
 const ARROW_SIZE := Vector2(18, 24)
 ## The debug menu's panel.
-const DEBUG_SIZE := Vector2(176, 92)
+const DEBUG_SIZE := Vector2(196, 110)
 
 ## Every node, in play order.
 var _nodes: Array[Button] = []
@@ -249,8 +249,9 @@ func _build() -> void:
 	var screen := get_viewport_rect().size
 	_screen = Control.new()
 	_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_screen.size = screen
 	add_child(_screen)
+	# Follows the window, so what's pinned to its edges (BACK) stays on screen.
+	_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_maps = Control.new()
 	_maps.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_screen.add_child(_maps)
@@ -293,10 +294,13 @@ func _build() -> void:
 
 	_back = Button.new()
 	_back.text = "BACK"
-	_back.position = Vector2(8, screen.y - 24)
-	_back.size = Vector2(56, 16)
 	_back.pressed.connect(_back_to_menu)
 	_screen.add_child(_back)
+	# Its real size (the theme's button can be taller than asked), pinned 8 px
+	# in from the bottom-left corner, so it stays on screen however the window
+	# is sized, now or later.
+	_back.size = Vector2(56, 16).max(_back.get_combined_minimum_size())
+	_back.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_KEEP_SIZE, 8)
 	_link_keys()
 	_show_map(0, false, true)
 
