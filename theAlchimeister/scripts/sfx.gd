@@ -13,9 +13,10 @@ const AUDIENCE_CHATTER := preload("res://assets/audio/sfx/audience_chatter.wav")
 ## Plays `stream` once. With `at`, it sounds from that spot in the world
 ## (quieter and panned when far from the camera); otherwise it's plain.
 ## It keeps playing while the game is paused (the notebook, dialogue).
-static func play(stream: AudioStream, from: Node, at = null) -> void:
+## Returns the player (null if nothing played), e.g. to fade it.
+static func play(stream: AudioStream, from: Node, at = null) -> Node:
 	if not stream or not from or not from.is_inside_tree():
-		return
+		return null
 	var player: Node
 	if at is Vector2:
 		var positioned := AudioStreamPlayer2D.new()
@@ -37,3 +38,4 @@ static func play(stream: AudioStream, from: Node, at = null) -> void:
 		holder = from.get_tree().root
 	holder.add_child(player)
 	player.play()
+	return player
