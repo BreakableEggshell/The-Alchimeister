@@ -12,12 +12,23 @@ extends CharacterBody2D
 ## Translucent: the player can pass through it.
 ## Death: dies at once and drops its items, wall slimes too.
 ## A slime drops its items only once, on whichever happens first.
+## A flying slime (`flying`, see flyer.tscn) patrols back and forth in the air
+## at the height it starts at, turning at walls (or `patrol_range` pixels
+## either side of its start), out of the knight's reach. Frozen, the ice is
+## too heavy to fly: it drops like a stone (counting as heavy, like anything
+## frozen), and its items fall out of the sky. Once it thaws it flies back up.
+## A burning slime runs straight through ice pillars, melting them.
 ## Stunned slimes are faded. A freeze or stun blinks slowly for its whole
 ## length; a translucency blinks for its last WARN_TIME seconds. In the last
 ## HURRY_TIME seconds the blinking speeds up. Only the slime itself blinks:
 ## the ice and the dizzy stars stay put until the effect ends.
 
 const FRAME_COUNT := 4
+## The green slime sheet, and its stunned look (same frames), shown while a
+## knockback has it dazed. Other sheets (the purple flyer) have no stunned
+## version yet, and are tinted instead.
+const SHEET := preload("res://assets/sprites/characters/slime.png")
+const STUN_SHEET := preload("res://assets/sprites/characters/slime_stun.png")
 ## How far ahead of its middle it checks for walls and ledges (half its width,
 ## plus a little), and the height of its middle.
 const LOOK_AHEAD := 8.0
@@ -40,6 +51,11 @@ const BLINK_FAST := 3.5
 
 enum Movement { STAY, PATROL }
 
+## Flyers: how fast they climb back to their height, and their wings.
+const CLIMB_SPEED := 40.0
+const WING_COLOR := Color(0.32, 0.18, 0.4)
+const WING_EDGE := Color(0.08, 0.05, 0.1)
+
 @export var movement := Movement.PATROL
 ## Patrol speed.
 @export var speed := 30.0
@@ -51,6 +67,19 @@ enum Movement { STAY, PATROL }
 @export var on_wall := false
 ## Which side of the slime the wall is on.
 @export_enum("Left:-1", "Right:1") var wall_side := 1
+## Flies instead of walking (see the top of this script).
+@export var flying := false
+## Flyers only: how far either side of where it starts it patrols. 0 turns
+## only at walls.
+@export var patrol_range := 0.0
+## Its look while frozen (one frame), shown inside the ice box. Empty: the
+## normal sprite, tinted icy, inside the ice box.
+@export var frozen_texture: Texture2D
+## Flyers only: bat wings drawn either side. Off for art with its own wings
+## (the fly bush).
+@export var drawn_wings := true
+## The art faces left (the fly bush), so it's flipped when going right.
+@export var faces_left := false
 ## Size of the box potions shatter on, centred over the slime. Bigger than its
 ## body so throws that clip the sprite count as hits.
 @export var potion_hitbox_size := Vector2(20, 18)
@@ -66,12 +95,16 @@ var _stun_left := 0.0
 var _dead := false
 var _dropped := false
 var _anim_clock := 0.0
+## The sprite's own sheet, for coming back from frozen_texture.
+var _base_texture: Texture2D
 var _blink_phase := 0.0
 ## False during the "off" half of a warning blink.
 var _blink_on := true
 var _flames: CPUParticles2D
 var _potion_hitbox: Area2D
 var _sparkles: Node2D
+## Where it started: a flyer's patrol height and the middle of its patrol.
+var _home := Vector2.ZERO
 
 @onready var _sprite: Sprite2D = $Sprite
 @onready var _hurtbox: Area2D = $Hurtbox
@@ -80,6 +113,7 @@ var _sparkles: Node2D
 func _ready() -> void:
 	add_to_group("enemies")
 	_direction = start_direction
+	_home = global_position
 	if on_wall:
 		# Rotate so the slime's feet face the wall.
 		rotation = -PI / 2.0 * wall_side
@@ -162,6 +196,8 @@ func _physics_process(delta: float) -> void:
 	var walking := movement == Movement.PATROL and not is_frozen() and not is_stunned() and _pick_direction()
 	if on_wall:
 		velocity = Vector2(0, _direction * _speed_now()) if walking else Vector2.ZERO
+	elif flying and not is_frozen():
+		_fly(delta, walking)
 	else:
 		if not is_on_floor():
 			velocity.y += gravity * delta
@@ -178,6 +214,20 @@ func _speed_now() -> float:
 	return speed * (PotionData.FIRE_SPEED_BOOST if is_burning() else 1.0)
 
 
+## In the air: back to its flying height, patrolling, or (dazed) drifting to a
+## stop.
+func _fly(delta: float, walking: bool) -> void:
+	if is_stunned():
+		velocity = velocity.move_toward(Vector2.ZERO, friction * delta)
+		return
+	var climb := clampf((_home.y - global_position.y) * 3.0, -CLIMB_SPEED, CLIMB_SPEED)
+	velocity.y = move_toward(velocity.y, climb, friction * delta)
+	if walking:
+		velocity.x = _direction * _speed_now()
+	else:
+		velocity.x = move_toward(velocity.x, 0.0, friction * delta)
+
+
 ## Turns back if the way ahead is blocked. False (stand still) if there's no
 ## room to walk back either, so it doesn't shuffle on the spot in a tight gap.
 func _pick_direction() -> bool:
@@ -192,21 +242,32 @@ func _pick_direction() -> bool:
 ## Whether something solid is in the way in `direction` (1 or -1), or the floor
 ## or wall it's walking on ends there.
 func _blocked(direction: int, reach: float) -> bool:
+	if flying and patrol_range > 0.0 and (global_position.x - _home.x) * direction >= patrol_range:
+		return true
 	var along := Vector2(0, direction) if on_wall else Vector2(direction, 0)
 	# Towards whatever it walks on.
 	var down := Vector2(wall_side, 0) if on_wall else Vector2.DOWN
 	var center := global_position - down * BODY_CENTER
-	if _hits(center, center + along * reach):
+	var wall := _hit(center, center + along * reach)
+	if wall is IcePillar and is_burning():
+		wall.melt()
+	elif wall:
+		return true
+	# Pebbles are lower than the look above: a second look, near the ground.
+	var low := global_position - down * 2.0
+	if _hit(low, low + along * reach) is Pebble:
 		return true
 	if not on_wall and not is_on_floor():
 		return false
 	var ahead := global_position + along * reach
-	return not _hits(ahead - down * 2.0, ahead + down * 6.0)
+	return _hit(ahead - down * 2.0, ahead + down * 6.0) == null
 
 
-func _hits(from: Vector2, to: Vector2) -> bool:
+## The first wall, floor or prop between two points, or null.
+func _hit(from: Vector2, to: Vector2) -> Object:
 	var query := PhysicsRayQueryParameters2D.create(from, to, PotionData.LAYER_WORLD | PotionData.LAYER_PROPS, [get_rid()])
-	return not get_world_2d().direct_space_state.intersect_ray(query).is_empty()
+	var result := get_world_2d().direct_space_state.intersect_ray(query)
+	return result.collider if result else null
 
 
 func _hurt_overlapping_player() -> void:
@@ -214,21 +275,39 @@ func _hurt_overlapping_player() -> void:
 		return
 	for body in _hurtbox.get_overlapping_bodies():
 		if body.has_method("die") and not body.is_translucent():
-			body.die(GameOver.CAUGHT)
+			body.die(GameOver.CAUGHT, global_position)
 
 
 func _animate(delta: float) -> void:
 	_anim_clock += delta
-	if not is_frozen():
-		_sprite.frame = int(_anim_clock * anim_fps) % FRAME_COUNT
-	_sprite.flip_h = _direction < 0
+	if not _base_texture:
+		_base_texture = _sprite.texture
 	_update_blink(delta)
+	# Its frozen look, held, blinking back to normal only as the freeze is
+	# about to wear off (HURRY_TIME).
+	var frozen_art := frozen_texture != null and _shows(_freeze_left, HURRY_TIME)
+	if frozen_art:
+		_sprite.texture = frozen_texture
+		_sprite.hframes = 1
+		_sprite.frame = 0
+	else:
+		if _sprite.texture == frozen_texture:
+			_sprite.texture = _base_texture
+			_sprite.hframes = FRAME_COUNT
+		if _base_texture == SHEET:
+			_sprite.texture = STUN_SHEET if is_stunned() else SHEET
+		if not is_frozen():
+			_sprite.frame = int(_anim_clock * anim_fps) % FRAME_COUNT
+	var stun_art := _base_texture == SHEET
+	# Facing the way it moves. On a wall it's turned a quarter, so its front
+	# points up a wall on its right (wall_side 1) and down one on its left.
+	_sprite.flip_h = _direction == wall_side if on_wall else (_direction > 0 if faces_left else _direction < 0)
 	var tint := Color.WHITE
-	if _shows(_freeze_left, PotionData.FREEZE_TIME):
+	if _shows(_freeze_left, PotionData.FREEZE_TIME) and not frozen_art:
 		tint = Color(0.6, 0.85, 1.4)
 	elif is_burning():
 		tint = Color(1.5, 0.75, 0.45) if int(_anim_clock * 12.0) % 2 == 0 else Color(1.3, 0.5, 0.3)
-	elif _shows(_stun_left, PotionData.STUN_TIME):
+	elif _shows(_stun_left, PotionData.STUN_TIME) and not stun_art:
 		tint = Color(1.15, 1.1, 0.75)
 	tint.a = 1.0
 	if _shows(_stun_left, PotionData.STUN_TIME):
@@ -270,8 +349,11 @@ func _shows(left: float, warn := WARN_TIME) -> bool:
 func _draw() -> void:
 	if _dead:
 		return
+	if flying and drawn_wings and not is_frozen():
+		_draw_wings()
 	if is_frozen():
-		var ice := Rect2(-9, -14, 18, 14)
+		# The ice cube, round the frozen art too (the fly bush is wider).
+		var ice := Rect2(-16, -17, 32, 17) if frozen_texture else Rect2(-9, -14, 18, 14)
 		draw_rect(ice, Color(0.6, 0.9, 1.0, 0.3))
 		draw_rect(ice, Color(0.8, 0.95, 1.0, 0.8), false)
 	if is_stunned():
@@ -280,6 +362,17 @@ func _draw() -> void:
 			var angle := _anim_clock * 5.0 + TAU * i / 3.0
 			var star := Vector2(cos(angle) * 7.0, -18.0 + sin(angle) * 2.5)
 			draw_rect(Rect2(star - Vector2(1, 1), Vector2(2, 2)), Color(1, 0.9, 0.3))
+
+
+## Bat wings either side, flapping (behind the sprite, which draws on top).
+func _draw_wings() -> void:
+	var flap := sin(_anim_clock * 16.0)
+	for side in [-1.0, 1.0]:
+		var root := Vector2(side * 4.0, -9.0)
+		var wing := PackedVector2Array([root, root + Vector2(side * 9.0, -5.0 - flap * 4.0), root + Vector2(side * 7.0, 1.0 + flap), root + Vector2(side * 2.0, 2.0)])
+		draw_colored_polygon(wing, WING_COLOR)
+		wing.append(root)
+		draw_polyline(wing, WING_EDGE)
 
 
 ## Little four-point twinkles popping in and out around a slime that still
@@ -305,6 +398,8 @@ func _drop_items() -> void:
 	for i in drop_count:
 		var pickup := Pickup.new()
 		pickup.kind = drop
+		# Out of the sky, they fall to the ground.
+		pickup.falls = flying
 		get_parent().add_child(pickup)
 		pickup.global_position = global_position + Vector2((i - (drop_count - 1) / 2.0) * 12.0, -8)
 

@@ -6,6 +6,9 @@ extends CharacterBody2D
 ## (translucent included) don't affect rocks. Falling onto the knight crushes
 ## him. Origin is at the bottom centre.
 
+const SMALL := preload("res://assets/sprites/props/rock_small.png")
+const BIG := preload("res://assets/sprites/props/rock_big.png")
+
 @export var size := Vector2(22, 22):
 	set(value):
 		size = value
@@ -85,15 +88,8 @@ func _crush_below(fall: float) -> void:
 func _draw() -> void:
 	if _shake_left > 0.0:
 		draw_set_transform(Vector2(1.0 if int(_shake_left * 40.0) % 2 == 0 else -1.0, 0))
-	var w := size.x / 2.0
-	var h := size.y
-	var outline := PackedVector2Array([
-		Vector2(-w, 0), Vector2(-w, -h * 0.55), Vector2(-w * 0.6, -h * 0.9), Vector2(0, -h),
-		Vector2(w * 0.65, -h * 0.85), Vector2(w, -h * 0.45), Vector2(w, 0),
-	])
-	draw_colored_polygon(outline, Color(0.45, 0.43, 0.5))
-	outline.append(outline[0])
-	# White outline marks it as something the player can interact with.
-	draw_polyline(outline, Color.WHITE)
-	draw_line(Vector2(-w * 0.3, -h * 0.6), Vector2(w * 0.1, -h * 0.4), Color(0.32, 0.3, 0.36))
-	draw_line(Vector2(w * 0.2, -h * 0.75), Vector2(w * 0.5, -h * 0.55), Color(0.32, 0.3, 0.36))
+	# The small rock up to 26 px, the big one past that, as drawn (never
+	# stretched: every asset keeps the same pixel scale). Rocks should be
+	# sized to their art: 22 or 32.
+	var art: Texture2D = SMALL if size.x <= 26.0 else BIG
+	draw_texture(art, Vector2(-roundf(art.get_width() / 2.0), -art.get_height()))

@@ -1,0 +1,159 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/push_box.gd" id="crate"]
+[ext_resource type="Script" path="res://scripts/puzzle/pressure_plate.gd" id="plate"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/jelly.gd" id="jelly"]
+[ext_resource type="Script" path="res://scripts/puzzle/heavy_button.gd" id="heavy"]
+[ext_resource type="Script" path="res://scripts/puzzle/rock.gd" id="rock"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/flyer.tscn" id="flyer"]
+
+[node name="Extra2" instance=ExtResource("base")]
+stage_id = "X2"
+stage_size = Vector2(1180, 216)
+intro_lines = PackedStringArray("SHELDON (squint): Crates, rocks, jelly, and something flapping about. Lots to push around.", "SHELDON (glasses): Knockback's the potion for this one. Mind where it bounces.")
+hint_lines = PackedStringArray("SHELDON: That crate's no use up on the shelf. Knock it down, then push it where it's wanted.", "---", "SHELDON (glasses): Blue jelly throws potions back harder. Stand at the edge, back to the jelly, and let it knock you across.", "---", "SHELDON (squint): Whatever can fly can fall. Especially onto a button.", "---", "SHELDON: Rocks are heavy. Heavier still from up high. Just don't be under it.")
+potions_needed_until_x = 1100.0
+
+[node name="Knight" parent="."]
+position = Vector2(24, 120)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="FloorA" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 120)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 316, 0, 316, 96, 0, 96)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(48, 120)
+script = ExtResource("chest")
+contents = "gust_feather"
+amount = 2
+extra_contents = "frost_shard"
+
+[node name="Shelf" type="StaticBody2D" parent="Level"]
+position = Vector2(80, 60)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 60, 0, 60, 8, 0, 8)
+
+[node name="Crate" type="CharacterBody2D" parent="Level"]
+position = Vector2(129, 60)
+collision_layer = 8
+collision_mask = 9
+script = ExtResource("crate")
+
+[node name="Plate" type="Area2D" parent="Level"]
+position = Vector2(204, 120)
+script = ExtResource("plate")
+width = 48.0
+
+[node name="GateWall" type="StaticBody2D" parent="Level"]
+position = Vector2(280, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 76, 0, 76)
+
+[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(280, 76)
+script = ExtResource("gate")
+size = Vector2(12, 44)
+plates = [NodePath("../Plate")]
+
+[node name="BlueJelly" type="StaticBody2D" parent="Level"]
+position = Vector2(316, 120)
+script = ExtResource("jelly")
+size = Vector2(16, 40)
+strength = 2.0
+
+[node name="FloorC" type="StaticBody2D" parent="Level"]
+position = Vector2(316, 160)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 124, 0, 124, 56, 0, 56)
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(440, 208)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 110, 0, 110, 8, 0, 8)
+
+[node name="FloorB" type="StaticBody2D" parent="Level"]
+position = Vector2(550, 160)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 90, 0, 90, 56, 0, 56)
+
+[node name="Chest2" type="Area2D" parent="Level"]
+position = Vector2(600, 160)
+script = ExtResource("chest")
+contents = "gust_feather"
+amount = 2
+
+[node name="FloorD" type="StaticBody2D" parent="Level"]
+position = Vector2(640, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 540, 0, 540, 24, 0, 24)
+
+[node name="FlyButton" type="Area2D" parent="Level"]
+position = Vector2(720, 192)
+script = ExtResource("heavy")
+width = 44.0
+cap_height = 12.0
+press_time = 1.0
+
+[node name="GateWall2" type="StaticBody2D" parent="Level"]
+position = Vector2(780, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 148, 0, 148)
+
+[node name="Gate2" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(780, 148)
+script = ExtResource("gate")
+size = Vector2(12, 44)
+plates = [NodePath("../FlyButton")]
+
+[node name="ShelfPost" type="StaticBody2D" parent="Level"]
+position = Vector2(910, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 10, 0, 10, 112, 0, 112)
+
+[node name="RockShelf" type="StaticBody2D" parent="Level"]
+position = Vector2(910, 112)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 70, 0, 70, 8, 0, 8)
+
+[node name="Rock" type="CharacterBody2D" parent="Level"]
+position = Vector2(968, 112)
+collision_layer = 8
+collision_mask = 9
+script = ExtResource("rock")
+
+[node name="RockButton" type="Area2D" parent="Level"]
+position = Vector2(1066, 192)
+script = ExtResource("heavy")
+width = 68.0
+cap_height = 12.0
+press_time = 1.0
+
+[node name="GateWall3" type="StaticBody2D" parent="Level"]
+position = Vector2(1100, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 136, 0, 136)
+
+[node name="Gate3" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(1100, 136)
+script = ExtResource("gate")
+size = Vector2(12, 56)
+plates = [NodePath("../RockButton")]
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(1150, 192)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="ButtonFlyer" parent="Enemies" instance=ExtResource("flyer")]
+position = Vector2(720, 110)
+speed = 22.0
+patrol_range = 36.0

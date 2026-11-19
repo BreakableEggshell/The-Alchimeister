@@ -64,6 +64,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = minf(velocity.y, -sqrt(2.0 * gravity * jump_height))
 		_jump_buffer_timer = 0.0
 		_coyote_timer = 0.0
+		Sfx.play(Sfx.KNIGHT_JUMP, self)
 
 	_slide()
 	_animate(delta, direction)

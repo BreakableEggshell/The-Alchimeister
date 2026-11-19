@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/element_platform.gd" id="slab"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+
+[node name="Proto6" instance=ExtResource("base")]
+stage_id = "P6"
+intro_lines = PackedStringArray("SHELDON (squint): One slab of ice, and two climbs to make.", "SHELDON (glasses): Good thing ice that's been smoke once can be smoke <<again>>.")
+hint_lines = PackedStringArray("SHELDON: Raise the ice just enough to get up onto that ledge first.", "---", "SHELDON (glasses): From up there, <<fire:melt>> it again and let it rise past you. Then <<freeze:freeze>> it where you can reach the shelf.")
+
+[node name="Knight" parent="."]
+position = Vector2(24, 192)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 132, 0, 132, 24, 0, 24)
+
+[node name="Shelf" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 96)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 100, 0, 100, 12, 0, 12)
+
+[node name="Ledge" type="StaticBody2D" parent="Level"]
+position = Vector2(132, 144)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 252, 0, 252, 72, 0, 72)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(64, 192)
+script = ExtResource("chest")
+amount = 3
+extra_contents = "frost_shard"
+extra_amount = 3
+
+[node name="Slab" type="StaticBody2D" parent="Level"]
+position = Vector2(100, 184)
+script = ExtResource("slab")
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(40, 96)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]

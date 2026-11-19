@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/element_platform.gd" id="slab"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+
+[node name="Proto8" instance=ExtResource("base")]
+stage_id = "P8"
+intro_lines = PackedStringArray("SHELDON (squint): Fire and ice, side by side. Two steps up to that door.", "SHELDON: Two of each potion. Careful where you put your feet.")
+hint_lines = PackedStringArray("SHELDON (glasses): A knight on fire melts any ice he steps on. So the fire step has to come <<last>>.", "---", "SHELDON: Smoke doesn't remember what it was. <<freeze:Freeze>> it and it's ice, even if it started out as fire.")
+
+[node name="Knight" parent="."]
+position = Vector2(24, 192)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 296, 0, 296, 24, 0, 24)
+
+[node name="Ledge" type="StaticBody2D" parent="Level"]
+position = Vector2(296, 112)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 88, 0, 88, 104, 0, 104)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(64, 192)
+script = ExtResource("chest")
+amount = 2
+extra_contents = "frost_shard"
+extra_amount = 2
+
+[node name="FireSlab" type="StaticBody2D" parent="Level"]
+position = Vector2(200, 184)
+script = ExtResource("slab")
+form = 1
+
+[node name="IceSlab" type="StaticBody2D" parent="Level"]
+position = Vector2(264, 184)
+script = ExtResource("slab")
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(344, 112)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]

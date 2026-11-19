@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/jelly.gd" id="jelly"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+
+[node name="Proto10" instance=ExtResource("base")]
+stage_id = "P10"
+intro_lines = PackedStringArray("SHELDON (squint): That step is too tall to jump. Two jellies, though.", "SHELDON (glasses): Green jelly gives back what you give it. Blue gives back <<more>>.")
+hint_lines = PackedStringArray("SHELDON: The green one won't throw you high enough. It has to be the blue one.", "---", "SHELDON (glasses): Throw up at the blue jelly so it comes back down on you. You'll fly away from the jelly.")
+
+[node name="Knight" parent="."]
+position = Vector2(150, 192)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 250, 0, 250, 24, 0, 24)
+
+[node name="Step" type="StaticBody2D" parent="Level"]
+position = Vector2(250, 144)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 134, 0, 134, 72, 0, 72)
+
+[node name="GreenJelly" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 144)
+script = ExtResource("jelly")
+size = Vector2(16, 48)
+
+[node name="BlueJelly" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 40)
+script = ExtResource("jelly")
+size = Vector2(16, 56)
+strength = 2.5
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(60, 192)
+script = ExtResource("chest")
+contents = "gust_feather"
+amount = 3
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(330, 144)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]

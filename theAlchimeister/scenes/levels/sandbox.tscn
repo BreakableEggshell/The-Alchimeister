@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/puzzle/jelly.gd" id="jelly"]
 [ext_resource type="Script" path="res://scripts/puzzle/cleansing_water.gd" id="water"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+[ext_resource type="Script" path="res://scripts/puzzle/pebble.gd" id="pebble"]
 
 [node name="Sandbox" instance=ExtResource("base")]
 stage_id = "sandbox"
@@ -37,14 +38,12 @@ script = ExtResource("solid")
 points = PackedVector2Array(0, 0, 140, 0, 140, 24, 0, 24)
 
 [node name="CurbA" type="StaticBody2D" parent="Level"]
-position = Vector2(190, 184)
-script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 6, 0, 6, 8, 0, 8)
+position = Vector2(193, 192)
+script = ExtResource("pebble")
 
 [node name="CurbB" type="StaticBody2D" parent="Level"]
-position = Vector2(300, 184)
-script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 6, 0, 6, 8, 0, 8)
+position = Vector2(303, 192)
+script = ExtResource("pebble")
 
 [node name="HeavyButton" type="Area2D" parent="Level"]
 position = Vector2(360, 192)
@@ -151,14 +150,14 @@ script = ExtResource("solid")
 points = PackedVector2Array(0, 0, 40, 0, 40, 192, 0, 192)
 
 [node name="WallStopTop" type="StaticBody2D" parent="Level"]
-position = Vector2(1188, 60)
-script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 12, 0, 12, 4, 0, 4)
+position = Vector2(1200, 62)
+rotation = -1.5707964
+script = ExtResource("pebble")
 
 [node name="WallStopBottom" type="StaticBody2D" parent="Level"]
-position = Vector2(1188, 130)
-script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 12, 0, 12, 4, 0, 4)
+position = Vector2(1200, 132)
+rotation = -1.5707964
+script = ExtResource("pebble")
 
 [node name="Enemies" type="Node2D" parent="."]
 

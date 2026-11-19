@@ -1,7 +1,7 @@
 class_name SettingsPanel
 extends Panel
 ## The settings page, shared by the notebook and the start menu: music and
-## sound volume, fullscreen, the CONTROLS page, and optionally SELECT LEVEL.
+## sound volume, fullscreen and the CONTROLS page.
 
 ## The player asked to leave (BACK).
 signal back_requested
@@ -15,10 +15,9 @@ const BUTTONS_Y := 148.0
 var first_setting: Control
 var controls: Panel
 var controls_button: Button
-var select_level_button: Button
 
 
-func build(panel_size: Vector2, with_select_level: bool) -> void:
+func build(panel_size: Vector2) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = PAGE_COLOR
 	style.border_color = COVER_COLOR
@@ -57,8 +56,9 @@ func build(panel_size: Vector2, with_select_level: bool) -> void:
 	fullscreen.add_theme_color_override("font_pressed_color", INK)
 	fullscreen.add_theme_color_override("font_hover_pressed_color", INK)
 	# Plain text on the page, not the dark HUD button box.
-	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 		fullscreen.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	fullscreen.add_theme_stylebox_override("focus", UiFocus.SELECTION)
 	fullscreen.position = Vector2(66, 104)
 	fullscreen.toggled.connect(SaveGame.set_fullscreen)
 	add_child(fullscreen)
@@ -74,9 +74,6 @@ func build(panel_size: Vector2, with_select_level: bool) -> void:
 			sliders.append(child)
 	var row := HBoxContainer.new()
 	add_child(row)
-	if with_select_level:
-		select_level_button = _button("SELECT LEVEL", row)
-		select_level_button.pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
 	controls_button = _button("CONTROLS", row)
 	controls_button.pressed.connect(open_controls)
 	var back := _button("BACK", row)
@@ -149,6 +146,8 @@ func _button(text: String, parent: Control) -> Button:
 	var button := Button.new()
 	button.text = " %s " % text
 	button.focus_mode = Control.FOCUS_ALL
+	# The btn.png look, in the game's HUD as well as on the start menu.
+	button.theme_type_variation = &"WoodButton"
 	parent.add_child(button)
 	return button
 

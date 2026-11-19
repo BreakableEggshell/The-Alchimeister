@@ -1,0 +1,80 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/puzzle/tnt_level.gd" id="level"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/rope.gd" id="rope"]
+[ext_resource type="Script" path="res://scripts/puzzle/wooden_platform.gd" id="wood"]
+[ext_resource type="Script" path="res://scripts/puzzle/tnt.gd" id="tnt"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+
+[node name="Proto3" instance=ExtResource("base") node_paths=PackedStringArray("bridge")]
+script = ExtResource("level")
+stage_id = "P3"
+stage_size = Vector2(720, 216)
+intro_lines = PackedStringArray("SHELDON (squint): Same trick as before. Rope, fuse, bridge.", "SHELDON: But this gate is slow, and that bridge is <<long>>. We'll never make it across in time.", "SHELDON (glasses): Unless the spark never gets there. What puts a fire out?")
+intro_teaches = "hint"
+hint_lines = PackedStringArray("SHELDON (glasses): <<freeze:Ice>> on a burning fuse puts the spark out.", "---", "SHELDON: Brew both potions first. Fire on the rope, then freeze the fuse before it reaches the crate.")
+bridge = NodePath("Level/Bridge")
+bridge_end_x = 556.0
+
+[node name="Knight" parent="."]
+position = Vector2(24, 152)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="GroundL" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 152)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 270, 0, 270, 64, 0, 64)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(60, 152)
+script = ExtResource("chest")
+extra_contents = "frost_shard"
+
+[node name="GateWall" type="StaticBody2D" parent="Level"]
+position = Vector2(200, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 116, 0, 116)
+
+[node name="Rope" type="Area2D" parent="Level"]
+position = Vector2(190, 116)
+script = ExtResource("rope")
+length = 24.0
+
+[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("ropes")]
+position = Vector2(200, 116)
+script = ExtResource("gate")
+size = Vector2(12, 36)
+ropes = [NodePath("../Rope")]
+travel_time = 1.5
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(270, 200)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 280, 0, 280, 16, 0, 16)
+
+[node name="Bridge" type="StaticBody2D" parent="Level"]
+position = Vector2(270, 152)
+script = ExtResource("wood")
+points = PackedVector2Array(0, 0, 280, 0, 280, 5, 0, 5)
+
+[node name="GroundR" type="StaticBody2D" parent="Level"]
+position = Vector2(550, 152)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 170, 0, 170, 64, 0, 64)
+
+[node name="Tnt" type="Area2D" parent="Level"]
+position = Vector2(298, 200)
+script = ExtResource("tnt")
+fuse = PackedVector2Array(-12, -3, -25, -3, -25, -51, -105, -51, -105, -70)
+blast_area = Rect2(-28, -64, 280, 64)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(680, 152)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]

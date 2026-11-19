@@ -104,12 +104,18 @@ func _physics_process(_delta: float) -> void:
 	var shown := int(preview_time / dt)
 	var limit := int(BOUNCE_LOOKAHEAD / dt)
 	var bounced := false
+	# As the real potion: off jelly, it can hit the knight (see Potion._bounced_off).
+	var excluded: Array[RID] = [thrower.get_rid()]
+	var mask := PotionData.POTION_HIT_MASK
 	var i := 0
 	while i < limit:
-		var result := Potion.step(space, position_now, velocity_now, potion_gravity, dt, [thrower.get_rid()], PotionData.POTION_HIT_MASK)
+		var result := Potion.step(space, position_now, velocity_now, potion_gravity, dt, excluded, mask)
 		position_now = result.position
 		velocity_now = result.velocity
 		_preview.append(position_now)
+		if result.has("bounced"):
+			excluded = []
+			mask = Potion.after_bounce_mask(mask)
 		if result.has("bounced") and not bounced:
 			bounced = true
 			limit = i + 1 + int(AFTER_BOUNCE_TIME / dt)

@@ -10,7 +10,9 @@ extends Node2D
 ## "---" splits them into parts: each ask gives the next part, looping back to
 ## the first. Every hint costs a level: the next one has no hints (one more
 ## level for each further hint; see SaveGame.lock_hints_after), and HINT warns
-## about it in red before giving one. As every NUDGE_EVERY-th retry starts,
+## about it in red before giving one. Once every part has been given, asking
+## again just repeats them: no question, and no further cost. As every
+## NUDGE_EVERY-th retry starts,
 ## Sheldon reminds the player that hints are there (skipped if they took one
 ## lately), or, where there's none to give, to try another way.
 ## Hints a stage cues itself (see level_2_2.gd) play as well.
@@ -19,6 +21,9 @@ extends Node2D
 static var _restarts := {}
 ## Per stage: the hint part to give next, and the retry the last one was taken on.
 static var _hint_part := {}
+## Stages whose every hint part has been given: asking again only repeats
+## them, which is free and isn't asked about.
+static var _hints_heard := {}
 static var _hint_taken_at := {}
 
 @export var stage_id := "1-1"
@@ -34,8 +39,12 @@ static var _hint_taken_at := {}
 ## "SPEAKER: text" lines Sheldon gives as this stage's hint; a "---" line
 ## starts the next part (see the top of this script).
 @export var hint_lines: PackedStringArray
-## The notebook's LOG and HINT buttons work. Off on the very first stage.
+## The LOG button (beside the notebook icon) and the notebook's HINT work.
+## Off on the very first stage.
 @export var log_and_hint_enabled := true
+## The notebook's HINT button works. Off through the tutorial: Sheldon
+## introduces hints on 2-1.
+@export var hint_enabled := true
 ## "SPEAKER: text" lines played on reaching the exit, before the banner.
 @export var exit_lines: PackedStringArray
 @export var player: CharacterBody2D
@@ -59,7 +68,7 @@ const HINT_BREAK := "---"
 ## Every this many retries, Sheldon reminds the player about hints.
 const NUDGE_EVERY := 5
 const NUDGE_LINE := "SHELDON: You know, you can always use the hint feature in the notebook."
-const NO_HINT_NUDGE_LINE := "SHELDON (squint): If something doesn't work, why not try another way?"
+const NO_HINT_NUDGE_LINE := "SHELDON: If something doesn't work, why not try another way?"
 const HINT_COST_ONE := "YOU WON'T BE ABLE TO USE HINTS ON THE NEXT LEVEL."
 const HINT_COST_MANY := "YOU WON'T BE ABLE TO USE HINTS ON THE NEXT %d LEVELS."
 ## Seconds between checks for being stuck without potions.
@@ -71,6 +80,7 @@ var _pick_misses := 0
 
 func _ready() -> void:
 	get_tree().paused = false
+	Music.play(_music())
 	SaveGame.set_last_stage(stage_id)
 	_setup_bounds()
 	player.died.connect(_on_player_died)
@@ -95,9 +105,16 @@ func _ready() -> void:
 	hud.restart_pressed.connect(restart)
 	hud.next_pressed.connect(_go_next)
 	hud.levels_pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
-	hud.book.set_log_and_hint_enabled(log_and_hint_enabled)
+	hud.book.set_hint_enabled(log_and_hint_enabled and hint_enabled)
+	hud.log_enabled = log_and_hint_enabled
 	_update_hint_state()
 	hud.book.restart_requested.connect(restart)
+	# MAIN MENU: the iris closes on the knight, and the menu opens from black.
+	hud.book.main_menu_requested.connect(func() -> void:
+		SaveGame.go_to_with_iris(SaveGame.START_MENU, _iris_focus()))
+	# LEVELS in the pause menu: the same, to the level select.
+	hud.book.levels_requested.connect(func() -> void:
+		SaveGame.go_to_with_iris(SaveGame.LEVEL_SELECT, _iris_focus()))
 	hud.book.set_level_label(SaveGame.stage_label(stage_id))
 	hud.dialogue.set_level_label(SaveGame.stage_label(stage_id))
 	hud.book.set_can_skip(SaveGame.next_stage(stage_id) != "")
@@ -131,7 +148,8 @@ func restart_count() -> int:
 
 
 ## The next part of this stage's hint from Sheldon (queued after anything
-## already playing). It locks hints on a later level.
+## already playing). It locks hints on a later level, unless every part has
+## been given already and they're only coming round again.
 func show_hint() -> void:
 	var parts := hint_parts()
 	if parts.is_empty():
@@ -139,7 +157,10 @@ func show_hint() -> void:
 	var part: int = _hint_part.get(stage_id, 0) % parts.size()
 	_hint_part[stage_id] = part + 1
 	_hint_taken_at[stage_id] = restart_count()
-	SaveGame.lock_hints_after(stage_id)
+	if not _hints_heard.has(stage_id):
+		SaveGame.lock_hints_after(stage_id)
+	if part + 1 >= parts.size():
+		_hints_heard[stage_id] = true
 	_update_hint_state()
 	hud.dialogue.play(parts[part], &"hint")
 
@@ -162,15 +183,16 @@ func hint_parts() -> Array[PackedStringArray]:
 
 ## Whether HINT would give one here.
 func hints_available() -> bool:
-	return log_and_hint_enabled and not hint_lines.is_empty() and not SaveGame.hints_locked(stage_id)
+	return log_and_hint_enabled and hint_enabled and not hint_lines.is_empty() and not SaveGame.hints_locked(stage_id)
 
 
 ## Tells the notebook whether there's a hint, whether it's locked, and what
 ## one more would cost.
 func _update_hint_state() -> void:
-	hud.book.has_hint = log_and_hint_enabled and not hint_lines.is_empty()
+	hud.book.has_hint = log_and_hint_enabled and hint_enabled and not hint_lines.is_empty()
 	hud.book.hints_locked = SaveGame.hints_locked(stage_id)
-	var cost := SaveGame.hint_cost(stage_id)
+	hud.book.hint_repeats = _hints_heard.has(stage_id)
+	var cost := 0 if hud.book.hint_repeats else SaveGame.hint_cost(stage_id)
 	hud.book.hint_warning = "" if cost == 0 else (HINT_COST_ONE if cost == 1 else HINT_COST_MANY % cost)
 
 
@@ -203,7 +225,7 @@ func _check_stuck() -> void:
 
 ## Out of potions with no way to make more, short of the point where none are
 ## needed, and nothing still in play that could change things (a potion in
-## the air, an effect still running on the player or a monster).
+## the air, a lit fuse, an effect still running on the player or a monster).
 func is_stuck() -> bool:
 	if inventory.unlimited:
 		return false
@@ -214,7 +236,7 @@ func is_stuck() -> bool:
 	if PotionData.INGREDIENTS.any(func(kind: StringName) -> bool: return inventory.ingredient_count(kind) > 0):
 		return false
 	var tree := get_tree()
-	if tree.get_node_count_in_group("potions") > 0 or tree.get_node_count_in_group("pickups") > 0:
+	if tree.get_node_count_in_group("potions") > 0 or tree.get_node_count_in_group("pickups") > 0 or tree.get_node_count_in_group("lit_fuses") > 0:
 		return false
 	if tree.get_nodes_in_group("chests").any(func(chest: Node) -> bool: return not chest.is_opened()):
 		return false
@@ -263,6 +285,7 @@ static func is_nudge_attempt(attempt: int) -> bool:
 func _forget_stage() -> void:
 	_restarts.erase(stage_id)
 	_hint_part.erase(stage_id)
+	_hints_heard.erase(stage_id)
 	_hint_taken_at.erase(stage_id)
 	SaveGame.free_hints(stage_id)
 
@@ -280,7 +303,10 @@ func _exit_lines() -> PackedStringArray:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("restart") and not player._dead:
 		restart()
-	elif _over and event.is_action_pressed("ui_accept") and SaveGame.next_stage(stage_id) != "":
+	# Enter for the next stage, unless a button is selected (LEVELS, say): then
+	# Enter is that button's.
+	elif _over and event.is_action_pressed("ui_accept") and SaveGame.next_stage(stage_id) != "" \
+			and not get_viewport().gui_get_focus_owner():
 		_go_next()
 
 
@@ -299,22 +325,23 @@ func _on_exit_reached() -> void:
 	_forget_stage()
 	var next := SaveGame.next_stage(stage_id)
 	SaveGame.unlock(next)
-	# The very end stops the secret timer.
-	var full_run := next == "" and SaveGame.finish_run()
+	SaveGame.mark_split(stage_id)
+	# The very end (of the game, not of a later map) stops the secret timer.
+	var full_run := next == "" and SaveGame.map_of(stage_id) == SaveGame.PLAYABLE_MAP and SaveGame.finish_run()
 	var lines := _exit_lines()
 	if not lines.is_empty():
 		await hud.dialogue.interrupt(lines, player)
-	var run_time := ""
 	if full_run:
 		var prompt := NAME_PROMPT.new()
 		hud.add_child(prompt)
 		var player_name: String = await prompt.ask()
+		# Saved for the speedrun list, but never shown here: the timer stays
+		# a secret.
 		SaveGame.record_playtester(player_name)
-		run_time = "%s - %s" % [player_name, SaveGame.format_time(SaveGame.run_seconds)]
 	var level_done := SaveGame.is_last_in_level(stage_id)
 	if level_done:
 		var title: String = SaveGame.LEVELS[SaveGame.level_of(stage_id)].title
-		hud.show_banner("%s COMPLETE" % (title if title != "" else "LEVEL"), run_time, Color(0.95, 0.85, 0.55))
+		hud.show_banner("%s COMPLETE" % (title if title != "" else "LEVEL"), "", Color(0.95, 0.85, 0.55))
 	else:
 		hud.show_banner("STAGE CLEAR", "", Color(0.95, 0.85, 0.55))
 	hud.show_end_buttons(next != "", "NEXT LEVEL" if level_done else "NEXT STAGE")
@@ -350,3 +377,9 @@ func _setup_bounds() -> void:
 		shape.position = edge[0]
 		edges.add_child(shape)
 	add_child(edges)
+
+
+## This stage's music (see Music); carries on from the stage before if it's
+## the same.
+func _music() -> AudioStream:
+	return Music.LEVELS

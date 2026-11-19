@@ -10,6 +10,9 @@ extends Control
 ## and log (also on L), with their keys shown underneath. Conversations can be
 ## marked as teaching something (HINT or TUTORIAL); if any of the lines still to
 ## come do, the skip question warns about it in red.
+## <<Words>> in double angle brackets are highlighted (HIGHLIGHT), in the box
+## and in the log; <<fire:words>> (or knockback, freeze, translucent, death)
+## takes that potion's colour instead. The log scrolls by dragging it, too.
 ## The log (chat history for this stage, skipped lines included) can also be
 ## opened from elsewhere with show_log().
 ## Mid-gameplay conversations go through interrupt(): the game pauses, a speech
@@ -22,15 +25,19 @@ const CHARS_PER_SECOND := 50.0
 ## Seconds the speech bubble shows before a mid-gameplay conversation starts.
 const BUBBLE_TIME := 0.6
 const KEY_COLOR := Color(1, 1, 1, 0.75)
+## The colour of <<highlighted>> words.
+const HIGHLIGHT := Color(0.95, 0.85, 0.55)
 const BG := Color(0.1, 0.09, 0.14, 0.95)
+## The box every panel here is drawn in: panel_frame.png as a 9-slice.
+const PANEL_FRAME := preload("res://scenes/ui/panel_frame_style.tres")
 const BORDER := Color(0.95, 0.85, 0.55)
 const BOX_WIDTH := 240.0
 ## The box grows upwards past this when a line needs more room.
 const BOX_MIN_HEIGHT := 60.0
 ## Gap between the box and the bottom of the screen.
 const BOX_MARGIN := 4.0
-const TEXT_TOP := 16.0
-const TEXT_PADDING := 6.0
+const TEXT_TOP := 19.0
+const TEXT_PADDING := 9.0
 const DIM_COLOR := Color(0, 0, 0, 0.5)
 ## How the character who isn't talking looks: darker, and pushed this far
 ## towards their bottom corner.
@@ -63,6 +70,8 @@ var _lines: Array[Dictionary] = []
 var _queued: Array[Dictionary] = []
 var _index := 0
 var _paused_by_me := false
+## The log paused the game itself (opened during play), so it unpauses it.
+var _log_paused := false
 var _type_tween: Tween
 var _blocker: Control
 var _dim: ColorRect
@@ -73,7 +82,7 @@ var _standing := {}
 var _portrait_tweens := {}
 var _dim_tween: Tween
 var _name: Label
-var _text: Label
+var _text: RichTextLabel
 var _skip_button: Button
 var _log_button: Button
 ## The level being played, top left while talking.
@@ -194,18 +203,30 @@ func show_log() -> void:
 		var speaker := _speaker(line.speaker)
 		var color := speaker.name_color if speaker else Color.WHITE
 		var shown := speaker.shown_name() if speaker else String(line.speaker)
-		bbcode += "[color=#%s]%s:[/color] %s\n\n" % [color.to_html(false), shown, line.text]
+		bbcode += "[color=#%s]%s:[/color] %s\n\n" % [color.to_html(false), shown, _to_bbcode(line.text)]
 	_log_text.text = bbcode if bbcode else "[color=#888888]NOTHING SAID YET.[/color]"
+	if not _log.visible and not get_tree().paused:
+		_log_paused = true
+		get_tree().paused = true
 	_log.show()
 	move_to_front()
 	_log_text.grab_focus()
 	_log_text.scroll_to_line(maxi(_log_text.get_line_count() - 1, 0))
 
 
+## Puts the log away, unpausing the game if the log paused it.
+func hide_log() -> void:
+	_log.hide()
+	if _log_paused:
+		_log_paused = false
+		get_tree().paused = false
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _log.visible:
-		if event.is_action_pressed("ui_cancel") or (is_playing and _is_log_key(event)):
-			_log.hide()
+		# Esc, L or B put it away (B mustn't open the notebook under it).
+		if event.is_action_pressed("ui_cancel") or _is_log_key(event) or event.is_action_pressed("toggle_book"):
+			hide_log()
 			get_viewport().set_input_as_handled()
 		return
 	if not is_playing:
@@ -232,7 +253,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## See UiFocus.
 func focus_first() -> bool:
 	if _confirm.visible:
-		_confirm_buttons[1 if _confirm_warning.visible else 0].grab_focus()
+		_confirm_buttons[0].grab_focus()
 	elif _log.visible:
 		_log_text.grab_focus()
 	else:
@@ -250,14 +271,31 @@ func _show_line(shift_time := SHIFT_TIME) -> void:
 	var speaker := _speaker(line.speaker)
 	_name.text = speaker.shown_name() if speaker else String(line.speaker)
 	_name.add_theme_color_override("font_color", speaker.name_color if speaker else Color.WHITE)
-	_text.text = line.text
+	_text.text = _to_bbcode(line.text)
 	_fit_box()
 	_spotlight(speaker, shift_time, line.get("expression", ""))
 	_text.visible_ratio = 0.0
 	if _type_tween:
 		_type_tween.kill()
 	_type_tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	_type_tween.tween_property(_text, "visible_ratio", 1.0, line.text.length() / CHARS_PER_SECOND)
+	_type_tween.tween_property(_text, "visible_ratio", 1.0, _text.get_parsed_text().length() / CHARS_PER_SECOND)
+
+
+## A line as BBCode: its own square brackets (key names like "[B]") shown as
+## they are, and <<words>> in the HIGHLIGHT colour.
+static func _to_bbcode(text: String) -> String:
+	var bbcode := text.replace("[", "[lb]")
+	for kind in PotionData.KINDS:
+		bbcode = bbcode.replace("<<%s:" % kind, "[color=#%s]" % PotionData.color_of(kind).to_html(false))
+	return bbcode.replace("<<", "[color=#%s]" % HIGHLIGHT.to_html(false)).replace(">>", "[/color]")
+
+
+## Dragging the log (mouse or finger) scrolls it.
+func _drag_log(event: InputEvent) -> void:
+	var drag := event as InputEventMouseMotion
+	if drag and drag.button_mask & MOUSE_BUTTON_MASK_LEFT:
+		_log_text.get_v_scroll_bar().value -= drag.relative.y
+		_log_text.accept_event()
 
 
 func _finish() -> void:
@@ -380,7 +418,7 @@ func _portrait_position(speaker: DialogueSpeaker, talking: bool) -> Vector2:
 
 ## Grows the box upwards when the current line needs more than the minimum.
 func _fit_box() -> void:
-	var text_height := _text.get_line_count() * _text.get_line_height()
+	var text_height := float(_text.get_content_height())
 	var height := maxf(BOX_MIN_HEIGHT, TEXT_TOP + text_height + TEXT_PADDING)
 	_box.offset_top = -BOX_MARGIN - height
 
@@ -441,8 +479,10 @@ func _show_confirm() -> void:
 	panel.offset_top = -height / 2.0
 	panel.offset_bottom = height / 2.0
 	_confirm.show()
-	# With a hint or tutorial at stake, NO is the safe default.
-	_confirm_buttons[1 if _confirm_warning.visible else 0].grab_focus()
+	# YES first: the player asked to skip. The first key press shows it there
+	# (see UiFocus.hide_mark); the next one moves.
+	_confirm_buttons[0].grab_focus()
+	UiFocus.hide_mark()
 
 
 func _blocker_input(event: InputEvent) -> void:
@@ -489,10 +529,15 @@ func _build() -> void:
 	add_child(_box)
 
 	_name = Label.new()
-	_name.position = Vector2(TEXT_PADDING, 4)
+	_name.position = Vector2(TEXT_PADDING, 7)
 	_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_child(_name)
-	_text = Label.new()
+	_text = RichTextLabel.new()
+	_text.bbcode_enabled = true
+	_text.scroll_active = false
+	# The same look the plain label had.
+	_text.add_theme_color_override("default_color", get_theme_color("font_color", "Label"))
+	_text.add_theme_constant_override("line_separation", get_theme_constant("line_spacing", "Label"))
 	_text.anchor_right = 1.0
 	_text.anchor_bottom = 1.0
 	_text.offset_left = TEXT_PADDING
@@ -558,9 +603,10 @@ func _build() -> void:
 	_log_text.focus_mode = Control.FOCUS_ALL
 	_log_text.position = Vector2(10, 20)
 	_log_text.size = Vector2(300, 130)
+	_log_text.gui_input.connect(_drag_log)
 	log_panel.add_child(_log_text)
 	_log_close = _text_button("CLOSE", Vector2(130, 154), Vector2(60, 16))
-	_log_close.pressed.connect(_log.hide)
+	_log_close.pressed.connect(hide_log)
 	log_panel.add_child(_log_close)
 
 
@@ -613,17 +659,16 @@ func _text_button(text: String, at: Vector2, button_size: Vector2) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_ALL
+	# The btn.png look (see the HUD theme).
+	button.theme_type_variation = &"WoodButton"
 	button.position = at
 	button.size = button_size
 	return button
 
 
-func _panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = BG
-	style.border_color = BORDER
-	style.set_border_width_all(1)
-	return style
+## The dialogue box, the skip box and the log: the panel frame (panel_frame.png).
+func _panel_style() -> StyleBox:
+	return PANEL_FRAME
 
 
 func _draw_skip_icon(button: Button) -> void:
@@ -632,6 +677,8 @@ func _draw_skip_icon(button: Button) -> void:
 		button.draw_colored_polygon(PackedVector2Array([c + Vector2(dx - 2, -4), c + Vector2(dx + 4, 0), c + Vector2(dx - 2, 4)]), Color.WHITE)
 
 
+## The log's icon (a page of lines), centred on `button`. The HUD's LOG
+## button uses it too.
 func _draw_log_icon(button: Button) -> void:
 	var c := button.size / 2.0
 	button.draw_rect(Rect2(c + Vector2(-5, -6), Vector2(10, 12)), Color(0.94, 0.88, 0.74))

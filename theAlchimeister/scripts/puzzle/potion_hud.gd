@@ -1,7 +1,8 @@
 extends Control
 ## Stage HUD: one slot per potion kind (click it or press 1-5 to select;
 ## the Death potion's slot only appears while you hold one), with its key
-## number underneath (and "B" under the book button),
+## number underneath (and "B" under the book button, "L" under the LOG
+## button beside it),
 ## short-lived messages, the recipe book button, the dialogue box, the
 ## out-of-potions restart hint (tap it to restart), and the end-of-stage banner with its buttons
 ## (the stage dims behind them; WASD moves between them, Enter picks).
@@ -39,11 +40,22 @@ var _restart_hint: Button
 var _end_dim: ColorRect
 var _effects: Control
 
+## How far left of the book button the LOG button sits.
+const LOG_BUTTON_STEP := 28.0
+
 @onready var _slot_row: HBoxContainer = $Slots
 @onready var _messages: VBoxContainer = $Messages
 @onready var _banner: Label = $Banner
 @onready var _banner_sub: Label = $BannerSub
 @onready var _book_button: Button = $BookButton
+## The dialogue log, just left of the book button, with its key under it.
+var _log_button: Button
+## The stage lets the log open (not on the very first one).
+var log_enabled := true:
+	set(value):
+		log_enabled = value
+		if is_node_ready():
+			_update_visibility()
 @onready var _end_buttons: HBoxContainer = $EndButtons
 @onready var _next_button: Button = $EndButtons/NextButton
 @onready var _levels_button: Button = $EndButtons/LevelsButton
@@ -70,7 +82,15 @@ func _ready() -> void:
 	book.closed.connect(func() -> void:
 		_messages.show()
 		_update_visibility())
-	book.log_requested.connect(dialogue.show_log)
+	_log_button = _book_button.duplicate(0)
+	_log_button.tooltip_text = "DIALOGUE LOG"
+	_log_button.offset_left = _book_button.offset_left - LOG_BUTTON_STEP
+	_log_button.offset_right = _book_button.offset_right - LOG_BUTTON_STEP
+	add_child(_log_button)
+	_log_button.pressed.connect(dialogue.show_log)
+	_log_button.draw.connect(func() -> void:
+		dialogue._draw_log_icon(_log_button)
+		_draw_key(_log_button, Controls.key_name(&"open_log")))
 	dialogue.started.connect(func() -> void:
 		thrower.cancel()
 		_update_visibility())
@@ -83,6 +103,7 @@ func _ready() -> void:
 	book.move_to_front()
 	_slot_row.move_to_front()
 	_book_button.move_to_front()
+	_log_button.move_to_front()
 	_highlight = Control.new()
 	_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_highlight.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -101,9 +122,9 @@ func _ready() -> void:
 	_restart_hint.flat = true
 	_restart_hint.focus_mode = Control.FOCUS_NONE
 	_restart_hint.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_restart_hint.add_theme_color_override("font_color", Color(1, 0.35, 0.35))
-	_restart_hint.add_theme_color_override("font_hover_color", Color(1, 0.6, 0.6))
-	_restart_hint.add_theme_color_override("font_pressed_color", Color(1, 0.75, 0.75))
+	_restart_hint.add_theme_color_override("font_color", Color(1, 0.95, 0.2))
+	_restart_hint.add_theme_color_override("font_hover_color", Color(1, 1, 0.55))
+	_restart_hint.add_theme_color_override("font_pressed_color", Color(1, 1, 0.75))
 	_restart_hint.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.08))
 	_restart_hint.add_theme_constant_override("outline_size", 4)
 	for state in ["normal", "hover", "pressed", "focus"]:
@@ -152,6 +173,11 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# L opens the log during play (the dialogue box handles it mid-talk).
+	if event.is_action_pressed("open_log") and _log_button.visible:
+		dialogue.show_log()
+		get_viewport().set_input_as_handled()
+		return
 	if not _potions_enabled:
 		return
 	if event is InputEventMouseButton and event.pressed and not book.is_open and not dialogue.is_playing:
@@ -187,7 +213,7 @@ func set_potions_enabled(on: bool) -> void:
 	_update_visibility()
 
 
-## Shows or hides the red "PRESS R TO RESTART THE LEVEL" line.
+## Shows or hides the bright yellow "STUCK? PRESS R TO RESTART!" line.
 func show_restart_hint(on: bool) -> void:
 	_restart_hint.visible = on and not _stage_over
 
@@ -249,7 +275,9 @@ func show_end_buttons(has_next: bool, next_label := "NEXT STAGE") -> void:
 	if _banner_sub.visible:
 		_end_buttons.position.y = _banner_sub.get_rect().end.y + 2.0
 	_end_buttons.show()
+	# NEXT first; the first key press shows it there (see UiFocus.hide_mark).
 	(_next_button if has_next else _levels_button).grab_focus()
+	UiFocus.hide_mark()
 
 
 ## See UiFocus.
@@ -284,6 +312,7 @@ func _update_visibility() -> void:
 	_slot_row.visible = _potions_enabled and not talking and not book.is_open
 	_highlight.modulate.a = 0.0 if talking else 1.0
 	_book_button.visible = not (talking or _aiming or _stage_over or book.is_open)
+	_log_button.visible = _book_button.visible and log_enabled
 	book.enabled = not (talking or _stage_over)
 	_effects.visible = not (talking or _stage_over or book.is_open)
 
@@ -308,11 +337,12 @@ func _draw_slot(slot: Button, kind: StringName) -> void:
 
 ## The keyboard key for a button, centred just below it.
 func _restart_text() -> String:
-	return "PRESS %s TO RESTART THE LEVEL" % Controls.key_name(&"restart")
+	return "STUCK? PRESS %s TO RESTART!" % Controls.key_name(&"restart")
 
 
 func _on_controls_changed() -> void:
 	_book_button.queue_redraw()
+	_log_button.queue_redraw()
 	for kind in _slots:
 		_slots[kind].queue_redraw()
 	_restart_hint.text = _restart_text()

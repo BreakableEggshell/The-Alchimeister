@@ -1,15 +1,18 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scripts/puzzle/puzzle_level.gd" id="1_level"]
+[ext_resource type="Script" uid="uid://d1qibuemnj2ho" path="res://scripts/puzzle/puzzle_level.gd" id="1_level"]
 [ext_resource type="Script" uid="uid://decaxrq438krk" path="res://scripts/board.gd" id="2_board"]
-[ext_resource type="Script" path="res://scripts/puzzle/inventory.gd" id="3_inventory"]
-[ext_resource type="Script" path="res://scripts/puzzle/puzzle_knight.gd" id="4_knight"]
+[ext_resource type="Script" uid="uid://byttdub5hyek0" path="res://scripts/puzzle/inventory.gd" id="3_inventory"]
+[ext_resource type="Script" uid="uid://bby0urc5llj3c" path="res://scripts/puzzle/puzzle_knight.gd" id="4_knight"]
 [ext_resource type="Texture2D" uid="uid://dt4xl5be6fivb" path="res://assets/sprites/characters/knight_spritesheet.png" id="5_knight_tex"]
-[ext_resource type="Script" path="res://scripts/platformer/potion_thrower.gd" id="6_thrower"]
-[ext_resource type="Script" path="res://scripts/puzzle/potion_hud.gd" id="7_hud"]
+[ext_resource type="Script" uid="uid://dyanxybxys52g" path="res://scripts/platformer/potion_thrower.gd" id="6_thrower"]
+[ext_resource type="Script" uid="uid://bp30phxej2o4y" path="res://scripts/puzzle/potion_hud.gd" id="7_hud"]
 [ext_resource type="FontFile" uid="uid://bnffjbd00irk0" path="res://assets/fonts/PixelOperator8.ttf" id="8_font"]
-[ext_resource type="PackedScene" path="res://scenes/ui/crafting_book.tscn" id="9_book"]
+[ext_resource type="PackedScene" uid="uid://kmm6orml7jm5" path="res://scenes/ui/crafting_book.tscn" id="9_book"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="10_dialogue"]
+[ext_resource type="Texture2D" uid="uid://dw1ptbv33huoa" path="res://assets/ui/btn.png" id="11_btn"]
+[ext_resource type="StyleBox" path="res://scenes/ui/selection_style.tres" id="sel_style"]
+[ext_resource type="Script" path="res://scripts/puzzle/touch_controls.gd" id="12_touch"]
 
 [sub_resource type="RectangleShape2D" id="Shape_knight"]
 size = Vector2(12, 28)
@@ -46,26 +49,80 @@ border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.95, 0.85, 0.55, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleBox_focus"]
-draw_center = false
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.95, 0.85, 0.55, 1)
-expand_margin_left = 1.0
-expand_margin_top = 1.0
-expand_margin_right = 1.0
-expand_margin_bottom = 1.0
+[sub_resource type="StyleBoxTexture" id="StyleBox_btn"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("11_btn")
+texture_margin_left = 4.0
+texture_margin_top = 3.0
+texture_margin_right = 4.0
+texture_margin_bottom = 3.0
+axis_stretch_vertical = 2
+modulate_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleBox_btn_hover"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("11_btn")
+texture_margin_left = 4.0
+texture_margin_top = 3.0
+texture_margin_right = 4.0
+texture_margin_bottom = 3.0
+axis_stretch_vertical = 2
+modulate_color = Color(1.15, 1.15, 1.15, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleBox_btn_pressed"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("11_btn")
+texture_margin_left = 4.0
+texture_margin_top = 3.0
+texture_margin_right = 4.0
+texture_margin_bottom = 3.0
+axis_stretch_vertical = 2
+modulate_color = Color(0.8, 0.8, 0.8, 1)
+
+[sub_resource type="StyleBoxTexture" id="StyleBox_btn_disabled"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("11_btn")
+texture_margin_left = 4.0
+texture_margin_top = 3.0
+texture_margin_right = 4.0
+texture_margin_bottom = 3.0
+axis_stretch_vertical = 2
+modulate_color = Color(0.55, 0.55, 0.6, 1)
 
 [sub_resource type="Theme" id="Theme_hud"]
 default_font = ExtResource("8_font")
 default_font_size = 8
-Button/styles/focus = SubResource("StyleBox_focus")
+Button/styles/focus = ExtResource("sel_style")
 Button/styles/hover = SubResource("StyleBox_slot_hover")
 Button/styles/hover_pressed = SubResource("StyleBox_slot_selected")
 Button/styles/normal = SubResource("StyleBox_slot")
 Button/styles/pressed = SubResource("StyleBox_slot_selected")
+WoodButton/base_type = &"Button"
+WoodButton/colors/font_color = Color(1, 0.96, 0.9, 1)
+WoodButton/colors/font_disabled_color = Color(1, 1, 1, 0.5)
+WoodButton/colors/font_focus_color = Color(1, 1, 1, 1)
+WoodButton/colors/font_hover_color = Color(1, 1, 1, 1)
+WoodButton/colors/font_hover_pressed_color = Color(1, 1, 1, 1)
+WoodButton/colors/font_pressed_color = Color(1, 1, 1, 1)
+WoodButton/colors/font_outline_color = Color(0.17, 0.12, 0.2, 1)
+WoodButton/constants/outline_size = 3
+WoodButton/styles/disabled = SubResource("StyleBox_btn_disabled")
+WoodButton/styles/hover = SubResource("StyleBox_btn_hover")
+WoodButton/styles/hover_pressed = SubResource("StyleBox_btn_pressed")
+WoodButton/styles/normal = SubResource("StyleBox_btn")
+WoodButton/styles/pressed = SubResource("StyleBox_btn_pressed")
 
 [node name="Stage" type="Node2D" node_paths=PackedStringArray("player", "thrower", "hud", "inventory", "backdrop")]
 script = ExtResource("1_level")
@@ -207,11 +264,13 @@ theme_override_constants/separation = 8
 alignment = 1
 
 [node name="NextButton" type="Button" parent="HUD/Hud/EndButtons"]
+theme_type_variation = &"WoodButton"
 custom_minimum_size = Vector2(80, 18)
 layout_mode = 2
 text = "NEXT STAGE"
 
 [node name="LevelsButton" type="Button" parent="HUD/Hud/EndButtons"]
+theme_type_variation = &"WoodButton"
 custom_minimum_size = Vector2(60, 18)
 layout_mode = 2
 text = "LEVELS"
@@ -258,3 +317,13 @@ tooltip_text = "RECIPE BOOK (ESC)"
 
 [node name="DialogueBox" parent="HUD/Hud" instance=ExtResource("10_dialogue")]
 layout_mode = 1
+
+[node name="TouchControls" type="Control" parent="HUD/Hud"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("12_touch")

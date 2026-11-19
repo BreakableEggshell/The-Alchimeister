@@ -1,13 +1,13 @@
 extends Control
 ## The recipe book, which is also the game's pause menu. Opening it pauses
 ## the game (B or the book icon).
-## A gear (opening a popup of START MENU / RESTART / LEVELS / SKIP LEVEL /
-## SETTINGS / EXIT TO DESKTOP), LOG and HINT sit just above the book's top-right
+## A gear (opening a popup of RESUME / RESTART / LEVELS / SETTINGS / MAIN
+## MENU) and HINT sit just above the book's top-right
 ## corner (only the gear while SETTINGS is open). HINT first asks whether to
 ## take one, warning in red what it costs (hint_warning), then asks the stage
 ## for Sheldon's hint (hint_requested); the dialogue dims and covers the book
 ## while he talks. On a stage with no hint, or with hints locked, it says so
-## instead. A stage can turn LOG and HINT off (set_log_and_hint_enabled). The
+## instead. A stage can turn HINT off (set_hint_enabled). The
 ## level number sits at the other end of that row, above the book's top-left
 ## corner.
 ## Left page: a 2x2 crafting table pointing at a result box, the potions you
@@ -32,6 +32,10 @@ extends Control
 ## and secret potions (a lock until their recipe is found, a "?" until
 ## brewed). Spread 3 shows brewing in
 ## bulk: several copies of a recipe on the table brew that many potions.
+## Typing the DebugCode (wwssadad) in the pause menu opens its DEBUG tools,
+## and adds DEBUG to the list until the player goes back to the start menu.
+## There, SKIP LEVEL (off to start with) adds SKIP LEVEL to the pause menu,
+## and SPEED BOOST (off to start with) makes the knight run twice as fast.
 ## Spread 4 is a checklist of the story's goals (flavour only for now), with a
 ## WANTED poster of the Demon King beside it.
 
@@ -39,19 +43,24 @@ signal opened
 ## The player asked to skip this level (from the gear's popup).
 signal skip_requested
 signal closed
-## The player asked to see the dialogue log.
-signal log_requested
 ## The player asked Sheldon for this stage's hint.
 signal hint_requested
 ## The player asked to restart the level (from the pause menu).
 signal restart_requested
+## The player asked for the main menu (from the pause menu).
+signal main_menu_requested
+## The player asked for the level select (from the pause menu).
+signal levels_requested
 
 const BOOK_SIZE := Vector2(360, 186)
 const PAGE_SIZE := Vector2(174, 176)
 const LEFT_PAGE := Vector2(5, 5)
 const RIGHT_PAGE := Vector2(181, 5)
 const SLOT := 22.0
-const GAP := 2.0
+## Points from the brewing table to the result.
+const CRAFT_ARROW := preload("res://assets/ui/craft_arrow.png")
+## Space between the slots (their 2 px shadow sits in it).
+const GAP := 4.0
 const STORAGE_COLUMNS := 6
 const STORAGE_ROWS := 2
 ## Positions on the left page.
@@ -63,7 +72,7 @@ const COUNTS_Y := 88.0
 const STORAGE_AT := Vector2(16, 100)
 ## Gap between the top buttons and the book.
 const BUTTONS_GAP := 2.0
-const PAGE_ARROW_SIZE := Vector2(20, 12)
+const PAGE_ARROW_SIZE := Vector2(18, 20)
 const CHECKLIST := ["Meet the Demon Lord", "Use ??? potion on the Demon Lord", "Remove the curse"]
 const CHECKLIST_TOP := 26.0
 const CHECKLIST_SPACING := 30.0
@@ -85,8 +94,8 @@ const POSTER_INK := Color(0.45, 0.1, 0.08)
 ## Seconds a note above the buttons stays up.
 const NOTE_TIME := 2.0
 ## The effects spread: first entry's top, and each entry's height.
-const EFFECTS_TOP := 22.0
-const EFFECT_HEIGHT := 26.0
+const EFFECTS_TOP := 20.0
+const EFFECT_HEIGHT := 24.0
 ## Gap between the two lines of a wrapped description.
 const EFFECT_LINE := 8.0
 ## Effect descriptions are a touch smaller than the names above them. Scaled
@@ -95,7 +104,10 @@ const EFFECT_TEXT_SCALE := 0.875
 const DEMON_KING := preload("res://assets/portraits/demonking/dk_default.png")
 const CLEANSING_WATER := &"cleansing_water"
 const NO_HINT_NOTE := "NO HINT FOR THIS LEVEL"
-const HINTS_LOCKED_NOTE := "HINTS ARE LOCKED ON THIS LEVEL"
+## The popup HINT gives where hints are locked.
+const HINTS_LOCKED_TITLE := "CAN'T USE HINTS"
+const HINTS_LOCKED_TEXT := "YOU ALREADY USED HINTS IN THE PREVIOUS LEVEL. I WANNA RECHARGE MY BRAIN THIS TIME."
+const HINTS_LOCKED_WIDTH := 190.0
 const NO_HINT_COLOR := Color(1.0, 0.6, 0.5)
 const WARNING_COLOR := Color(1.0, 0.4, 0.4)
 const GOLD := Color(0.95, 0.85, 0.55)
@@ -103,8 +115,9 @@ const GOLD := Color(0.95, 0.85, 0.55)
 ## but never brewed.
 const RECIPE_TO_FIND_TEXT := "RECIPE TO BE FOUND"
 const UNBREWED_TEXT := "TO BE BREWED"
-const GEAR_MARGIN := 8.0
-const GEAR_TITLE_HEIGHT := 12.0
+const GEAR_MARGIN := 10.0
+const GEAR_TITLE_HEIGHT := 13.0
+const GEAR_BUTTON_HEIGHT := 16.0
 const GEAR_TEETH := 8
 const GEAR_OUTER := 5.0
 const GEAR_INNER := 3.5
@@ -112,7 +125,9 @@ const GEAR_HOLE := 1.5
 const CLEANSING_WATER_TEXT := "WASHES OFF ANY EFFECT"
 ## Top of the recipe list on the right page.
 const RECIPES_TOP := 22.0
-const RECIPE_ROW_HEIGHT := 18.0
+const RECIPE_ROW_HEIGHT := 20.0
+## Space between a recipe's boxes.
+const RECIPE_BOX_GAP := 3.0
 const RECIPE_BOX := 14.0
 ## Baseline of the page titles.
 const TITLE_BASELINE := 14.0
@@ -121,7 +136,32 @@ const TIP_COLOR := Color(0.16, 0.15, 0.22)
 const CYCLE_TIME := 1.0
 const SLIDE_TIME := 0.25
 const COVER_COLOR := Color(0.42, 0.2, 0.14)
-const PAGE_COLOR := Color(0.94, 0.88, 0.74)
+## The paper colour in notebook.png.
+const PAGE_COLOR := Color8(255, 244, 205)
+## The open book drawn behind the pages: assets/notebook.png, stretched to
+## BOOK_SIZE as a nine-patch (one per page) so its corners, cover edges and the
+## dips at the spine stay pixel for pixel, at the same scale as the text.
+const NOTEBOOK := preload("res://assets/notebook.png")
+## Each page's part of the art, and how much of each edge stays unstretched
+## (all of every corner and cover edge: only the plain straight middle
+## stretches):
+## [region, left, top, right, bottom].
+const NOTEBOOK_PAGES := [
+	[Rect2(0, 0, 40, 86), 14, 23, 10, 21],
+	[Rect2(40, 0, 39, 86), 9, 23, 14, 21],
+]
+## notebook.png's other two frames (79 x 86 each, beside the book): the same
+## book with its page-turn tabs, and the closing ribbon on its own. These are
+## those parts, drawn 1:1 as the buttons, as far from the book's edges as in
+## the art (so they stay in its corners however wide it's drawn). The ribbon
+## lies on top of whatever's on the page.
+const NOTEBOOK_FRAME := 79.0
+const NOTEBOOK_HEIGHT := 86.0
+const PREVIOUS_TAB := Rect2(79 + 7, 59, 18, 20)
+const NEXT_TAB := Rect2(79 + 54, 59, 18, 20)
+const CLOSE_TAB := Rect2(158 + 50, 0, 13, 29)
+## Hovered or picked with the keys.
+const TAB_LIT := Color(1.2, 1.2, 1.2)
 const INK := Color(0.35, 0.22, 0.14)
 
 @export var inventory: Inventory
@@ -144,6 +184,8 @@ var has_hint := true
 var hints_locked := false
 ## What taking a hint costs, in red under HINT's question. Empty: nothing.
 var hint_warning := ""
+## Every hint here has been given: HINT just repeats them, without asking.
+var hint_repeats := false
 
 var _table: Array[StringName] = [&"", &"", &"", &""]
 var _book: Control
@@ -187,8 +229,17 @@ var _gear_level: Label
 ## The pause menu came up on its own, with the book hidden.
 var _pause_only := false
 var _skip_button: Button
+## There's a level after this one to skip to.
+var _can_skip := false
+var _debug_button: Button
+var _debug_menu: Control
+var _debug_panel: Panel
+var _debug_skip_toggle: Button
+var _debug_speed_toggle: Button
+var _locked_popup: Control
+var _locked_ok: Button
+var _code := DebugCode.new()
 var _settings_button: Button
-var _log_button: Button
 ## "LEVEL 5 (2 - 2)", above the book's top-left corner.
 var _level_label: Label
 var _close_button: Button
@@ -227,6 +278,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_book") or event.is_action_pressed("ui_cancel"):
 		if _hint_prompt.visible:
 			_close_hint_prompt()
+		elif _locked_popup.visible:
+			_close_locked_popup()
+		elif _debug_menu.visible:
+			_close_debug_menu()
 		elif _gear_menu.visible:
 			_close_gear_menu()
 		elif _settings.visible:
@@ -260,11 +315,15 @@ func focus_first() -> bool:
 	return true
 
 
-## What keyboard focus starts on: the first storage box on the brewing
-## spread, otherwise the page arrow (or the X).
+## What keyboard focus starts on: the first storage (inventory) box on the
+## brewing spread, otherwise the page arrow (or the X).
 func _focus_default() -> void:
 	if _hint_prompt.visible:
 		_hint_no.grab_focus()
+	elif _locked_popup.visible:
+		_locked_ok.grab_focus()
+	elif _debug_menu.visible:
+		_debug_skip_toggle.grab_focus()
 	elif _gear_menu.visible:
 		_gear_list.get_child(0).grab_focus()
 	elif _settings.visible:
@@ -286,9 +345,32 @@ func _close_settings() -> void:
 	_settings_button.grab_focus()
 
 
+## Where a word of the PAUSE MENU title is on screen (0 PAUSE, 1 MENU): on
+## phones, tapping them as the DebugCode's taps (PAUSE left, MENU right, see
+## DebugCode.feed_tap) opens the debug tools, as typing the code does. Clicks
+## work the same on a PC.
+func _gear_title_word(which: int) -> Rect2:
+	var font := _gear_title.get_theme_font("font")
+	var font_size := _gear_title.get_theme_font_size("font_size")
+	var words := _gear_title.text.split(" ")
+	var whole := font.get_string_size(_gear_title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var before := 0.0 if which == 0 else font.get_string_size(words[0] + " ", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var width := font.get_string_size(words[which], HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var title := _gear_title.get_global_rect()
+	var left := title.get_center().x - whole / 2.0 + before
+	return Rect2(left, title.position.y, width, title.size.y).grow(2.0)
+
+
 func _input(event: InputEvent) -> void:
 	# Nothing in the book reacts while Sheldon talks over it.
 	if not is_open or not enabled:
+		return
+	var tapped := _gear_menu.visible and _code.feed_tap(event, _gear_title_word(0), _gear_title_word(1))
+	if (_code.feed(event) or tapped) and _gear_menu.visible:
+		SaveGame.debug_unlocked = true
+		_refresh_gear_buttons()
+		_open_debug_menu()
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseMotion:
 		var part := _ingredient_at(event.position)
@@ -435,7 +517,7 @@ func _on_slot_dropped(target: IngredientSlot, source: IngredientSlot) -> void:
 func _brew() -> void:
 	var result := inventory.match_recipe(_table)
 	var potion: StringName = result.potion
-	if potion == PotionData.SECRET or (potion != &"" and not _recipe_found(potion)):
+	if potion != &"" and not _recipe_found(potion):
 		_flash_status("THE MIX WON'T SETTLE...", Color(INK, 0.8))
 		return
 	if potion == &"":
@@ -456,6 +538,10 @@ func _brew() -> void:
 ## the table goes back first, since it would spoil the mix.
 func _put_recipe_on_table(potion: StringName) -> void:
 	var recipe: Dictionary = inventory.recipes.get(potion, {})
+	if potion == PotionData.SECRET and _recipe_found(potion):
+		# The ??? potion: one of every ingredient.
+		for ingredient in PotionData.INGREDIENTS:
+			recipe[ingredient] = 1
 	if recipe.is_empty():
 		return
 	for ingredient in recipe:
@@ -486,7 +572,7 @@ func _on_brewing_page() -> bool:
 
 ## SETTINGS, the pause menu or HINT's question is up over the pages.
 func _popup_open() -> bool:
-	return _settings.visible or _gear_menu.visible or _hint_prompt.visible
+	return _settings.visible or _gear_menu.visible or _hint_prompt.visible or _debug_menu.visible or _locked_popup.visible
 
 
 ## Whether `potion` can be brewed: its recipe needn't be found, or has been. In
@@ -514,7 +600,7 @@ func _refresh() -> void:
 	var result := inventory.match_recipe(_table)
 	var potion: StringName = result.potion
 	# A lock until the recipe is found, then a "?" until it's first brewed.
-	var locked := potion == PotionData.SECRET or (potion != &"" and not _recipe_found(potion))
+	var locked := potion != &"" and not _recipe_found(potion)
 	var unknown := not locked and potion != &"" and not SaveGame.is_potion_known(potion)
 	_result_slot.show_contents(potion, result.amount, locked, unknown)
 	_book.queue_redraw()
@@ -556,7 +642,7 @@ func _build() -> void:
 			var cell := Vector2(column, row) * (SLOT + GAP)
 			_storage_slots.append(_add_slot(IngredientSlot.Role.STORAGE, _storage_slots.size(), LEFT_PAGE + STORAGE_AT + cell, SLOT))
 
-	# The X is drawn by hand so it sits on the same baseline as "RECIPES".
+	# The bookmark with an X (CLOSE_TAB), at its place in the art.
 	var close_button := Button.new()
 	close_button.flat = true
 	close_button.focus_mode = Control.FOCUS_ALL
@@ -568,14 +654,14 @@ func _build() -> void:
 	close_button.focus_exited.connect(close_button.queue_redraw)
 	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
 		close_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	close_button.position = RIGHT_PAGE + Vector2(PAGE_SIZE.x - 18, TITLE_BASELINE - 10)
-	close_button.size = Vector2(14, 13)
+	close_button.position = Vector2(BOOK_SIZE.x - (NOTEBOOK_FRAME - (CLOSE_TAB.position.x - 2.0 * NOTEBOOK_FRAME)), CLOSE_TAB.position.y)
+	close_button.size = CLOSE_TAB.size
 	close_button.pressed.connect(close)
+	close_button.mouse_entered.connect(close_button.queue_redraw)
+	close_button.mouse_exited.connect(close_button.queue_redraw)
 	close_button.draw.connect(func() -> void:
-		var color := ACTIVE_INK if close_button.is_hovered() or close_button.has_focus() else INK
-		close_button.draw_string(get_theme_font("font", "Label"), Vector2(0, 10), "X", HORIZONTAL_ALIGNMENT_CENTER, close_button.size.x, 8, color)
-		if close_button.has_focus():
-			_draw_focus_box(close_button))
+		var lit := close_button.is_hovered() or close_button.has_focus()
+		close_button.draw_texture_rect_region(NOTEBOOK, Rect2(Vector2.ZERO, CLOSE_TAB.size), CLOSE_TAB, TAB_LIT if lit else Color.WHITE))
 	_book.add_child(close_button)
 
 	_recipe_scroll = ScrollContainer.new()
@@ -609,17 +695,19 @@ func _build() -> void:
 	_crafting_nodes.append(_result_slot)
 	_crafting_nodes.append(_recipe_scroll)
 
-	_next_page = _page_arrow(1, RIGHT_PAGE + PAGE_SIZE - PAGE_ARROW_SIZE - Vector2(6, 3))
-	_previous_page = _page_arrow(-1, LEFT_PAGE + Vector2(6, PAGE_SIZE.y - PAGE_ARROW_SIZE.y - 3))
+	# The page-turn tabs, in the bottom corners as in the art.
+	var tab_y := BOOK_SIZE.y - (NOTEBOOK_HEIGHT - NEXT_TAB.position.y)
+	_next_page = _page_arrow(1, Vector2(BOOK_SIZE.x - (NOTEBOOK_FRAME - (NEXT_TAB.position.x - NOTEBOOK_FRAME)), tab_y))
+	_previous_page = _page_arrow(-1, Vector2(PREVIOUS_TAB.position.x - NOTEBOOK_FRAME, tab_y))
 	_checklist = _build_checklist()
+	# The ribbon lies over the pages, whatever's on them.
+	_close_button.move_to_front()
 
 	# Above the book, lined up with its right edge; they slide with it.
 	_buttons = HBoxContainer.new()
 	_buttons.add_theme_constant_override("separation", 4)
 	_book.add_child(_buttons)
 	_gear_button = _build_gear_button()
-	_log_button = _page_button("LOG", _buttons)
-	_log_button.pressed.connect(log_requested.emit)
 	_hint_button = _page_button("HINT", _buttons)
 	_hint_button.tooltip_text = "ASK SHELDON FOR A HINT"
 	_hint_button.pressed.connect(_on_hint_pressed)
@@ -640,7 +728,7 @@ func _build() -> void:
 
 	_settings = SettingsPanel.new()
 	_book.add_child(_settings)
-	_settings.build(BOOK_SIZE, true)
+	_settings.build(BOOK_SIZE)
 	_settings.back_requested.connect(_close_settings)
 	_settings.visibility_changed.connect(func() -> void:
 		_show_page_buttons(not _settings.visible)
@@ -649,6 +737,9 @@ func _build() -> void:
 
 	_gear_menu = _build_gear_menu()
 	_hint_prompt = _build_hint_prompt()
+	_debug_menu = _build_debug_menu()
+	_locked_popup = _build_locked_popup()
+	_refresh_gear_buttons()
 
 	_tip_layer = Control.new()
 	_tip_layer.size = BOOK_SIZE
@@ -713,28 +804,27 @@ func _build_gear_menu() -> Control:
 	_gear_level.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	modal.add_child(_gear_level)
 	_gear_panel = Panel.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.09, 0.14)
-	style.border_color = Color(0.95, 0.85, 0.55)
-	style.set_border_width_all(1)
-	_gear_panel.add_theme_stylebox_override("panel", style)
+	# The panel frame (panel_frame.png), as the dialogue box.
+	_gear_panel.add_theme_stylebox_override("panel", preload("res://scenes/ui/panel_frame_style.tres"))
 	modal.add_child(_gear_panel)
 	_gear_title = Label.new()
 	_gear_title.text = "PAUSE MENU"
 	_gear_title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
 	_gear_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_gear_panel.add_child(_gear_title)
-	_gear_title.position = Vector2(0, GEAR_MARGIN - 3.0)
+	_gear_title.position = Vector2(0, GEAR_MARGIN - 1.0)
 	_gear_list = VBoxContainer.new()
-	_gear_list.add_theme_constant_override("separation", 2)
+	_gear_list.add_theme_constant_override("separation", 3)
 	_gear_list.position = Vector2(GEAR_MARGIN, GEAR_MARGIN + GEAR_TITLE_HEIGHT)
 	_gear_panel.add_child(_gear_list)
-	var menu := _page_button("START MENU", _gear_list)
-	menu.pressed.connect(SaveGame.go_to.bind(SaveGame.START_MENU))
+	var resume := _page_button("RESUME", _gear_list)
+	resume.pressed.connect(close)
 	var restart := _page_button("RESTART", _gear_list)
 	restart.pressed.connect(_restart_level)
 	var levels := _page_button("LEVELS", _gear_list)
-	levels.pressed.connect(SaveGame.go_to.bind(SaveGame.LEVEL_SELECT))
+	levels.pressed.connect(func() -> void:
+		modal.hide()
+		levels_requested.emit())
 	_skip_button = _page_button("SKIP LEVEL", _gear_list)
 	_skip_button.pressed.connect(skip_requested.emit)
 	_settings_button = _page_button("SETTINGS", _gear_list)
@@ -742,9 +832,144 @@ func _build_gear_menu() -> Control:
 		modal.hide()
 		_book.show()
 		_settings.open())
-	var quit := _page_button("EXIT TO DESKTOP", _gear_list)
-	quit.pressed.connect(func() -> void: get_tree().quit())
-	UiFocus.link_column(_gear_list.get_children())
+	_debug_button = _page_button("DEBUG", _gear_list)
+	_debug_button.pressed.connect(_open_debug_menu)
+	var menu := _page_button("MAIN MENU", _gear_list)
+	menu.pressed.connect(func() -> void:
+		modal.hide()
+		main_menu_requested.emit())
+	# A little room above and below each label.
+	for button in _gear_list.get_children():
+		button.custom_minimum_size.y = GEAR_BUTTON_HEIGHT
+	return modal
+
+
+## SKIP LEVEL (debug, and only with a level to skip to) and DEBUG (once the
+## code has been typed) come and go; keys step through what's shown.
+func _refresh_gear_buttons() -> void:
+	_skip_button.visible = _can_skip and SaveGame.debug_skip_level
+	_debug_button.visible = SaveGame.debug_unlocked
+	UiFocus.link_column(_gear_list.get_children().filter(func(button: Button) -> bool: return button.visible))
+	if _gear_menu.visible:
+		_open_gear_menu()
+
+
+# --- DEBUG
+
+## The pause menu's debug tools, in place of the pause menu.
+func _build_debug_menu() -> Control:
+	var modal := _popup_modal(_close_debug_menu)
+	_debug_panel = Panel.new()
+	_debug_panel.add_theme_stylebox_override("panel", _gear_panel.get_theme_stylebox("panel"))
+	modal.add_child(_debug_panel)
+	var title := Label.new()
+	title.text = "DEBUG"
+	title.add_theme_color_override("font_color", GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(0, GEAR_MARGIN - 3.0)
+	_debug_panel.add_child(title)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 3)
+	list.position = Vector2(GEAR_MARGIN, GEAR_MARGIN + GEAR_TITLE_HEIGHT)
+	_debug_panel.add_child(list)
+	_debug_skip_toggle = _page_button("", list)
+	_debug_skip_toggle.pressed.connect(func() -> void:
+		SaveGame.debug_skip_level = not SaveGame.debug_skip_level
+		_label_debug_menu()
+		_refresh_gear_buttons())
+	_debug_speed_toggle = _page_button("", list)
+	_debug_speed_toggle.pressed.connect(func() -> void:
+		SaveGame.debug_speed_boost = not SaveGame.debug_speed_boost
+		_label_debug_menu())
+	var back := _page_button("BACK", list)
+	back.pressed.connect(_close_debug_menu)
+	for button in list.get_children():
+		button.custom_minimum_size.y = GEAR_BUTTON_HEIGHT
+	UiFocus.link_column(list.get_children())
+	_label_debug_menu()
+	list.reset_size()
+	_debug_panel.size = list.size + Vector2(GEAR_MARGIN * 2.0, GEAR_MARGIN * 2.0 + GEAR_TITLE_HEIGHT)
+	title.size = Vector2(_debug_panel.size.x, GEAR_TITLE_HEIGHT)
+	return modal
+
+
+func _label_debug_menu() -> void:
+	# Both labels the same length, so the panel doesn't change size.
+	_debug_skip_toggle.text = " SKIP LEVEL:  %s " % ("ON " if SaveGame.debug_skip_level else "OFF")
+	_debug_speed_toggle.text = " SPEED BOOST: %s " % ("ON " if SaveGame.debug_speed_boost else "OFF")
+
+
+func _open_debug_menu() -> void:
+	_gear_menu.hide()
+	_debug_menu.show()
+	_debug_panel.position = ((get_viewport_rect().size - _debug_panel.size) / 2.0).round()
+	_debug_skip_toggle.grab_focus()
+
+
+func _close_debug_menu() -> void:
+	_debug_menu.hide()
+	_open_gear_menu()
+	_debug_button.grab_focus()
+
+
+## HINT's answer where hints are locked: why, and OK.
+func _build_locked_popup() -> Control:
+	var modal := _popup_modal(_close_locked_popup)
+	var panel := Panel.new()
+	panel.add_theme_stylebox_override("panel", _gear_panel.get_theme_stylebox("panel"))
+	modal.add_child(panel)
+	var width := HINTS_LOCKED_WIDTH
+	var title := Label.new()
+	title.text = HINTS_LOCKED_TITLE
+	title.add_theme_color_override("font_color", GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(title)
+	var lines := _wrap(get_theme_font("font", "Label"), HINTS_LOCKED_TEXT, width - GEAR_MARGIN * 2.0)
+	var text := Label.new()
+	text.text = "\n".join(lines)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(text)
+	_locked_ok = _page_button("OK", panel)
+	_locked_ok.custom_minimum_size = Vector2(48, GEAR_BUTTON_HEIGHT)
+	_locked_ok.pressed.connect(_close_locked_popup)
+	var y := GEAR_MARGIN - 3.0
+	title.position = Vector2(0, y)
+	title.size = Vector2(width, 10)
+	y += GEAR_TITLE_HEIGHT + 2.0
+	text.position = Vector2(GEAR_MARGIN, y)
+	text.size = Vector2(width - GEAR_MARGIN * 2.0, lines.size() * 10.0)
+	y += lines.size() * 10.0 + 6.0
+	_locked_ok.reset_size()
+	_locked_ok.position = Vector2(roundf((width - _locked_ok.size.x) / 2.0), y)
+	panel.size = Vector2(width, y + _locked_ok.size.y + GEAR_MARGIN)
+	panel.position = ((get_viewport_rect().size - panel.size) / 2.0).round()
+	return modal
+
+
+func _open_locked_popup() -> void:
+	_locked_popup.show()
+	_locked_ok.grab_focus()
+
+
+func _close_locked_popup() -> void:
+	_locked_popup.hide()
+	if _hint_button.is_visible_in_tree():
+		_hint_button.grab_focus()
+
+
+## A full-screen layer over a dim; a click on the dim calls `on_dismiss`.
+func _popup_modal(on_dismiss: Callable) -> Control:
+	var modal := Control.new()
+	modal.hide()
+	add_child(modal)
+	modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.5)
+	modal.add_child(dim)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed:
+			on_dismiss.call())
 	return modal
 
 
@@ -783,16 +1008,17 @@ func _on_hint_pressed() -> void:
 	if not has_hint:
 		_show_note(NO_HINT_NOTE, NO_HINT_COLOR)
 	elif hints_locked:
-		_show_note(HINTS_LOCKED_NOTE, NO_HINT_COLOR)
+		_open_locked_popup()
+	elif hint_repeats:
+		hint_requested.emit()
 	else:
 		_open_hint_prompt()
 
 
-## The stage's LOG and HINT buttons work (or are greyed out and do nothing).
-func set_log_and_hint_enabled(on: bool) -> void:
-	for button in [_log_button, _hint_button]:
-		button.disabled = not on
-		button.focus_mode = Control.FOCUS_ALL if on else Control.FOCUS_NONE
+## The stage's HINT button works (or is greyed out and does nothing).
+func set_hint_enabled(on: bool) -> void:
+	_hint_button.disabled = not on
+	_hint_button.focus_mode = Control.FOCUS_ALL if on else Control.FOCUS_NONE
 
 
 ## HINT's question, in the middle of the screen over a dim: HINT or LOOK AROUND
@@ -870,16 +1096,16 @@ func set_level_label(text: String) -> void:
 	_gear_level.text = text
 
 
-## SKIP LEVEL only shows when there's a level to skip to.
+## SKIP LEVEL only shows when there's a level to skip to (and the debug
+## option is on).
 func set_can_skip(can_skip: bool) -> void:
-	_skip_button.visible = can_skip
-	UiFocus.link_column(_gear_list.get_children().filter(func(button: Button) -> bool: return button.visible))
+	_can_skip = can_skip
+	_refresh_gear_buttons()
 
 
-## LOG and HINT are no use on the settings page.
+## HINT is no use on the settings page.
 func _show_page_buttons(shown: bool) -> void:
-	for button in [_log_button, _hint_button]:
-		button.visible = shown
+	_hint_button.visible = shown
 	_note.modulate.a = 0.0
 	_place_buttons.call_deferred()
 
@@ -916,11 +1142,7 @@ func _add_slot(role: IngredientSlot.Role, index: int, at: Vector2, side: float) 
 
 
 ## The box around the X or a page arrow while the keyboard is on it.
-func _draw_focus_box(button: Control) -> void:
-	button.draw_rect(Rect2(Vector2(0.5, 0.5), button.size - Vector2.ONE), ACTIVE_INK, false, 1.0)
-
-
-## A hand-drawn page-turn arrow; `direction` 1 points right, -1 left.
+## A page-turn tab (notebook.png's), `direction` 1 for the next page, -1 the previous.
 func _page_arrow(direction: int, at: Vector2) -> Button:
 	var button := Button.new()
 	button.flat = true
@@ -933,15 +1155,12 @@ func _page_arrow(direction: int, at: Vector2) -> Button:
 	button.position = at
 	button.size = PAGE_ARROW_SIZE
 	button.pressed.connect(func() -> void: _set_page(_page + direction))
+	button.mouse_entered.connect(button.queue_redraw)
+	button.mouse_exited.connect(button.queue_redraw)
+	var tab := NEXT_TAB if direction > 0 else PREVIOUS_TAB
 	button.draw.connect(func() -> void:
-		var color := ACTIVE_INK if button.is_hovered() or button.has_focus() else INK
-		var y := button.size.y / 2.0
-		var tip := button.size.x - 2.0 if direction > 0 else 2.0
-		var tail := 2.0 if direction > 0 else button.size.x - 2.0
-		button.draw_line(Vector2(tail, y), Vector2(tip - 3.0 * direction, y), color, 2.0)
-		button.draw_colored_polygon(PackedVector2Array([Vector2(tip, y), Vector2(tip - 5.0 * direction, y - 4), Vector2(tip - 5.0 * direction, y + 4)]), color)
-		if button.has_focus():
-			_draw_focus_box(button))
+		var lit := button.is_hovered() or button.has_focus()
+		button.draw_texture_rect_region(NOTEBOOK, Rect2(Vector2.ZERO, tab.size), tab, TAB_LIT if lit else Color.WHITE))
 	_book.add_child(button)
 	return button
 
@@ -999,19 +1218,30 @@ func _page_button(text: String, parent: Control) -> Button:
 	var button := Button.new()
 	button.text = " %s " % text
 	button.focus_mode = Control.FOCUS_ALL
+	# The btn.png look (see the HUD theme).
+	button.theme_type_variation = &"WoodButton"
 	parent.add_child(button)
 	return button
 
 
+## notebook.png across the whole book, each half stretched over its page.
+func _draw_notebook() -> void:
+	var half := BOOK_SIZE.x / 2.0
+	for i in NOTEBOOK_PAGES.size():
+		var part: Array = NOTEBOOK_PAGES[i]
+		var style := StyleBoxTexture.new()
+		style.texture = NOTEBOOK
+		style.region_rect = part[0]
+		style.texture_margin_left = part[1]
+		style.texture_margin_top = part[2]
+		style.texture_margin_right = part[3]
+		style.texture_margin_bottom = part[4]
+		_book.draw_style_box(style, Rect2(half * i, 0, half, BOOK_SIZE.y))
+
+
 func _draw_book() -> void:
 	var font := get_theme_font("font", "Label")
-	_book.draw_rect(Rect2(Vector2.ZERO, BOOK_SIZE), COVER_COLOR)
-	_book.draw_rect(Rect2(Vector2.ZERO, BOOK_SIZE).grow(-1), COVER_COLOR.darkened(0.4), false, 2.0)
-	for page in [LEFT_PAGE, RIGHT_PAGE]:
-		_book.draw_rect(Rect2(page, PAGE_SIZE), PAGE_COLOR)
-	# Shading where the pages meet the spine.
-	_book.draw_rect(Rect2(LEFT_PAGE + Vector2(PAGE_SIZE.x - 4, 0), Vector2(4, PAGE_SIZE.y)), PAGE_COLOR.darkened(0.1))
-	_book.draw_rect(Rect2(RIGHT_PAGE, Vector2(4, PAGE_SIZE.y)), PAGE_COLOR.darkened(0.1))
+	_draw_notebook()
 
 	if _page == PAGE_EFFECTS:
 		_draw_effects(font)
@@ -1027,7 +1257,9 @@ func _draw_book() -> void:
 	# Left page: crafting.
 	_page_text(font, "BREWING", LEFT_PAGE + Vector2(0, 12), INK)
 	var arrow_y := LEFT_PAGE.y + TABLE_AT.y + SLOT + GAP / 2.0
-	_draw_arrow(_book, LEFT_PAGE.x + TABLE_AT.x + 2.0 * SLOT + GAP + 6.0, LEFT_PAGE.x + RESULT_AT.x - 6.0, arrow_y)
+	# The arrow from the table to the result (craft_arrow.png), centred between them.
+	var arrow_x := (LEFT_PAGE.x + TABLE_AT.x + 2.0 * SLOT + GAP + LEFT_PAGE.x + RESULT_AT.x) / 2.0
+	_book.draw_texture(CRAFT_ARROW, (Vector2(arrow_x, arrow_y) - CRAFT_ARROW.get_size() / 2.0).round())
 	if _status_alpha > 0.0:
 		_page_text(font, _status, LEFT_PAGE + Vector2(0, STATUS_Y), Color(_status_color, _status_alpha))
 	# The key that brews, under the result box.
@@ -1060,11 +1292,11 @@ func _draw_effects(font: Font) -> void:
 ## One entry: icon, name and a rough duration, and the description underneath, wrapped onto a
 ## second line if it's too wide for the page. Returns the extra height used.
 func _draw_effect(font: Font, kind: StringName, at: Vector2) -> float:
-	var found := kind != PotionData.SECRET and _recipe_found(kind)
+	var found := _recipe_found(kind)
 	var known := kind == CLEANSING_WATER or (found and SaveGame.is_potion_known(kind))
 	var box := Rect2(at, Vector2(14, 14))
-	_book.draw_rect(box, IngredientSlot.FILL)
-	var icon_at := box.get_center() + Vector2(0, 1)
+	PotionData.draw_box(_book, box)
+	var icon_at := box.get_center()
 	var name := "???"
 	var text := "???"
 	if kind == CLEANSING_WATER:
@@ -1150,16 +1382,16 @@ func _draw_bulk(font: Font) -> void:
 func _draw_bulk_row(font: Font, ingredient: StringName, count: int, at: Vector2) -> void:
 	for i in 4:
 		var cell := Rect2(at + Vector2(i % 2, floori(i / 2.0)) * (BULK_BOX + 1.0), Vector2(BULK_BOX, BULK_BOX))
-		_book.draw_rect(cell, IngredientSlot.FILL)
+		PotionData.draw_box(_book, cell)
 		if i < count:
 			PotionData.draw_ingredient(_book, ingredient, cell.get_center())
 	var mid_y := at.y + BULK_BOX + 0.5
 	var table_end := at.x + 2.0 * BULK_BOX + 1.0
 	_draw_arrow(_book, table_end + 6.0, table_end + 26.0, mid_y)
 	var result := Rect2(table_end + 32.0, mid_y - 9.0, 18.0, 18.0)
-	_book.draw_rect(result, IngredientSlot.FILL)
+	PotionData.draw_box(_book, result)
 	var potion := _potion_from(ingredient)
-	PotionData.draw_potion(_book, potion, result.get_center() + Vector2(0, 1))
+	PotionData.draw_potion(_book, potion, result.get_center())
 	_book.draw_string(font, Vector2(result.end.x + 4.0, mid_y + 4.0), "x%d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, INK)
 
 
@@ -1211,34 +1443,28 @@ func _draw_potion_counts(font: Font) -> void:
 	for kind in kinds:
 		var amount := inventory.count(kind)
 		var faded := 1.0 if amount > 0 else 0.35
-		_book.draw_rect(Rect2(x, y - 8, 16, 16), Color(IngredientSlot.FILL, faded))
-		var icon_at := Vector2(x + 8, y + 1)
-		if amount > 0:
-			PotionData.draw_potion(_book, kind, icon_at)
-		else:
-			_draw_grey_potion(icon_at)
+		PotionData.draw_box(_book, Rect2(x, y - 8, 16, 16), faded)
+		var icon_at := Vector2(x + 8, y)
+		# None held: the icon greyed out.
+		PotionData.draw_potion(_book, kind, icon_at, Color.WHITE if amount > 0 else Color(0.45, 0.42, 0.4, 0.6))
 		_book.draw_string(font, Vector2(x + 17, y + 4), "x%d" % amount, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(INK, faded))
 		x += step
-
-
-func _draw_grey_potion(at: Vector2) -> void:
-	var grey := Color(0.55, 0.55, 0.55)
-	_book.draw_rect(Rect2(at + Vector2(-1, -6), Vector2(2, 3)), grey)
-	_book.draw_circle(at, 3.0, grey)
 
 
 # --- Recipe list
 
 ## Every recipe row in order: {ingredients, potion, known, locked}. Recipes
-## still to be found are left out. The secret recipe comes last, locked.
+## still to be found are left out. The ??? recipe comes last: locked until it's
+## been found (one of every ingredient), then a recipe like the rest.
 func _recipe_entries() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for potion in PotionData.KINDS:
-		if not _recipe_found(potion):
+		if potion == PotionData.SECRET or not _recipe_found(potion):
 			continue
 		var ingredients := _death_preview if potion == PotionData.DEATH else _recipe_ingredients(potion)
 		entries.append({"ingredients": ingredients, "potion": potion, "known": SaveGame.is_potion_known(potion), "locked": false})
-	entries.append({"ingredients": PotionData.INGREDIENTS, "potion": PotionData.SECRET, "known": false, "locked": true})
+	var found := _recipe_found(PotionData.SECRET)
+	entries.append({"ingredients": PotionData.INGREDIENTS, "potion": PotionData.SECRET, "known": found and SaveGame.is_potion_known(PotionData.SECRET), "locked": not found})
 	return entries
 
 
@@ -1250,7 +1476,7 @@ func _recipe_layout(entry: Dictionary) -> Dictionary:
 	var x := 3.0
 	for ingredient in entry.ingredients:
 		boxes.append(Rect2(x, box_y, RECIPE_BOX, RECIPE_BOX))
-		x += RECIPE_BOX + 1.0
+		x += RECIPE_BOX + RECIPE_BOX_GAP
 	var title := _recipe_title(entry)
 	var title_width := get_theme_font("font", "Label").get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 	return {
@@ -1277,13 +1503,13 @@ func _draw_recipes() -> void:
 		var mid_y: float = top.y + layout.boxes[0].get_center().y
 		for i in layout.boxes.size():
 			var box: Rect2 = layout.boxes[i]
-			_recipe_list.draw_rect(Rect2(top + box.position, box.size), IngredientSlot.FILL)
+			PotionData.draw_box(_recipe_list, Rect2(top + box.position, box.size))
 			if entry.ingredients[i] != &"":
 				PotionData.draw_ingredient(_recipe_list, entry.ingredients[i], top + box.get_center())
 		_draw_arrow(_recipe_list, layout.arrow.x, layout.arrow.y, mid_y)
 		var potion_box: Rect2 = layout.potion_box
-		_recipe_list.draw_rect(Rect2(top + potion_box.position, potion_box.size), IngredientSlot.FILL)
-		var icon_at := top + potion_box.get_center() + Vector2(0, 1)
+		PotionData.draw_box(_recipe_list, Rect2(top + potion_box.position, potion_box.size))
+		var icon_at := top + potion_box.get_center()
 		if entry.known:
 			PotionData.draw_potion(_recipe_list, entry.potion, icon_at)
 		elif entry.locked:

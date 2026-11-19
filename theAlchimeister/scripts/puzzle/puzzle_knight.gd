@@ -7,6 +7,7 @@ extends "res://scripts/platformer/platformer_knight.gd"
 ## Freeze: can't move, jump or throw for PotionData.PLAYER_FREEZE_TIME.
 ## Knockback: flung away. Translucent: monsters pass through. Death: dies.
 ## Fire and freeze cancel each other; cleansing water clears them all.
+## Running into ice (IcePillar) while burning melts it.
 
 ## `cause` is one of GameOver's causes; it picks the game over message.
 signal died(cause: StringName)
@@ -24,6 +25,18 @@ var _burn_left := 0.0
 var _freeze_left := 0.0
 var _flames: CPUParticles2D
 var _dead := false
+## The death: knight_death.png's frames (48 px squares), its white and magenta
+## recoloured by GameOver.FADE_COLORS.
+const DEATH_SHEET := preload("res://assets/sprites/characters/knight_death.png")
+const DEATH_SHADER := preload("res://scripts/puzzle/knight_death.gdshader")
+const DEATH_FRAMES := 11
+## Knocked back by what killed him (see die): how hard (across, up). He only
+## rises; at the top of the hop the death plays where he is.
+const DEATH_KNOCK := Vector2(70, 120)
+var _death_cause: StringName
+## Falling at least this fast (px/s) as he lands plays the landing sound.
+const LAND_SOUND_SPEED := 150.0
+const DEATH_FPS := 11.0
 var _talking := false
 const FLOAT_TEXT_TIME := 0.5
 ## Death messages last through the iris closing.
@@ -60,6 +73,10 @@ var _chat_icon: Node2D
 var _ice: Node2D
 ## max_speed before any fire boost.
 var _base_max_speed := -1.0
+
+
+func _ready() -> void:
+	add_to_group("player")
 
 
 ## `power` scales knockback with how hard the potion was thrown.
@@ -105,18 +122,68 @@ func clear_potion_effects() -> void:
 		float_text("[EFFECTS CLEARED]", Color(0.55, 0.85, 1.0))
 
 
-func die(cause: StringName = GameOver.CAUGHT) -> void:
+## Dies of `cause`. With `from` (where the hit came from: the slime, the
+## blast), he first hops back and up away from it, flashing red, and the death
+## animation plays at the top of the hop.
+func die(cause: StringName = GameOver.CAUGHT, from = null) -> void:
 	if _dead:
 		return
 	_dead = true
+	Sfx.play(Sfx.KNIGHT_DEATH, self)
 	if _flames:
 		_flames.emitting = false
+	if _ice:
+		_ice.hide()
+	_death_cause = cause
+	if from is Vector2:
+		var side := signf(global_position.x - from.x)
+		velocity = Vector2((side if side != 0.0 else 1.0) * DEATH_KNOCK.x, -DEATH_KNOCK.y)
+		_sprite.modulate = Color(1.0, 0.35, 0.35)
+		return
 	set_physics_process(false)
-	_sprite.modulate = Color(1.0, 0.35, 0.35)
-	if GameOver.TEXT.has(cause):
-		_show_float(GameOver.TEXT[cause], GameOver.TEXT_COLOR, DEATH_TEXT_TIME, SKULL_ROWS[0].length() + SKULL_GAP)
+	_finish_dying()
+
+
+## The fade, the death text, and the stage told.
+func _finish_dying() -> void:
+	velocity = Vector2.ZERO
+	set_physics_process(false)
+	var colors: Array = GameOver.FADE_COLORS.get(_death_cause, GameOver.FADE_COLORS[GameOver.CRUSHED])
+	_play_death(colors[0], colors[1])
+	if GameOver.TEXT.has(_death_cause):
+		_show_float(GameOver.TEXT[_death_cause], GameOver.TEXT_COLOR, DEATH_TEXT_TIME, SKULL_ROWS[0].length() + SKULL_GAP)
 		_show_skull()
-	died.emit(cause)
+	died.emit(_death_cause)
+
+
+## Hopping back from the hit: he rises, slowing, and once he stops rising (or
+## bumps a ceiling) the death plays right there, in the air.
+func _fly_dead(delta: float) -> void:
+	velocity.y += gravity * delta
+	if velocity.y >= 0.0:
+		_finish_dying()
+		return
+	move_and_slide()
+	if is_on_ceiling():
+		_finish_dying()
+
+
+## knight_death.png: he crumbles and fades away in `base` and `accent`.
+func _play_death(base: Color, accent: Color) -> void:
+	var flipped := _sprite.flip_h
+	_sprite.texture = DEATH_SHEET
+	_sprite.hframes = DEATH_FRAMES
+	_sprite.vframes = 1
+	_sprite.frame = 0
+	_sprite.flip_h = flipped
+	_sprite.modulate = Color.WHITE
+	var material := ShaderMaterial.new()
+	material.shader = DEATH_SHADER
+	material.set_shader_parameter("base", base)
+	material.set_shader_parameter("accent", accent)
+	_sprite.material = material
+	var fade := create_tween()
+	fade.tween_property(_sprite, "frame", DEATH_FRAMES - 1, (DEATH_FRAMES - 1) / DEATH_FPS).from(0)
 
 
 ## Shows `text` just above the head; it drifts up and fades out.
@@ -275,6 +342,9 @@ func _draw_chat_icon() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _dead:
+		_fly_dead(delta)
+		return
 	if _held_by_dialogue:
 		velocity.x = 0.0
 		if not is_on_floor():
@@ -298,6 +368,9 @@ func _physics_process(delta: float) -> void:
 	if _base_max_speed < 0.0:
 		_base_max_speed = max_speed
 	max_speed = _base_max_speed * (PotionData.PLAYER_FIRE_SPEED_BOOST if is_burning() else 1.0)
+	# Debug (pause menu): run faster, to get round levels quickly.
+	if SaveGame.debug_speed_boost:
+		max_speed *= SaveGame.DEBUG_SPEED_BOOST
 	super(delta)
 	_push_crates()
 
@@ -307,10 +380,20 @@ func _physics_process(delta: float) -> void:
 ## the jelly's strength, minus a little so bounces die down on green jelly.
 func _slide() -> void:
 	var incoming := velocity
+	var was_on_floor := is_on_floor()
 	move_and_slide()
 	var bounced := false
+	# Landing from a jump or a fall (not stepping off a kerb).
+	if not was_on_floor and is_on_floor() and incoming.y >= LAND_SOUND_SPEED and not _dead:
+		var on_jelly := false
+		for i in get_slide_collision_count():
+			on_jelly = on_jelly or get_slide_collision(i).get_collider() is Jelly
+		if not on_jelly:
+			Sfx.play(Sfx.KNIGHT_LAND, self)
 	for i in get_slide_collision_count():
 		var collision := get_slide_collision(i)
+		if is_burning() and (collision.get_collider() is IcePillar or collision.get_collider() is ElementPlatform):
+			collision.get_collider().melt()
 		var jelly := collision.get_collider() as Jelly
 		if not jelly or bounced:
 			continue
@@ -325,6 +408,7 @@ func _slide() -> void:
 		# Swap the part of the velocity going into the jelly for the bounce.
 		velocity = incoming + normal * (into + out)
 		jelly.wobble()
+		Sfx.play(Sfx.JELLY_BOUNCE, self)
 		bounced = true
 
 

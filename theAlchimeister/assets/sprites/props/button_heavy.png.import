@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cl4eseo5qownu"
-path="res://.godot/imported/map1_grass.png-8d170fd49e5d45653e2d1aeba4039aef.ctex"
+uid="uid://py7merps58cb"
+path="res://.godot/imported/button_heavy.png-2ab2d4f87494f90cfd917373aa98ff16.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/map1_grass.png"
-dest_files=["res://.godot/imported/map1_grass.png-8d170fd49e5d45653e2d1aeba4039aef.ctex"]
+source_file="res://assets/sprites/props/button_heavy.png"
+dest_files=["res://.godot/imported/button_heavy.png-2ab2d4f87494f90cfd917373aa98ff16.ctex"]
 
 [params]
 

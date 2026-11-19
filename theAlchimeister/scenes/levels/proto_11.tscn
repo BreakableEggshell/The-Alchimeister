@@ -1,0 +1,96 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/puzzle/boss_level.gd" id="level"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/ice_pillar.gd" id="ice"]
+[ext_resource type="Script" path="res://scripts/puzzle/element_platform.gd" id="slab"]
+[ext_resource type="Script" path="res://scripts/puzzle/pebble.gd" id="pebble"]
+[ext_resource type="Script" path="res://scripts/puzzle/demon_lord.gd" id="boss"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+
+[node name="Proto11" instance=ExtResource("base") node_paths=PackedStringArray("boss", "demon_king", "exit_door")]
+script = ExtResource("level")
+stage_id = "P11"
+stage_size = Vector2(1800, 324)
+part = 1
+boss = NodePath("Level/DemonLord")
+demon_king = NodePath("Level/DemonKing")
+exit_door = NodePath("Level/Exit")
+door_reveal_x = 1450.0
+
+[node name="Knight" parent="."]
+position = Vector2(200, 300)
+
+[node name="Camera" parent="Knight"]
+zoom = Vector2(0.666667, 0.666667)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 300)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 1800, 0, 1800, 24, 0, 24)
+
+[node name="DemonKing" type="Sprite2D" parent="Level"]
+position = Vector2(110, 300)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(270, 300)
+script = ExtResource("chest")
+amount = 2
+extra_contents = "frost_shard"
+extra_amount = 2
+third_contents = "ghost_wisp"
+
+[node name="DoorWall" type="StaticBody2D" parent="Level"]
+position = Vector2(440, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 16, 0, 16, 244, 0, 244)
+
+[node name="DoorIce" type="StaticBody2D" parent="Level"]
+position = Vector2(440, 244)
+script = ExtResource("ice")
+size = Vector2(16, 56)
+
+[node name="IceStep" type="StaticBody2D" parent="Level"]
+position = Vector2(728, 292)
+script = ExtResource("slab")
+
+[node name="Ledge" type="StaticBody2D" parent="Level"]
+position = Vector2(760, 252)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 400, 0, 400, 72, 0, 72)
+
+[node name="LowCeiling" type="StaticBody2D" parent="Level"]
+position = Vector2(1200, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 220, 0, 220, 264, 0, 264)
+
+[node name="Curb" type="StaticBody2D" parent="Level"]
+position = Vector2(1206, 300)
+script = ExtResource("pebble")
+
+[node name="Curb2" type="StaticBody2D" parent="Level"]
+position = Vector2(1414, 300)
+script = ExtResource("pebble")
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(1720, 300)
+script = ExtResource("exit")
+
+[node name="DemonLord" type="Area2D" parent="Level"]
+position = Vector2(40, 0)
+script = ExtResource("boss")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Guard" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(1260, 300)
+
+[node name="Guard2" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(1360, 300)
+speed = 36.0
+start_direction = -1

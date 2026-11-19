@@ -96,6 +96,7 @@ func _build() -> void:
 	_field.size = FIELD_SIZE
 	_ok = Button.new()
 	_ok.text = "OK"
+	_ok.theme_type_variation = &"WoodButton"
 	_ok.focus_mode = Control.FOCUS_NONE
 	_ok.add_theme_font_override("font", FONT)
 	_ok.add_theme_font_size_override("font_size", 8)

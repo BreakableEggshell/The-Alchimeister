@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/element_platform.gd" id="slab"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+
+[node name="Proto5" instance=ExtResource("base")]
+stage_id = "P5"
+intro_lines = PackedStringArray("SHELDON (squint): That slab of ice is no use to anyone down in that pit.", "SHELDON (glasses): Heat turns ice to <<smoke>>, and smoke goes <<up>>. Cold turns it back.")
+hint_lines = PackedStringArray("SHELDON: <<fire:Fire>> on the ice. Then watch the smoke drift up out of the pit.", "---", "SHELDON (glasses): <<freeze:Ice>> on the smoke when it's level with the ledges. It freezes right where it is.")
+
+[node name="Knight" parent="."]
+position = Vector2(24, 120)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="LedgeL" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 120)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 140, 0, 140, 96, 0, 96)
+
+[node name="PitFloor" type="StaticBody2D" parent="Level"]
+position = Vector2(140, 200)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 120, 0, 120, 16, 0, 16)
+
+[node name="LedgeR" type="StaticBody2D" parent="Level"]
+position = Vector2(260, 120)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 124, 0, 124, 96, 0, 96)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(64, 120)
+script = ExtResource("chest")
+amount = 2
+extra_contents = "frost_shard"
+extra_amount = 2
+
+[node name="Slab" type="StaticBody2D" parent="Level"]
+position = Vector2(184, 192)
+script = ExtResource("slab")
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(340, 120)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]

@@ -1,0 +1,81 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/puzzle/boss_level.gd" id="level"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/ice_pillar.gd" id="ice"]
+[ext_resource type="Script" path="res://scripts/puzzle/pebble.gd" id="pebble"]
+[ext_resource type="Script" path="res://scripts/puzzle/demon_lord.gd" id="boss"]
+[ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
+
+[node name="Proto13" instance=ExtResource("base") node_paths=PackedStringArray("boss", "demon_king")]
+script = ExtResource("level")
+stage_id = "P13"
+stage_size = Vector2(1400, 324)
+part = 3
+boss = NodePath("Level/DemonLord")
+demon_king = NodePath("Level/DemonKing")
+chase_delay = 3.0
+
+[node name="Knight" parent="."]
+position = Vector2(60, 300)
+
+[node name="Camera" parent="Knight"]
+zoom = Vector2(0.666667, 0.666667)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 300)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 1400, 0, 1400, 24, 0, 24)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(110, 300)
+script = ExtResource("chest")
+amount = 2
+extra_contents = "frost_shard"
+extra_amount = 2
+third_contents = "gust_feather"
+
+[node name="Chest2" type="Area2D" parent="Level"]
+position = Vector2(150, 300)
+script = ExtResource("chest")
+contents = "ghost_wisp"
+
+[node name="DoorWall" type="StaticBody2D" parent="Level"]
+position = Vector2(500, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 16, 0, 16, 244, 0, 244)
+
+[node name="DoorIce" type="StaticBody2D" parent="Level"]
+position = Vector2(500, 244)
+script = ExtResource("ice")
+size = Vector2(16, 56)
+
+[node name="LowCeiling" type="StaticBody2D" parent="Level"]
+position = Vector2(800, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 200, 0, 200, 264, 0, 264)
+
+[node name="Curb" type="StaticBody2D" parent="Level"]
+position = Vector2(806, 300)
+script = ExtResource("pebble")
+
+[node name="Curb2" type="StaticBody2D" parent="Level"]
+position = Vector2(994, 300)
+script = ExtResource("pebble")
+
+[node name="DemonKing" type="Sprite2D" parent="Level"]
+position = Vector2(-100, 300)
+
+[node name="DemonLord" type="Area2D" parent="Level"]
+position = Vector2(-60, 0)
+script = ExtResource("boss")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Guard" parent="Enemies" instance=ExtResource("slime")]
+position = Vector2(900, 300)
+speed = 34.0

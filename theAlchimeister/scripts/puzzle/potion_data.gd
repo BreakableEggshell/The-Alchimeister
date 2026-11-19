@@ -9,16 +9,21 @@ const FREEZE := &"freeze"
 const TRANSLUCENT := &"translucent"
 ## Brewed from any mix that isn't a recipe. Hidden until first brewed.
 const DEATH := &"death"
-const KINDS: Array[StringName] = [FIRE, KNOCKBACK, FREEZE, TRANSLUCENT, DEATH]
+## The ??? potion: one of every ingredient. Shown locked in the book until its
+## recipe is found (the Demon Lord level, P12); then it brews like any other.
+## Nothing but the Demon Lord reacts to it. Its table mix is reserved, so it
+## never brews a Death potion.
+const SECRET := &"secret"
+## The fly bush's potion that turns the Demon King giant (the boss level's
+## cutscene). Not one the player has: only its icon and colour.
+const GROWTH := &"growth"
+const KINDS: Array[StringName] = [FIRE, KNOCKBACK, FREEZE, TRANSLUCENT, DEATH, SECRET]
 ## Potions the player must brew once before the book and HUD reveal them.
-const DISCOVERABLE: Array[StringName] = [DEATH]
+const DISCOVERABLE: Array[StringName] = [DEATH, SECRET]
 ## Potions whose recipe has to be found (a note in a level) before they can be
 ## brewed at all. Until then the book leaves them out of its recipes and their
 ## mix shows a lock. New potions like that only need adding here.
-const RECIPE_TO_FIND: Array[StringName] = [DEATH]
-## A recipe shown in the book whose potion can't be brewed yet. Its table mix
-## (one of every ingredient) is reserved so it never brews a Death potion.
-const SECRET := &"secret"
+const RECIPE_TO_FIND: Array[StringName] = [DEATH, SECRET]
 
 const NAMES := {
 	FIRE: "FIRE",
@@ -26,6 +31,7 @@ const NAMES := {
 	FREEZE: "FREEZE",
 	TRANSLUCENT: "TRANSLUCENT",
 	DEATH: "DEATH",
+	SECRET: "???",
 }
 ## Short lines for the recipe book.
 const DESCRIPTIONS := {
@@ -34,6 +40,7 @@ const DESCRIPTIONS := {
 	FREEZE: "ENCLOSES THINGS IN ICE FOR A WHILE",
 	TRANSLUCENT: "LETS THINGS PASS THROUGH",
 	DEATH: "KILLS ANYTHING IT TOUCHES",
+	SECRET: "WHAT DOES IT DO?",
 }
 const COLORS := {
 	FIRE: Color(1.0, 0.45, 0.15),
@@ -41,10 +48,33 @@ const COLORS := {
 	FREEZE: Color(0.45, 0.85, 1.0),
 	TRANSLUCENT: Color(0.85, 0.75, 1.0, 0.75),
 	DEATH: Color(0.45, 0.08, 0.2),
+	SECRET: Color8(240, 79, 120),
+	GROWTH: Color8(69, 41, 63),
 }
 ## Colour for a potion with no kind (the plain prototype potion).
 const PLAIN_COLOR := Color(0.55, 0.95, 0.45)
 const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
+## Potion icons, 10 x 12 each, in ICON_KINDS order: KINDS (Death, then ???),
+## then the growth potion.
+const POTION_ICONS := preload("res://assets/ui/icons/potion_icons.png")
+const POTION_ICON_SIZE := Vector2(10, 12)
+const ICON_KINDS: Array[StringName] = [FIRE, KNOCKBACK, FREEZE, TRANSLUCENT, DEATH, SECRET, GROWTH]
+## Ingredient icons, 10 x 10 each, in INGREDIENTS order.
+const INGREDIENT_ICONS := preload("res://assets/ui/icons/ingredient_icons.png")
+const INGREDIENT_ICON_SIZE := Vector2(10, 10)
+## The notebook's crafting slots (the table, storage, the brew result):
+## nb_craft_slot.png, a box with a 2 px shadow along its top so it looks sunk
+## into the page. Drawn as a 9-slice (rounded corners and the shadow kept as
+## drawn, the flat middle stretched), the shadow sitting just above the box.
+const SLOT_BOX := preload("res://assets/ui/nb_craft_slot.png")
+## Rows of shadow above the box itself.
+const SLOT_SHADOW := 2.0
+static var _slot_style: StyleBoxTexture
+## Every other box, just showing something (the recipe list, the effects page,
+## the potion counts, the recipe note): nb_slot.png, flat, with no sunk
+## shadow, so what's in it sits dead centre. A 9-slice too.
+const PLAIN_BOX := preload("res://assets/ui/nb_slot.png")
+static var _plain_style: StyleBoxTexture
 
 ## Ingredient kinds, their names and colours.
 const EMBER := &"ember"
@@ -54,8 +84,8 @@ const GHOST_WISP := &"ghost_wisp"
 const INGREDIENT_NAMES := {
 	EMBER: "EMBER",
 	GUST_FEATHER: "GUST FEATHER",
-	FROST_SHARD: "FROST SHARD",
-	GHOST_WISP: "GHOST WISP",
+	FROST_SHARD: "ICE CHUNK",
+	GHOST_WISP: "GHOST TEARS",
 }
 const INGREDIENT_COLORS := {
 	EMBER: Color(1.0, 0.55, 0.2),
@@ -101,6 +131,30 @@ const POTION_HIT_MASK := LAYER_WORLD | LAYER_ENEMIES | LAYER_PROPS | LAYER_POTIO
 const SPLASH_MASK := LAYER_PLAYER | LAYER_ENEMIES | LAYER_PROPS
 
 
+## A plain box (nb_slot.png) filling `rect`.
+static func draw_box(canvas: CanvasItem, rect: Rect2, alpha := 1.0) -> void:
+	if not _plain_style:
+		_plain_style = StyleBoxTexture.new()
+		_plain_style.texture = PLAIN_BOX
+		_plain_style.set_texture_margin_all(3)
+	_plain_style.modulate_color = Color(1, 1, 1, alpha)
+	_plain_style.draw(canvas.get_canvas_item(), rect)
+
+
+## A crafting slot (nb_craft_slot.png) filling `rect`.
+static func draw_slot_box(canvas: CanvasItem, rect: Rect2, alpha := 1.0) -> void:
+	if not _slot_style:
+		_slot_style = StyleBoxTexture.new()
+		_slot_style.texture = SLOT_BOX
+		_slot_style.texture_margin_left = 2
+		_slot_style.texture_margin_right = 2
+		_slot_style.texture_margin_top = 4
+		_slot_style.texture_margin_bottom = 2
+	_slot_style.modulate_color = Color(1, 1, 1, alpha)
+	var with_shadow := Rect2(rect.position - Vector2(0, SLOT_SHADOW), rect.size + Vector2(0, SLOT_SHADOW))
+	_slot_style.draw(canvas.get_canvas_item(), with_shadow)
+
+
 static func color_of(kind: StringName) -> Color:
 	return COLORS.get(kind, PLAIN_COLOR)
 
@@ -119,8 +173,14 @@ static func knockback_velocity(body_center: Vector2, origin: Vector2, strength :
 	return Vector2(side * KNOCKBACK_SPEED, -KNOCKBACK_LIFT) * strength
 
 
-## Draws a small potion flask centred at `at`.
-static func draw_potion(canvas: CanvasItem, kind: StringName, at: Vector2) -> void:
+## Draws a potion's icon centred at `at`.
+static func draw_potion(canvas: CanvasItem, kind: StringName, at: Vector2, tint := Color.WHITE) -> void:
+	var index := ICON_KINDS.find(kind)
+	if index >= 0 and index < POTION_ICONS.get_width() / int(POTION_ICON_SIZE.x):
+		var source := Rect2(Vector2(index * POTION_ICON_SIZE.x, 0), POTION_ICON_SIZE)
+		canvas.draw_texture_rect_region(POTION_ICONS, Rect2((at - POTION_ICON_SIZE / 2.0).round(), POTION_ICON_SIZE), source, tint)
+		return
+	# No icon for it yet: a small flask.
 	canvas.draw_rect(Rect2(at + Vector2(-1, -6), Vector2(2, 1)), Color(0.6, 0.4, 0.25))
 	canvas.draw_rect(Rect2(at + Vector2(-1, -5), Vector2(2, 2)), Color(0.85, 0.9, 1.0))
 	canvas.draw_circle(at, 3.0, Color(0.85, 0.9, 1.0))
@@ -151,6 +211,11 @@ static func draw_unknown_icon(canvas: CanvasItem, at: Vector2, color: Color, fon
 
 ## Draws a small ingredient icon centred at `at`.
 static func draw_ingredient(canvas: CanvasItem, kind: StringName, at: Vector2) -> void:
+	var index := INGREDIENTS.find(kind)
+	if index >= 0:
+		var source := Rect2(Vector2(index * INGREDIENT_ICON_SIZE.x, 0), INGREDIENT_ICON_SIZE)
+		canvas.draw_texture_rect_region(INGREDIENT_ICONS, Rect2((at - INGREDIENT_ICON_SIZE / 2.0).round(), INGREDIENT_ICON_SIZE), source)
+		return
 	var color: Color = INGREDIENT_COLORS.get(kind, Color.WHITE)
 	match kind:
 		EMBER:

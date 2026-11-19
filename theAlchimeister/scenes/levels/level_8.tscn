@@ -1,0 +1,86 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
+[ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
+[ext_resource type="Script" path="res://scripts/puzzle/heavy_button.gd" id="heavy"]
+[ext_resource type="Script" path="res://scripts/puzzle/gate.gd" id="gate"]
+[ext_resource type="Script" path="res://scripts/puzzle/jelly.gd" id="jelly"]
+[ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="PackedScene" path="res://scenes/actors/flyer.tscn" id="flyer"]
+
+[node name="Level8" instance=ExtResource("base")]
+stage_id = "8"
+stage_size = Vector2(820, 272)
+intro_lines = PackedStringArray("SHELDON (squint): Wait. Since when can slimes fly?!", "SHELDON: Careful. Whatever can fly can fall.")
+intro_teaches = "hint"
+hint_lines = PackedStringArray("SHELDON (squint): That flying one is carrying something shiny.", "SHELDON: I bet a block of ice would be too heavy to keep up there.", "---", "SHELDON: That button wants something heavy. And something keeps flying right over it.", "---", "SHELDON (glasses): Blue jelly throws back more than you give it. Potions... and knights.", "SHELDON (squint): Shame about whatever's flying right over it.")
+potions_needed_until_x = 680.0
+
+[node name="Knight" parent="."]
+position = Vector2(24, 192)
+
+[node name="Level" type="Node2D" parent="."]
+
+[node name="FloorL" type="StaticBody2D" parent="Level"]
+position = Vector2(0, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 560, 0, 560, 80, 0, 80)
+
+[node name="Chest" type="Area2D" parent="Level"]
+position = Vector2(60, 192)
+script = ExtResource("chest")
+contents = "frost_shard"
+
+[node name="FlyButton" type="Area2D" parent="Level"]
+position = Vector2(420, 192)
+script = ExtResource("heavy")
+width = 48.0
+cap_height = 12.0
+press_time = 1.0
+
+[node name="GateWall" type="StaticBody2D" parent="Level"]
+position = Vector2(500, 0)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 12, 0, 12, 156, 0, 156)
+
+[node name="Gate" type="StaticBody2D" parent="Level" node_paths=PackedStringArray("plates")]
+position = Vector2(500, 156)
+script = ExtResource("gate")
+size = Vector2(12, 36)
+plates = [NodePath("../FlyButton")]
+
+[node name="BlueJelly" type="StaticBody2D" parent="Level"]
+position = Vector2(560, 248)
+script = ExtResource("jelly")
+size = Vector2(120, 24)
+strength = 1.6
+
+[node name="FloorR" type="StaticBody2D" parent="Level"]
+position = Vector2(680, 192)
+script = ExtResource("solid")
+points = PackedVector2Array(0, 0, 140, 0, 140, 80, 0, 80)
+
+[node name="Exit" type="Area2D" parent="Level"]
+position = Vector2(780, 192)
+script = ExtResource("exit")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Carrier" parent="Enemies" instance=ExtResource("flyer")]
+position = Vector2(200, 100)
+speed = 24.0
+patrol_range = 80.0
+drop = &"frost_shard"
+drop_count = 3
+
+[node name="ButtonFlyer" parent="Enemies" instance=ExtResource("flyer")]
+position = Vector2(420, 104)
+speed = 22.0
+patrol_range = 70.0
+start_direction = -1
+
+[node name="ChasmFlyer" parent="Enemies" instance=ExtResource("flyer")]
+position = Vector2(620, 150)
+speed = 20.0
+patrol_range = 30.0
