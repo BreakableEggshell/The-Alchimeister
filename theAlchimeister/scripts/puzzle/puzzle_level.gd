@@ -299,7 +299,10 @@ func _exit_lines() -> PackedStringArray:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("restart") and not player._dead:
 		restart()
-	elif _over and event.is_action_pressed("ui_accept") and SaveGame.next_stage(stage_id) != "":
+	# Enter for the next stage, unless a button is selected (LEVELS, say): then
+	# Enter is that button's.
+	elif _over and event.is_action_pressed("ui_accept") and SaveGame.next_stage(stage_id) != "" \
+			and not get_viewport().gui_get_focus_owner():
 		_go_next()
 
 

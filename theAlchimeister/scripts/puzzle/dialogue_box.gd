@@ -28,14 +28,16 @@ const KEY_COLOR := Color(1, 1, 1, 0.75)
 ## The colour of <<highlighted>> words.
 const HIGHLIGHT := Color(0.95, 0.85, 0.55)
 const BG := Color(0.1, 0.09, 0.14, 0.95)
+## The box every panel here is drawn in: panel_frame.png as a 9-slice.
+const PANEL_FRAME := preload("res://scenes/ui/panel_frame_style.tres")
 const BORDER := Color(0.95, 0.85, 0.55)
 const BOX_WIDTH := 240.0
 ## The box grows upwards past this when a line needs more room.
 const BOX_MIN_HEIGHT := 60.0
 ## Gap between the box and the bottom of the screen.
 const BOX_MARGIN := 4.0
-const TEXT_TOP := 16.0
-const TEXT_PADDING := 6.0
+const TEXT_TOP := 19.0
+const TEXT_PADDING := 9.0
 const DIM_COLOR := Color(0, 0, 0, 0.5)
 ## How the character who isn't talking looks: darker, and pushed this far
 ## towards their bottom corner.
@@ -251,7 +253,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## See UiFocus.
 func focus_first() -> bool:
 	if _confirm.visible:
-		_confirm_buttons[1 if _confirm_warning.visible else 0].grab_focus()
+		_confirm_buttons[0].grab_focus()
 	elif _log.visible:
 		_log_text.grab_focus()
 	else:
@@ -477,8 +479,10 @@ func _show_confirm() -> void:
 	panel.offset_top = -height / 2.0
 	panel.offset_bottom = height / 2.0
 	_confirm.show()
-	# With a hint or tutorial at stake, NO is the safe default.
-	_confirm_buttons[1 if _confirm_warning.visible else 0].grab_focus()
+	# YES first: the player asked to skip. The first key press shows it there
+	# (see UiFocus.hide_mark); the next one moves.
+	_confirm_buttons[0].grab_focus()
+	UiFocus.hide_mark()
 
 
 func _blocker_input(event: InputEvent) -> void:
@@ -525,7 +529,7 @@ func _build() -> void:
 	add_child(_box)
 
 	_name = Label.new()
-	_name.position = Vector2(TEXT_PADDING, 4)
+	_name.position = Vector2(TEXT_PADDING, 7)
 	_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_child(_name)
 	_text = RichTextLabel.new()
@@ -662,12 +666,9 @@ func _text_button(text: String, at: Vector2, button_size: Vector2) -> Button:
 	return button
 
 
-func _panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = BG
-	style.border_color = BORDER
-	style.set_border_width_all(1)
-	return style
+## The dialogue box, the skip box and the log: the panel frame (panel_frame.png).
+func _panel_style() -> StyleBox:
+	return PANEL_FRAME
 
 
 func _draw_skip_icon(button: Button) -> void:

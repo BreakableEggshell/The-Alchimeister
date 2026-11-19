@@ -125,6 +125,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	_set_navigating(false)
 
 
+## A menu just popped up over play (the skip-dialogue box, the end-of-stage
+## buttons): the mark waits, so the first key press only shows where the
+## selection starts (YES, NEXT) rather than moving it straight off. The mouse
+## pointer stays as it was.
+func hide_mark() -> void:
+	SelectionBox.shown = false
+	_mark.queue_redraw()
+
+
 ## Navigating with the keys or a pad (or not): the selection mark shows, and
 ## the mouse pointer hides while it does (back as soon as the mouse moves).
 func _set_navigating(on: bool) -> void:

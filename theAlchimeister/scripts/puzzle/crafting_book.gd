@@ -70,7 +70,7 @@ const COUNTS_Y := 88.0
 const STORAGE_AT := Vector2(16, 100)
 ## Gap between the top buttons and the book.
 const BUTTONS_GAP := 2.0
-const PAGE_ARROW_SIZE := Vector2(20, 12)
+const PAGE_ARROW_SIZE := Vector2(12, 14)
 const CHECKLIST := ["Meet the Demon Lord", "Use ??? potion on the Demon Lord", "Remove the curse"]
 const CHECKLIST_TOP := 26.0
 const CHECKLIST_SPACING := 30.0
@@ -113,8 +113,8 @@ const GOLD := Color(0.95, 0.85, 0.55)
 ## but never brewed.
 const RECIPE_TO_FIND_TEXT := "RECIPE TO BE FOUND"
 const UNBREWED_TEXT := "TO BE BREWED"
-const GEAR_MARGIN := 8.0
-const GEAR_TITLE_HEIGHT := 12.0
+const GEAR_MARGIN := 10.0
+const GEAR_TITLE_HEIGHT := 13.0
 const GEAR_BUTTON_HEIGHT := 16.0
 const GEAR_TEETH := 8
 const GEAR_OUTER := 5.0
@@ -146,6 +146,16 @@ const NOTEBOOK_PAGES := [
 	[Rect2(0, 0, 40, 58), 8, 7, 9, 10],
 	[Rect2(40, 0, 39, 58), 8, 7, 8, 10],
 ]
+## notebook.png's other two frames (79 x 58 each, beside the book) show the
+## same book with its page-turn tabs and with its closing bookmark: these are
+## those parts, drawn 1:1 as the buttons, as far from the book's edges as in
+## the art (so they stay in its corners however wide it's drawn).
+const NOTEBOOK_FRAME := 79.0
+const PREVIOUS_TAB := Rect2(79 + 7, 37, 12, 14)
+const NEXT_TAB := Rect2(79 + 60, 37, 12, 14)
+const CLOSE_TAB := Rect2(158 + 58, 1, 11, 16)
+## Hovered or picked with the keys.
+const TAB_LIT := Color(1.2, 1.2, 1.2)
 const INK := Color(0.35, 0.22, 0.14)
 
 @export var inventory: Inventory
@@ -605,7 +615,7 @@ func _build() -> void:
 			var cell := Vector2(column, row) * (SLOT + GAP)
 			_storage_slots.append(_add_slot(IngredientSlot.Role.STORAGE, _storage_slots.size(), LEFT_PAGE + STORAGE_AT + cell, SLOT))
 
-	# The X is drawn by hand so it sits on the same baseline as "RECIPES".
+	# The bookmark with an X (CLOSE_TAB), at its place in the art.
 	var close_button := Button.new()
 	close_button.flat = true
 	close_button.focus_mode = Control.FOCUS_ALL
@@ -617,12 +627,14 @@ func _build() -> void:
 	close_button.focus_exited.connect(close_button.queue_redraw)
 	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
 		close_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	close_button.position = RIGHT_PAGE + Vector2(PAGE_SIZE.x - 18, TITLE_BASELINE - 10)
-	close_button.size = Vector2(14, 13)
+	close_button.position = Vector2(BOOK_SIZE.x - (NOTEBOOK_FRAME - (CLOSE_TAB.position.x - 2.0 * NOTEBOOK_FRAME)), CLOSE_TAB.position.y)
+	close_button.size = CLOSE_TAB.size
 	close_button.pressed.connect(close)
+	close_button.mouse_entered.connect(close_button.queue_redraw)
+	close_button.mouse_exited.connect(close_button.queue_redraw)
 	close_button.draw.connect(func() -> void:
-		var color := ACTIVE_INK if close_button.is_hovered() or close_button.has_focus() else INK
-		close_button.draw_string(get_theme_font("font", "Label"), Vector2(0, 10), "X", HORIZONTAL_ALIGNMENT_CENTER, close_button.size.x, 8, color))
+		var lit := close_button.is_hovered() or close_button.has_focus()
+		close_button.draw_texture_rect_region(NOTEBOOK, Rect2(Vector2.ZERO, CLOSE_TAB.size), CLOSE_TAB, TAB_LIT if lit else Color.WHITE))
 	_book.add_child(close_button)
 
 	_recipe_scroll = ScrollContainer.new()
@@ -656,8 +668,10 @@ func _build() -> void:
 	_crafting_nodes.append(_result_slot)
 	_crafting_nodes.append(_recipe_scroll)
 
-	_next_page = _page_arrow(1, RIGHT_PAGE + PAGE_SIZE - PAGE_ARROW_SIZE - Vector2(6, 3))
-	_previous_page = _page_arrow(-1, LEFT_PAGE + Vector2(6, PAGE_SIZE.y - PAGE_ARROW_SIZE.y - 3))
+	# The page-turn tabs, in the bottom corners as in the art.
+	var tab_y := BOOK_SIZE.y - (58.0 - NEXT_TAB.position.y)
+	_next_page = _page_arrow(1, Vector2(BOOK_SIZE.x - (NOTEBOOK_FRAME - (NEXT_TAB.position.x - NOTEBOOK_FRAME)), tab_y))
+	_previous_page = _page_arrow(-1, Vector2(PREVIOUS_TAB.position.x - NOTEBOOK_FRAME, tab_y))
 	_checklist = _build_checklist()
 
 	# Above the book, lined up with its right edge; they slide with it.
@@ -761,18 +775,15 @@ func _build_gear_menu() -> Control:
 	_gear_level.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	modal.add_child(_gear_level)
 	_gear_panel = Panel.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.09, 0.14)
-	style.border_color = Color(0.95, 0.85, 0.55)
-	style.set_border_width_all(1)
-	_gear_panel.add_theme_stylebox_override("panel", style)
+	# The panel frame (panel_frame.png), as the dialogue box.
+	_gear_panel.add_theme_stylebox_override("panel", preload("res://scenes/ui/panel_frame_style.tres"))
 	modal.add_child(_gear_panel)
 	_gear_title = Label.new()
 	_gear_title.text = "PAUSE MENU"
 	_gear_title.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
 	_gear_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_gear_panel.add_child(_gear_title)
-	_gear_title.position = Vector2(0, GEAR_MARGIN - 3.0)
+	_gear_title.position = Vector2(0, GEAR_MARGIN - 1.0)
 	_gear_list = VBoxContainer.new()
 	_gear_list.add_theme_constant_override("separation", 3)
 	_gear_list.position = Vector2(GEAR_MARGIN, GEAR_MARGIN + GEAR_TITLE_HEIGHT)
@@ -1100,7 +1111,7 @@ func _add_slot(role: IngredientSlot.Role, index: int, at: Vector2, side: float) 
 
 
 ## The box around the X or a page arrow while the keyboard is on it.
-## A hand-drawn page-turn arrow; `direction` 1 points right, -1 left.
+## A page-turn tab (notebook.png's), `direction` 1 for the next page, -1 the previous.
 func _page_arrow(direction: int, at: Vector2) -> Button:
 	var button := Button.new()
 	button.flat = true
@@ -1113,13 +1124,12 @@ func _page_arrow(direction: int, at: Vector2) -> Button:
 	button.position = at
 	button.size = PAGE_ARROW_SIZE
 	button.pressed.connect(func() -> void: _set_page(_page + direction))
+	button.mouse_entered.connect(button.queue_redraw)
+	button.mouse_exited.connect(button.queue_redraw)
+	var tab := NEXT_TAB if direction > 0 else PREVIOUS_TAB
 	button.draw.connect(func() -> void:
-		var color := ACTIVE_INK if button.is_hovered() or button.has_focus() else INK
-		var y := button.size.y / 2.0
-		var tip := button.size.x - 2.0 if direction > 0 else 2.0
-		var tail := 2.0 if direction > 0 else button.size.x - 2.0
-		button.draw_line(Vector2(tail, y), Vector2(tip - 3.0 * direction, y), color, 2.0)
-		button.draw_colored_polygon(PackedVector2Array([Vector2(tip, y), Vector2(tip - 5.0 * direction, y - 4), Vector2(tip - 5.0 * direction, y + 4)]), color))
+		var lit := button.is_hovered() or button.has_focus()
+		button.draw_texture_rect_region(NOTEBOOK, Rect2(Vector2.ZERO, tab.size), tab, TAB_LIT if lit else Color.WHITE))
 	_book.add_child(button)
 	return button
 
@@ -1254,8 +1264,8 @@ func _draw_effect(font: Font, kind: StringName, at: Vector2) -> float:
 	var found := kind != PotionData.SECRET and _recipe_found(kind)
 	var known := kind == CLEANSING_WATER or (found and SaveGame.is_potion_known(kind))
 	var box := Rect2(at, Vector2(14, 14))
-	PotionData.draw_slot_box(_book, box)
-	var icon_at := box.get_center() + Vector2(0, 1)
+	PotionData.draw_box(_book, box)
+	var icon_at := box.get_center()
 	var name := "???"
 	var text := "???"
 	if kind == CLEANSING_WATER:
@@ -1341,16 +1351,16 @@ func _draw_bulk(font: Font) -> void:
 func _draw_bulk_row(font: Font, ingredient: StringName, count: int, at: Vector2) -> void:
 	for i in 4:
 		var cell := Rect2(at + Vector2(i % 2, floori(i / 2.0)) * (BULK_BOX + 1.0), Vector2(BULK_BOX, BULK_BOX))
-		PotionData.draw_slot_box(_book, cell)
+		PotionData.draw_box(_book, cell)
 		if i < count:
 			PotionData.draw_ingredient(_book, ingredient, cell.get_center())
 	var mid_y := at.y + BULK_BOX + 0.5
 	var table_end := at.x + 2.0 * BULK_BOX + 1.0
 	_draw_arrow(_book, table_end + 6.0, table_end + 26.0, mid_y)
 	var result := Rect2(table_end + 32.0, mid_y - 9.0, 18.0, 18.0)
-	PotionData.draw_slot_box(_book, result)
+	PotionData.draw_box(_book, result)
 	var potion := _potion_from(ingredient)
-	PotionData.draw_potion(_book, potion, result.get_center() + Vector2(0, 1))
+	PotionData.draw_potion(_book, potion, result.get_center())
 	_book.draw_string(font, Vector2(result.end.x + 4.0, mid_y + 4.0), "x%d" % count, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, INK)
 
 
@@ -1402,8 +1412,8 @@ func _draw_potion_counts(font: Font) -> void:
 	for kind in kinds:
 		var amount := inventory.count(kind)
 		var faded := 1.0 if amount > 0 else 0.35
-		PotionData.draw_slot_box(_book, Rect2(x, y - 8, 16, 16), faded)
-		var icon_at := Vector2(x + 8, y + 1)
+		PotionData.draw_box(_book, Rect2(x, y - 8, 16, 16), faded)
+		var icon_at := Vector2(x + 8, y)
 		# None held: the icon greyed out.
 		PotionData.draw_potion(_book, kind, icon_at, Color.WHITE if amount > 0 else Color(0.45, 0.42, 0.4, 0.6))
 		_book.draw_string(font, Vector2(x + 17, y + 4), "x%d" % amount, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(INK, faded))
@@ -1460,13 +1470,13 @@ func _draw_recipes() -> void:
 		var mid_y: float = top.y + layout.boxes[0].get_center().y
 		for i in layout.boxes.size():
 			var box: Rect2 = layout.boxes[i]
-			PotionData.draw_slot_box(_recipe_list, Rect2(top + box.position, box.size))
+			PotionData.draw_box(_recipe_list, Rect2(top + box.position, box.size))
 			if entry.ingredients[i] != &"":
 				PotionData.draw_ingredient(_recipe_list, entry.ingredients[i], top + box.get_center())
 		_draw_arrow(_recipe_list, layout.arrow.x, layout.arrow.y, mid_y)
 		var potion_box: Rect2 = layout.potion_box
-		PotionData.draw_slot_box(_recipe_list, Rect2(top + potion_box.position, potion_box.size))
-		var icon_at := top + potion_box.get_center() + Vector2(0, 1)
+		PotionData.draw_box(_recipe_list, Rect2(top + potion_box.position, potion_box.size))
+		var icon_at := top + potion_box.get_center()
 		if entry.known:
 			PotionData.draw_potion(_recipe_list, entry.potion, icon_at)
 		elif entry.locked:

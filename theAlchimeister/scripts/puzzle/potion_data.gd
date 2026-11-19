@@ -45,21 +45,25 @@ const COLORS := {
 ## Colour for a potion with no kind (the plain prototype potion).
 const PLAIN_COLOR := Color(0.55, 0.95, 0.45)
 const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
-## Potion icons, 10 x 12 each, in KINDS order (no Death potion yet: that one
-## is still drawn).
+## Potion icons, 10 x 12 each, in KINDS order (Death last).
 const POTION_ICONS := preload("res://assets/ui/icons/potion_icons.png")
 const POTION_ICON_SIZE := Vector2(10, 12)
 ## Ingredient icons, 10 x 10 each, in INGREDIENTS order.
 const INGREDIENT_ICONS := preload("res://assets/ui/icons/ingredient_icons.png")
 const INGREDIENT_ICON_SIZE := Vector2(10, 10)
-## The square every slot and box is drawn with (the notebook's, the recipe
-## note's): nb_slot.png, a box with a 2 px shadow along its top so it looks
-## sunk into the page. Drawn as a 9-slice (rounded corners and the shadow kept
-## as drawn, the flat middle stretched), the shadow sitting just above the box.
-const SLOT_BOX := preload("res://assets/ui/nb_slot.png")
+## The notebook's crafting slots (the table, storage, the brew result):
+## nb_craft_slot.png, a box with a 2 px shadow along its top so it looks sunk
+## into the page. Drawn as a 9-slice (rounded corners and the shadow kept as
+## drawn, the flat middle stretched), the shadow sitting just above the box.
+const SLOT_BOX := preload("res://assets/ui/nb_craft_slot.png")
 ## Rows of shadow above the box itself.
 const SLOT_SHADOW := 2.0
 static var _slot_style: StyleBoxTexture
+## Every other box, just showing something (the recipe list, the effects page,
+## the potion counts, the recipe note): nb_slot.png, flat, with no sunk
+## shadow, so what's in it sits dead centre. A 9-slice too.
+const PLAIN_BOX := preload("res://assets/ui/nb_slot.png")
+static var _plain_style: StyleBoxTexture
 
 ## Ingredient kinds, their names and colours.
 const EMBER := &"ember"
@@ -116,7 +120,17 @@ const POTION_HIT_MASK := LAYER_WORLD | LAYER_ENEMIES | LAYER_PROPS | LAYER_POTIO
 const SPLASH_MASK := LAYER_PLAYER | LAYER_ENEMIES | LAYER_PROPS
 
 
-## A slot or box (nb_slot.png) filling `rect`.
+## A plain box (nb_slot.png) filling `rect`.
+static func draw_box(canvas: CanvasItem, rect: Rect2, alpha := 1.0) -> void:
+	if not _plain_style:
+		_plain_style = StyleBoxTexture.new()
+		_plain_style.texture = PLAIN_BOX
+		_plain_style.set_texture_margin_all(3)
+	_plain_style.modulate_color = Color(1, 1, 1, alpha)
+	_plain_style.draw(canvas.get_canvas_item(), rect)
+
+
+## A crafting slot (nb_craft_slot.png) filling `rect`.
 static func draw_slot_box(canvas: CanvasItem, rect: Rect2, alpha := 1.0) -> void:
 	if not _slot_style:
 		_slot_style = StyleBoxTexture.new()
