@@ -593,10 +593,15 @@ func _refresh() -> void:
 		return
 	for i in _table_slots.size():
 		_table_slots[i].show_contents(_table[i])
+	# What's in storage, packed from the top-left box (no gaps where something
+	# ran out), in the inventory's order.
+	var held: Array[StringName] = []
+	for kind in inventory.ingredient_order:
+		if inventory.ingredient_count(kind) > 0:
+			held.append(kind)
 	for i in _storage_slots.size():
-		var kind: StringName = inventory.ingredient_order[i] if i < inventory.ingredient_order.size() else &""
-		var amount := inventory.ingredient_count(kind) if kind != &"" else 0
-		_storage_slots[i].show_contents(kind if amount > 0 else &"", amount)
+		var kind: StringName = held[i] if i < held.size() else &""
+		_storage_slots[i].show_contents(kind, inventory.ingredient_count(kind) if kind != &"" else 0)
 	var result := inventory.match_recipe(_table)
 	var potion: StringName = result.potion
 	# A lock until the recipe is found, then a "?" until it's first brewed.
@@ -804,8 +809,8 @@ func _build_gear_menu() -> Control:
 	_gear_level.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	modal.add_child(_gear_level)
 	_gear_panel = Panel.new()
-	# The panel frame (panel_frame.png), as the dialogue box.
-	_gear_panel.add_theme_stylebox_override("panel", preload("res://scenes/ui/panel_frame_style.tres"))
+	# Its own frame (pause_menu_bg.png, stretched by its middle).
+	_gear_panel.add_theme_stylebox_override("panel", preload("res://scenes/ui/pause_menu_style.tres"))
 	modal.add_child(_gear_panel)
 	_gear_title = Label.new()
 	_gear_title.text = "PAUSE MENU"

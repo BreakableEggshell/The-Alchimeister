@@ -3,9 +3,10 @@ extends Control
 ## Debug: a gallery of every level, each shown whole, to look up quickly how a
 ## puzzle is laid out. Each stage is built offscreen with nothing running (no
 ## knight script, HUD, dialogue or monsters moving), pictured once, and kept.
-## Levels come in the level select's sections (SaveGame maps: MAP 1, SECRET
-## LEVELS, SPECIAL, PROTOTYPES), every one of them here whatever the level
-## select shows. The upper row picks a section (PgUp / PgDn too), the lower
+## Levels come in sections as on the level select: the first map's pages
+## (1, 2, 3, as PLAYABLE_PAGES splits it), then the other maps (SECRET,
+## SPECIAL, PROTO, EXTRA), every one of them here whatever the
+## level select shows. The upper row picks a section (PgUp / PgDn too), the lower
 ## row one of its levels (left / right steps through them); BACK or Esc
 ## closes it.
 
@@ -19,6 +20,10 @@ const PICTURE_AREA := Rect2(6, 20, 372, 146)
 const SECTIONS_Y := 170.0
 const NUMBERS_Y := 190.0
 const NUMBER_SIZE := Vector2(34, 16)
+## The level select, for how its first map is split into pages.
+const LEVEL_SELECT := preload("res://scripts/level_select.gd")
+## Shorter section names, so the row fits the screen.
+const SHORT_NAMES := {SaveGame.PROTOTYPE_MAP: "PROTO"}
 ## The stage_base parts that aren't the level itself.
 const STAGE_PARTS := ["Backdrop", "Inventory", "Knight", "PotionThrower", "HUD"]
 
@@ -28,7 +33,9 @@ var _stages: Array[String] = []
 var _picture: TextureRect
 var _title: Label
 var _loading: Label
-## Map -> its section button, and the section on show.
+## Each section: {"name", "stages"}.
+var _sections: Array[Dictionary] = []
+## Section index -> its button, and the section on show.
 var _section_buttons := {}
 var _section := 0
 var _sections_row: HBoxContainer
@@ -79,15 +86,16 @@ func _ready() -> void:
 	_sections_row = HBoxContainer.new()
 	_sections_row.add_theme_constant_override("separation", 2)
 	add_child(_sections_row)
-	for map in SaveGame.MAP_COUNT:
+	_sections = _make_sections()
+	for index in _sections.size():
 		var section := Button.new()
-		section.text = SaveGame.MAP_SHORT_NAMES[map]
+		section.text = _sections[index].name
 		section.custom_minimum_size.y = NUMBER_SIZE.y
 		section.focus_mode = Control.FOCUS_ALL
-		section.focus_entered.connect(_show_section.bind(map))
+		section.focus_entered.connect(_show_section.bind(index))
 		section.mouse_entered.connect(section.grab_focus)
 		_sections_row.add_child(section)
-		_section_buttons[map] = section
+		_section_buttons[index] = section
 	_back = Button.new()
 	_back.text = "BACK"
 	_back.custom_minimum_size = Vector2(40, NUMBER_SIZE.y)
@@ -101,7 +109,7 @@ func _ready() -> void:
 	_numbers_row = HBoxContainer.new()
 	_numbers_row.add_theme_constant_override("separation", 2)
 	add_child(_numbers_row)
-	_show_section(SaveGame.PLAYABLE_MAP)
+	_show_section(0)
 	_buttons[0].grab_focus()
 	_take_pictures()
 
@@ -120,18 +128,32 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_page_up"):
 		step = -1
 	if step != 0:
-		var to := posmod(_section + step, SaveGame.MAP_COUNT)
+		var to := posmod(_section + step, _sections.size())
 		_show_section(to)
 		_buttons[0].grab_focus()
 		get_viewport().set_input_as_handled()
 
 
-## The lower row becomes `map`'s levels, and its first is shown (unless
-## one of them is already).
-func _show_section(map: int) -> void:
-	if map == _section and not _buttons.is_empty():
+## The sections: the first map's pages (named 1, 2, 3), then each other map.
+func _make_sections() -> Array[Dictionary]:
+	var sections: Array[Dictionary] = []
+	var stages := SaveGame.map_stages(SaveGame.PLAYABLE_MAP)
+	for page in LEVEL_SELECT.PLAYABLE_PAGES:
+		var count: int = page.stages if page.stages >= 0 else stages.size()
+		sections.append({"name": str(sections.size() + 1), "stages": stages.slice(0, count)})
+		stages = stages.slice(count)
+	for map in range(1, SaveGame.MAP_COUNT):
+		sections.append({"name": SHORT_NAMES.get(map, SaveGame.MAP_SHORT_NAMES[map]), "stages": SaveGame.map_stages(map)})
+	return sections
+
+
+## The lower row becomes section `index`'s levels, and its first is shown
+## (unless one of them is already).
+func _show_section(index: int) -> void:
+	if index == _section and not _buttons.is_empty():
 		return
-	_section = map
+	_section = index
+	var map := index
 	for other in _section_buttons:
 		var color := GOLD if other == map else Color.WHITE
 		for prop in ["font_color", "font_hover_color", "font_focus_color"]:
@@ -139,7 +161,7 @@ func _show_section(map: int) -> void:
 	for button in _buttons:
 		button.free()
 	_buttons.clear()
-	_button_stages = SaveGame.map_stages(map)
+	_button_stages.assign(_sections[index].stages)
 	for stage in _button_stages:
 		var button := Button.new()
 		button.text = SaveGame.stage_tag(stage)

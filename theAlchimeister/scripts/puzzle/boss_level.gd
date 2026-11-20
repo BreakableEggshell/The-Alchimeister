@@ -13,8 +13,8 @@ extends "res://scripts/puzzle/puzzle_level.gd"
 ##   it ends the chase, and the game, with the ending conversation. Up close
 ##   at the chests at the start, out to the chase's view past `zoom_out_x`.
 ## Doors go straight on to the next stage. In any stage, a Death potion on him
-## kills him instead: a different ending, after which there's nowhere to go
-## (the restart hint shows).
+## ends it too: the same ending scene (the way cleared, him kneeling), with his
+## last words instead (DEATH_END).
 
 const RECIPE_NOTE := preload("res://scripts/puzzle/recipe_note.gd")
 const DK_STANDING := preload("res://assets/dk_stand.png")
@@ -25,6 +25,11 @@ const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
 ## its origin).
 const DK_STANDING_OFFSET := Vector2(0, -38)
 const DK_KNEELING_OFFSET := Vector2(0, -33)
+## Before the fly bush comes (first try only).
+const INTRO := [
+	"DEMON KING: So you've been the one who dares challenge me",
+	"DEMON KING: Try this!",
+]
 const ENDING_START := [
 	"DEMON KING: What is this?",
 	"DEMON KING: It's not a potion of weakness, or poison, or burn...",
@@ -43,17 +48,17 @@ const ENDING_REST := [
 	"ALCHEMIST: But if you're offering...",
 	"ALCHEMIST: Then close your eyes first",
 	"DEMON KING: Hah, I don't fear whatever comes next",
-	"DEMON KING: You have the gal to tell me to close my eyes to whatever will come next",
+	"DEMON KING: You have the guts to tell me to close my eyes to whatever will come next",
 	"ALCHEMIST: Then prepare yourself",
 ]
-const BAD_END := [
-	"SHELDON: ...",
-	"ALCHEMIST: What have I done...?",
-	"SHELDON: This is what you wanted, isn't it?",
-	"ALCHEMIST: But my curse",
-	"ALCHEMIST: ...",
-	"ALCHEMIST: I'll never be able to break it",
+## A Death potion on him, after he's back to his normal size.
+const DEATH_END := [
+	"DEMON KING: ...",
+	"DEMON KING: So this is what you were truly after",
+	"DEMON KING: Humans can never be forgiven",
 ]
+## The floor's top in every part: where everyone stands once the way's cleared.
+const FLOOR_Y := 300.0
 ## The camera (Godot 4: below 1 shows more): zoomed out to 2/3 while running
 ## (the stages' cameras start like this), in to normal size for the cutscenes
 ## (the transformation, the endings).
@@ -80,8 +85,6 @@ const SECRET_NOTE_TEXT := ["ONE OF EVERY", "INGREDIENT"]
 ## Part 3: past this (a little beyond the chests), the camera zooms out.
 @export var zoom_out_x := 210.0
 
-## Killed with a Death potion: no way on.
-var _doomed := false
 var _ending := false
 var _door_shown := false
 ## Parts 2 and 3: still up close, until the chest (2) or zoom_out_x (3).
@@ -102,6 +105,12 @@ func _ready() -> void:
 		_set_door(false)
 	if chest:
 		chest.opened.connect(_on_chest_opened)
+	# Every part needs him for the ending, even where he isn't placed.
+	if not demon_king:
+		demon_king = Sprite2D.new()
+		demon_king.name = "DemonKing"
+		var level := get_node_or_null("Level")
+		(level if level else self).add_child(demon_king)
 	if demon_king:
 		demon_king.texture = DK_STANDING
 		demon_king.offset = DK_STANDING_OFFSET
@@ -143,12 +152,14 @@ func _offer_hint(_attempt: int) -> void:
 func _chase_after(seconds: float) -> void:
 	boss.show()
 	await get_tree().create_timer(seconds, false).timeout
-	if is_inside_tree() and not _doomed and not _ending:
+	if is_inside_tree() and not _ending:
 		boss.start()
 
 
 func _process(_delta: float) -> void:
-	if part == 1 and exit_door and not _door_shown and not _doomed and player.global_position.x >= door_reveal_x:
+	if _ending:
+		return
+	if part == 1 and exit_door and not _door_shown and player.global_position.x >= door_reveal_x:
 		_set_door(true, true)
 	if part == 3 and _close and player.global_position.x >= zoom_out_x:
 		_zoom_out()
@@ -159,7 +170,7 @@ func _zoom_out() -> void:
 	if not _close:
 		return
 	_close = false
-	if not _ending and not _doomed:
+	if not _ending:
 		_zoom_to(CHASE_ZOOM)
 
 
@@ -175,7 +186,8 @@ func _set_door(on: bool, fade := false) -> void:
 
 # --- Part 1: the transformation
 
-## The Demon King, normal size, left of the knight. A fly bush flutters in and
+## The Demon King, normal size, left of the knight, says his piece
+## (INTRO). A fly bush flutters in and
 ## throws a growth potion at him; a flash, and he swells into the wall.
 func _transformation() -> void:
 	boss.hide()
@@ -185,6 +197,8 @@ func _transformation() -> void:
 	demon_king.show()
 	var feet := demon_king.global_position
 	await _wait(0.8)
+	await hud.dialogue.interrupt(PackedStringArray(INTRO))
+	await _wait(0.3)
 	var bush := Sprite2D.new()
 	bush.texture = FLY_BUSH
 	bush.hframes = 4
@@ -222,7 +236,7 @@ func _transformation() -> void:
 	await _zoom_to(CHASE_ZOOM)
 	player.set_physics_process(true)
 	thrower.set_process_unhandled_input(throwing_enabled)
-	if not _doomed:
+	if not _ending:
 		boss.start()
 
 
@@ -284,7 +298,20 @@ func _on_struck() -> void:
 	if part != 3:
 		boss._no_effect()
 		return
-	if _ending or _doomed:
+	_ending_scene(ENDING_START, ENDING_REST)
+
+
+## A Death potion, in any part: the same ending, with his last words instead.
+func _on_killed() -> void:
+	_ending_scene([], DEATH_END)
+
+
+## Either ending: the chase stops, the camera comes in, `before` is said; a
+## white-out, and under it everything in the way goes (flat ground left) and
+## he's back to his normal size, kneeling; `after` is said; then -END- and the
+## end of the game.
+func _ending_scene(before: Array, after: Array) -> void:
+	if _ending:
 		return
 	_ending = true
 	_close = false
@@ -294,21 +321,46 @@ func _on_struck() -> void:
 	player.set_physics_process(false)
 	player.face(-1.0)
 	await _zoom_to(CUTSCENE_ZOOM)
-	await hud.dialogue.interrupt(PackedStringArray(ENDING_START))
-	# A white-out, and he's back to his normal size: kneeling.
+	if not before.is_empty():
+		await hud.dialogue.interrupt(PackedStringArray(before))
 	var white := _flash(Color.WHITE, 1.0, 0.0)
 	await _fade(white, 1.0, 0.6)
+	_clear_the_way()
 	boss.hide()
 	demon_king.texture = DK_KNEELING
 	demon_king.offset = DK_KNEELING_OFFSET
+	demon_king.scale = Vector2(0.8, 0.8)
 	demon_king.global_position = Vector2(player.global_position.x - 56.0, player.global_position.y)
 	demon_king.show()
 	await _wait(0.5)
 	await _fade(white, 0.0, 0.9)
 	white.queue_free()
 	await _wait(0.4)
-	await hud.dialogue.interrupt(PackedStringArray(ENDING_REST))
-	# -END-
+	await hud.dialogue.interrupt(PackedStringArray(after))
+	await _the_end()
+	_finish_game()
+
+
+## Under the white-out: every obstacle, prop, enemy and stray potion goes, so
+## only the flat floor is left, with the knight standing on it.
+func _clear_the_way() -> void:
+	var level := get_node_or_null("Level")
+	if level:
+		for node in level.get_children():
+			if node != demon_king and node != boss and not node.name.begins_with("Floor"):
+				node.queue_free()
+	var enemies := get_node_or_null("Enemies")
+	if enemies:
+		for node in enemies.get_children():
+			node.queue_free()
+	for potion in get_tree().get_nodes_in_group("potions"):
+		potion.queue_free()
+	player.velocity = Vector2.ZERO
+	player.global_position.y = FLOOR_Y
+
+
+## -END- on black, then the black lifts.
+func _the_end() -> void:
 	var black := _flash(Color.BLACK, 1.0, 0.0)
 	await _fade(black, 1.0, 1.0)
 	var the_end := Label.new()
@@ -329,28 +381,20 @@ func _on_struck() -> void:
 	await away.finished
 	the_end.queue_free()
 	black.queue_free()
-	super._on_exit_reached()
 
 
-## A Death potion: he dissolves. Sheldon and the knight talk, and then
-## there's nowhere left to go.
-func _on_killed() -> void:
-	if _ending or _doomed:
+## The game's over: in the last part, as at any level's end (the run's time,
+## the level complete); ended early (a Death potion before the last part),
+## the level complete with nowhere further to go.
+func _finish_game() -> void:
+	if part == 3:
+		super._on_exit_reached()
 		return
-	_doomed = true
-	_close = false
-	if exit_door:
-		_set_door(false)
-	boss.dissolve()
-	await _zoom_to(CUTSCENE_ZOOM)
-	await hud.dialogue.interrupt(PackedStringArray(BAD_END), player)
-	# Free to walk about again, at the running view.
-	await _zoom_to(CHASE_ZOOM)
-
-
-## After killing him: stuck for good.
-func is_stuck() -> bool:
-	return _doomed or super()
+	_over = true
+	_forget_stage()
+	var title: String = SaveGame.LEVELS[SaveGame.level_of(stage_id)].title
+	hud.show_banner("%s COMPLETE" % title, "", Color(0.95, 0.85, 0.55))
+	hud.show_end_buttons(false)
 
 
 # --- Effects

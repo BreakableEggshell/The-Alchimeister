@@ -18,6 +18,9 @@ boss = NodePath("Level/DemonLord")
 demon_king = NodePath("Level/DemonKing")
 chase_delay = 3.0
 
+[node name="Inventory" parent="."]
+start_knockback = 1
+
 [node name="Knight" parent="."]
 position = Vector2(60, 300)
 
@@ -38,11 +41,6 @@ amount = 2
 extra_contents = "frost_shard"
 extra_amount = 2
 third_contents = "gust_feather"
-
-[node name="Chest2" type="Area2D" parent="Level"]
-position = Vector2(150, 300)
-script = ExtResource("chest")
-contents = "ghost_wisp"
 
 [node name="DoorWall" type="StaticBody2D" parent="Level"]
 position = Vector2(500, 0)
@@ -79,3 +77,4 @@ script = ExtResource("boss")
 [node name="Guard" parent="Enemies" instance=ExtResource("slime")]
 position = Vector2(900, 300)
 speed = 34.0
+drop = &"ghost_wisp"

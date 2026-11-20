@@ -15,8 +15,10 @@ const INTRO_COMIC := "res://scenes/menu/intro_comic.tscn"
 ## stages; the rest are a single stage each (picked straight from level
 ## select). A level with no stages is always locked. Stage ids are only names:
 ## the order here is the play order.
-## Map 0 (PLAYABLE_MAP) is the game for now: it ends with "14" (THE ONLY WAY
-## OUT), the end of the game. Map 1 (SECRET_MAP) is for later: clearing map 0
+## Map 0 (PLAYABLE_MAP) is the game for now: after level 9, LET OFF STEAM and
+## SECOND WIND (levels 10 and 11), then THE DEMON LORD (levels 12-14), the end
+## of the game. Their stage ids ("P5", "P6", "P11"-"P13") are from when they
+## were prototypes. Map 1 (SECRET_MAP) is for later: clearing map 0
 ## doesn't lead into it, so its levels only open through the debug tools
 ## (unlock_all_levels). Maps 2, 3 and 4 (SPECIAL_MAP, PROTOTYPE_MAP,
 ## EXTRA_MAP) are for trying things out: levels with mechanics set aside, new
@@ -31,7 +33,9 @@ const LEVELS: Array[Dictionary] = [
 	{"title": "HOT FOOT", "stages": ["4"], "map": 0},
 	{"title": "FALSE FLOORS", "stages": ["5"], "map": 0},
 	{"title": "RETURN TO SENDER", "stages": ["6"], "map": 0},
-	{"title": "THE ONLY WAY OUT", "stages": ["14"], "map": 0},
+	{"title": "LET OFF STEAM", "stages": ["P5"], "map": 0},
+	{"title": "SECOND WIND", "stages": ["P6"], "map": 0},
+	{"title": "THE DEMON LORD", "stages": ["P11", "P12", "P13"], "map": 0},
 	{"title": "MELTDOWN", "stages": ["7"], "map": 1},
 	{"title": "HIGH FLYERS", "stages": ["8"], "map": 1},
 	{"title": "GHOST GATES", "stages": ["10"], "map": 1},
@@ -39,17 +43,15 @@ const LEVELS: Array[Dictionary] = [
 	{"title": "BLAST RADIUS", "stages": ["13"], "map": 1},
 	{"title": "SPRING LOADED", "stages": ["9"], "map": 2},
 	{"title": "DON'T LOOK", "stages": ["12"], "map": 2},
+	{"title": "THE ONLY WAY OUT", "stages": ["14"], "map": 2},
 	{"title": "SLOW BURN", "stages": ["P1"], "map": 3},
 	{"title": "CUT THE ROPE", "stages": ["P2"], "map": 3},
 	{"title": "COLD FEET", "stages": ["P3"], "map": 3},
 	{"title": "SPREAD THE FIRE", "stages": ["P4"], "map": 3},
-	{"title": "LET OFF STEAM", "stages": ["P5"], "map": 3},
-	{"title": "SECOND WIND", "stages": ["P6"], "map": 3},
 	{"title": "HOT STEPPING", "stages": ["P7"], "map": 3},
 	{"title": "FIRE GOES LAST", "stages": ["P8"], "map": 3},
 	{"title": "SPRING BACK", "stages": ["P9"], "map": 3},
 	{"title": "BANK SHOT", "stages": ["P10"], "map": 3},
-	{"title": "THE DEMON LORD", "stages": ["P11", "P12", "P13"], "map": 3},
 	{"title": "SMOKE SIGNALS", "stages": ["X1"], "map": 4},
 	{"title": "RICOCHET", "stages": ["X2"], "map": 4},
 	{"title": "GHOST TOWN", "stages": ["X3"], "map": 4},
@@ -191,6 +193,15 @@ func load_save() -> void:
 		unlocked.assign(saved)
 		if not unlocked.has(FIRST_STAGE):
 			unlocked.append(FIRST_STAGE)
+		# Saves from before LET OFF STEAM came after level 9 (when THE ONLY
+		# WAY OUT, then the Demon Lord, did): what they'd reached after level
+		# 9 is open, and so is what's after level 9 now.
+		if unlocked.has("14") and not unlocked.has("P11"):
+			unlocked.append("P11")
+		if unlocked.has("P11"):
+			for stage in ["P5", "P6"]:
+				if not unlocked.has(stage):
+					unlocked.append(stage)
 		last_stage = file.get_value("progress", "last_stage", "")
 		var potions: Array = file.get_value("progress", "discovered_potions", [])
 		discovered_potions.assign(potions)

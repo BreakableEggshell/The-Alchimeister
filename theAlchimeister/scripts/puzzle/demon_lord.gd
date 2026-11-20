@@ -41,7 +41,6 @@ var _clock := 0.0
 ## from `_grow_anchor`.
 var _grow := 1.0
 var _grow_anchor := Vector2.ZERO
-var _gone := false
 var _shape: CollisionShape2D
 
 
@@ -59,16 +58,11 @@ func _ready() -> void:
 
 
 func start() -> void:
-	if not _gone:
-		chasing = true
+	chasing = true
 
 
 func stop() -> void:
 	chasing = false
-
-
-func is_gone() -> bool:
-	return _gone
 
 
 ## Grows out of a point (the Demon King's feet, global) into the wall, over
@@ -83,20 +77,8 @@ func grow_at(anchor: Vector2, time: float) -> void:
 	await tween.finished
 
 
-## Killed by a Death potion: shrinks and fades away for good.
-func dissolve() -> void:
-	_gone = true
-	chasing = false
-	_shape.set_deferred("disabled", true)
-	var tween := create_tween().set_parallel()
-	tween.tween_property(self, "modulate:a", 0.0, 1.2)
-	tween.tween_property(self, "_grow", 0.3, 1.2)
-	await tween.finished
-	hide()
-
-
 func apply_potion(kind: StringName, _origin: Vector2, _power := 1.0) -> void:
-	if _gone or not visible:
+	if not visible:
 		return
 	match kind:
 		PotionData.SECRET:
@@ -110,7 +92,7 @@ func apply_potion(kind: StringName, _origin: Vector2, _power := 1.0) -> void:
 func _physics_process(delta: float) -> void:
 	_clock += delta
 	queue_redraw()
-	if not chasing or _gone:
+	if not chasing:
 		return
 	var knight := get_tree().get_first_node_in_group("player") as Node2D
 	if not knight:

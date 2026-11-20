@@ -3,12 +3,12 @@
 importer="wav"
 type="AudioStreamWAV"
 uid="uid://doq6awbgiiiji"
-path="res://.godot/imported/safe_space_loopable.wav-1625a476e7c67afa362da327a88dd4cc.sample"
+path="res://.godot/imported/safe_space_loopable.wav-d69f3bcefa28fd9679b06f5becdcd41b.sample"
 
 [deps]
 
 source_file="res://assets/audio/music/safe_space_loopable.wav"
-dest_files=["res://.godot/imported/safe_space_loopable.wav-1625a476e7c67afa362da327a88dd4cc.sample"]
+dest_files=["res://.godot/imported/safe_space_loopable.wav-d69f3bcefa28fd9679b06f5becdcd41b.sample"]
 
 [params]
 

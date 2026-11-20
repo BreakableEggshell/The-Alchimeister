@@ -15,6 +15,16 @@ const OPENING := THE_WALL
 const LEVELS := RAINY_FOOTHILLS
 const BOSS := WALTZ
 
+## Each track's volume (dB), evening them out: measured, they sit far apart
+## (Rainy Foothills and The Wall are ~19 dB quieter on average than the
+## Waltz), so each is set to about the same average loudness (~-17 dBFS).
+const GAIN_DB := {
+	SAFE_SPACE: -1.5,
+	THE_WALL: 13.8,
+	RAINY_FOOTHILLS: 14.7,
+	WALTZ: -4.8,
+}
+
 ## Seconds to fade between tracks.
 const FADE_TIME := 0.8
 const SILENT_DB := -60.0
@@ -31,18 +41,19 @@ func _ready() -> void:
 ## Plays `stream`, fading in over `fade` seconds while whatever was playing
 ## fades out. Nothing changes if it's already the track playing.
 func play(stream: AudioStream, fade := FADE_TIME) -> void:
+	var loudness: float = GAIN_DB.get(stream, 0.0)
 	if _current and _current.stream == stream and _current.playing:
-		_fade(_current, 0.0, fade)
+		_fade(_current, loudness, fade)
 		return
 	stop(fade)
 	var player := AudioStreamPlayer.new()
 	player.stream = stream
 	player.bus = &"Music"
-	player.volume_db = SILENT_DB if fade > 0.0 else 0.0
+	player.volume_db = SILENT_DB if fade > 0.0 else loudness
 	add_child(player)
 	player.play()
 	_current = player
-	_fade(player, 0.0, fade)
+	_fade(player, loudness, fade)
 
 
 ## Fades the music out over `fade` seconds (then it's gone).

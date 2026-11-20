@@ -34,8 +34,18 @@ const DEATH_FRAMES := 11
 ## rises; at the top of the hop the death plays where he is.
 const DEATH_KNOCK := Vector2(70, 120)
 var _death_cause: StringName
-## Falling at least this fast (px/s) as he lands plays the landing sound.
-const LAND_SOUND_SPEED := 150.0
+## Landing: how far he fell (from the top of his jump or wherever he left
+## the ground, to where he lands) decides what it makes. Further than a jump
+## of his own (jump_height) and a bit: the landing sound. Further than
+## LAND_DUST_DROP (so any jump, but not a step off a kerb): dust puffs out
+## from his feet, a little after a jump, growing to its most at
+## LAND_DUST_FULL_DROP.
+const LAND_SOUND_MARGIN := 8.0
+const LAND_DUST_DROP := 24.0
+const LAND_DUST_FULL_DROP := 160.0
+const LAND_DUST_COLOR := Color(0.78, 0.74, 0.7, 0.85)
+## The highest he's been (smallest y) since he was last on the ground.
+var _fall_top := 0.0
 const DEATH_FPS := 11.0
 var _talking := false
 const FLOAT_TEXT_TIME := 0.5
@@ -381,15 +391,17 @@ func _physics_process(delta: float) -> void:
 func _slide() -> void:
 	var incoming := velocity
 	var was_on_floor := is_on_floor()
+	if was_on_floor:
+		_fall_top = global_position.y
 	move_and_slide()
+	_fall_top = minf(_fall_top, global_position.y)
 	var bounced := false
-	# Landing from a jump or a fall (not stepping off a kerb).
-	if not was_on_floor and is_on_floor() and incoming.y >= LAND_SOUND_SPEED and not _dead:
+	if not was_on_floor and is_on_floor() and not _dead:
 		var on_jelly := false
 		for i in get_slide_collision_count():
 			on_jelly = on_jelly or get_slide_collision(i).get_collider() is Jelly
 		if not on_jelly:
-			Sfx.play(Sfx.KNIGHT_LAND, self)
+			_landed(global_position.y - _fall_top)
 	for i in get_slide_collision_count():
 		var collision := get_slide_collision(i)
 		if is_burning() and (collision.get_collider() is IcePillar or collision.get_collider() is ElementPlatform):
@@ -459,6 +471,45 @@ func _process(delta: float) -> void:
 		var warning := _translucent_left < 1.0 and int(_translucent_left * 10.0) % 2 == 0
 		alpha = 0.6 if warning else 0.35
 	_sprite.modulate.a = alpha
+
+
+## Landed after falling `drop` pixels (see LAND_SOUND_MARGIN, LAND_DUST_DROP).
+func _landed(drop: float) -> void:
+	if drop > jump_height + LAND_SOUND_MARGIN:
+		Sfx.play(Sfx.KNIGHT_LAND, self)
+	if drop >= LAND_DUST_DROP:
+		_puff_dust(clampf((drop - LAND_DUST_DROP) / (LAND_DUST_FULL_DROP - LAND_DUST_DROP), 0.0, 1.0))
+
+
+## Dust out to both sides of his feet, `strength` 0 (a fair fall) to 1 (a long
+## one). Left behind where he landed.
+func _puff_dust(strength: float) -> void:
+	for side in [-1.0, 1.0]:
+		var dust := CPUParticles2D.new()
+		dust.one_shot = true
+		dust.explosiveness = 0.9
+		dust.amount = int(lerpf(3.0, 10.0, strength))
+		dust.lifetime = lerpf(0.35, 0.55, strength)
+		dust.direction = Vector2(side, -0.35)
+		dust.spread = 25.0
+		dust.initial_velocity_min = lerpf(20.0, 35.0, strength)
+		dust.initial_velocity_max = lerpf(40.0, 65.0, strength)
+		dust.damping_min = 60.0
+		dust.damping_max = 90.0
+		dust.gravity = Vector2(0, -12)
+		dust.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		dust.emission_rect_extents = Vector2(4, 1)
+		dust.scale_amount_min = 1.0
+		dust.scale_amount_max = lerpf(2.0, 3.0, strength)
+		var fade := Gradient.new()
+		fade.set_color(0, LAND_DUST_COLOR)
+		fade.set_color(1, Color(LAND_DUST_COLOR, 0.0))
+		dust.color_ramp = fade
+		dust.z_index = 2
+		get_parent().add_child(dust)
+		dust.global_position = global_position + Vector2(side * 4.0, -1.0)
+		dust.emitting = true
+		dust.finished.connect(dust.queue_free)
 
 
 func _make_flames() -> CPUParticles2D:

@@ -3,12 +3,12 @@
 importer="wav"
 type="AudioStreamWAV"
 uid="uid://dum2y15su8nln"
-path="res://.godot/imported/waltz_of_the_lich_king_loopable.wav-bd8a5a89221abe47f097aca1f648034a.sample"
+path="res://.godot/imported/waltz_of_the_lich_king_loopable.wav-0e135629f8f3732d469d17debcbfb495.sample"
 
 [deps]
 
 source_file="res://assets/audio/music/waltz_of_the_lich_king_loopable.wav"
-dest_files=["res://.godot/imported/waltz_of_the_lich_king_loopable.wav-bd8a5a89221abe47f097aca1f648034a.sample"]
+dest_files=["res://.godot/imported/waltz_of_the_lich_king_loopable.wav-0e135629f8f3732d469d17debcbfb495.sample"]
 
 [params]
 

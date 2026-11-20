@@ -17,13 +17,13 @@ extends Control
 const NODE_TEXTURE := preload("res://assets/map1_levelnode.png")
 const MAP1 := preload("res://assets/map1.png")
 ## The first map's pages: how many of its stages each holds, in order, and its
-## picture. The last page takes whatever stages are left. `extra`: stages
-## from other maps shown there too, after its own (and not on their own map's
-## page): the Demon Lord's, at his throne.
+## picture. The last page takes whatever stages are left (up to the Demon
+## Lord, at his throne). `extra`: stages from other maps shown there too,
+## after its own (and not on their own map's page).
 const PLAYABLE_PAGES: Array[Dictionary] = [
 	{"stages": 3, "picture": MAP1},
 	{"stages": 5, "picture": preload("res://assets/map2_1.png")},
-	{"stages": -1, "picture": preload("res://assets/map2_2.png"), "extra": ["P11", "P12", "P13"]},
+	{"stages": -1, "picture": preload("res://assets/map2_2.png")},
 ]
 const GOLD := Color(0.95, 0.85, 0.55)
 ## A picked node blinks this many times, over this long, before the iris.
@@ -39,7 +39,7 @@ const LOCKED_TINT := Color(0.55, 0.55, 0.55)
 const NODE_SIZE := Vector2(30, 26)
 const NUMBER_BASELINE := 24.0
 ## Nodes per row: at least this many, more once MAX_ROWS rows would be full.
-const MIN_PER_ROW := 5
+const MIN_PER_ROW := 6
 const MAX_ROWS := 3
 ## The area of the map the nodes spread across (their centres): the grass,
 ## below the tree line.
