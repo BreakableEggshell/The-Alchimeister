@@ -1,6 +1,6 @@
 [gd_resource type="StyleBoxTexture" format=3]
 
-[ext_resource type="Texture2D" path="res://assets/pause_menu_bg.png" id="1_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/backgrounds/menu_bg.png" id="1_bg"]
 
 [resource]
 content_margin_left = 8.0

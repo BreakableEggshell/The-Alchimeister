@@ -17,14 +17,22 @@ extends "res://scripts/puzzle/puzzle_level.gd"
 ## last words instead (DEATH_END).
 
 const RECIPE_NOTE := preload("res://scripts/puzzle/recipe_note.gd")
-const DK_STANDING := preload("res://assets/dk_stand.png")
-const DK_KNEELING := preload("res://assets/dk_kneel.png")
+## The ??? ending's comic, after its conversation.
+const ENDING_COMIC := preload("res://scripts/ending_comic.gd")
+const DK_STANDING := preload("res://assets/sprites/characters/demon_king/dk_stand.png")
+const DK_KNEELING := preload("res://assets/sprites/characters/demon_king/dk_kneel.png")
+## On his throne, before he stands up (level 12's intro).
+const DK_SITTING := preload("res://assets/sprites/characters/demon_king/dk_sitting.png")
+## dk_kneel.png: frames side by side (80 x 80 each), looping.
+const KNEEL_FRAMES := 3
+const KNEEL_FPS := 6.0
 const FLY_BUSH := preload("res://assets/sprites/characters/fly_bush.png")
 const FONT := preload("res://assets/fonts/PixelOperator8.ttf")
 ## Where each Demon King picture's feet are (the sprite's offset puts them on
 ## its origin).
 const DK_STANDING_OFFSET := Vector2(0, -38)
 const DK_KNEELING_OFFSET := Vector2(0, -33)
+const DK_SITTING_OFFSET := Vector2(0, -38)
 ## Before the fly bush comes (first try only).
 const INTRO := [
 	"DEMON KING: So you've been the one who dares challenge me",
@@ -51,6 +59,23 @@ const ENDING_REST := [
 	"DEMON KING: You have the guts to tell me to close my eyes to whatever will come next",
 	"ALCHEMIST: Then prepare yourself",
 ]
+## Back from the ending comic (ENDING_COMIC), the two of them as before.
+## He's charmed: every line of his with the dk_what portrait.
+const AFTER_COMIC := [
+	"DEMON KING (what): ...",
+	"ALCHEMIST: ...",
+	"DEMON KING (what): ...",
+	"ALCHEMIST: ...",
+	"DEMON KING (what): ...What?",
+	"DEMON KING (what): WHAT WAS THAT!?",
+	"DEMON KING (what): Hmph, the charm potion is preventing me from grabbing your throat right here and now",
+	"DEMON KING (what): ...",
+	"ALCHEMIST: ...",
+	"DEMON KING (what): ...",
+	"DEMON KING (what): SAY SOMETHING, HUMAN",
+	"ALCHEMIST: Oh",
+	"ALCHEMIST: I didn't know you had such soft lips",
+]
 ## A Death potion on him, after he's back to his normal size.
 const DEATH_END := [
 	"DEMON KING: ...",
@@ -59,6 +84,8 @@ const DEATH_END := [
 ]
 ## The floor's top in every part: where everyone stands once the way's cleared.
 const FLOOR_Y := 300.0
+## How far left of the knight the Demon King kneels in the ending.
+const KNEEL_GAP := 56.0
 ## The camera (Godot 4: below 1 shows more): zoomed out to 2/3 while running
 ## (the stages' cameras start like this), in to normal size for the cutscenes
 ## (the transformation, the endings).
@@ -86,6 +113,8 @@ const SECRET_NOTE_TEXT := ["ONE OF EVERY", "INGREDIENT"]
 @export var zoom_out_x := 210.0
 
 var _ending := false
+## The ??? potion has hit him (its flash before the ending).
+var _struck := false
 var _door_shown := false
 ## Parts 2 and 3: still up close, until the chest (2) or zoom_out_x (3).
 var _close := false
@@ -141,9 +170,31 @@ func _on_stage_start(attempt: int) -> void:
 			_chase_after(chase_delay)
 
 
-## The Demon Lord's waltz, all three stages through.
+## The Demon Lord's waltz (after level music on the first try of part 1).
 func _music() -> AudioStream:
+	# The first try opens on the usual level music; the waltz starts as the
+	# fly bush's potion hits him (see _transformation).
+	if part == 1 and restart_count() == 0:
+		return Music.LEVELS
 	return Music.BOSS
+
+
+## Up off his throne: a little rise as the picture changes to him standing.
+func _stand_up() -> void:
+	await _wait(0.3)
+	var rise := create_tween().set_trans(Tween.TRANS_SINE)
+	rise.tween_property(demon_king, "position:y", demon_king.position.y - 4.0, 0.15)
+	rise.tween_callback(func() -> void:
+		demon_king.texture = DK_STANDING
+		demon_king.offset = DK_STANDING_OFFSET)
+	rise.tween_property(demon_king, "position:y", demon_king.position.y, 0.15)
+	await rise.finished
+	await _wait(0.4)
+
+
+## No "STUCK? PRESS R TO RESTART!" in the chase: the Demon King settles it.
+func is_stuck() -> bool:
+	return false
 
 
 ## No retry nudges from Sheldon here: the only lines are the scripted ones.
@@ -196,10 +247,15 @@ func _transformation() -> void:
 	thrower.set_process_unhandled_input(false)
 	player.set_physics_process(false)
 	player.face(-1.0)
+	# Seated on his throne for his first line; then he stands for the next.
+	demon_king.texture = DK_SITTING
+	demon_king.offset = DK_SITTING_OFFSET
 	demon_king.show()
 	var feet := demon_king.global_position
 	await _wait(0.8)
-	await hud.dialogue.interrupt(PackedStringArray(INTRO))
+	await hud.dialogue.interrupt(PackedStringArray(INTRO.slice(0, 1)))
+	await _stand_up()
+	await hud.dialogue.interrupt(PackedStringArray(INTRO.slice(1)))
 	await _wait(0.3)
 	var bush := Sprite2D.new()
 	bush.texture = FLY_BUSH
@@ -226,6 +282,7 @@ func _transformation() -> void:
 	potion.global_position = perch
 	await _wait(flight)
 	_flash(Color(0.85, 0.6, 1.0), 0.9, 0.6)
+	Music.play(Music.BOSS)
 	_shake(1.2)
 	demon_king.hide()
 	var fly_off := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
@@ -281,6 +338,7 @@ func _on_exit_reached() -> void:
 		return
 	if _over:
 		return
+	player.finished = true
 	_over = true
 	boss.stop()
 	_stop_play()
@@ -300,8 +358,15 @@ func _on_struck() -> void:
 	if part != 3:
 		boss._no_effect()
 		return
-	if not _ending:
-		SaveGame.tick_checklist(SaveGame.CHECK_SECRET)
+	if _ending or _struck:
+		return
+	_struck = true
+	SaveGame.tick_checklist(SaveGame.CHECK_SECRET)
+	# It lands: the chase stops, he flashes white and shakes, and only then
+	# does the cutscene start.
+	boss.stop()
+	player.finished = true
+	await boss.hit_flash()
 	_ending_scene(ENDING_START, ENDING_REST, true)
 
 
@@ -312,12 +377,15 @@ func _on_killed() -> void:
 
 ## Either ending: the chase stops, the camera comes in, `before` is said; a
 ## white-out, and under it everything in the way goes (flat ground left) and
-## he's back to his normal size, kneeling; `after` is said; then -END- and the
-## end of the game.
+## he's back to his normal size, kneeling; `after` is said; the ??? ending's
+## comic (`lifts_curse`, see ENDING_COMIC) and his reaction (AFTER_COMIC);
+## then -END- and the end of the game.
 func _ending_scene(before: Array, after: Array, lifts_curse := false) -> void:
 	if _ending:
 		return
 	_ending = true
+	# Nothing kills him during the ending (a slime still wandering about).
+	player.finished = true
 	_close = false
 	boss.stop()
 	_stop_play()
@@ -332,17 +400,32 @@ func _ending_scene(before: Array, after: Array, lifts_curse := false) -> void:
 	_clear_the_way()
 	boss.hide()
 	demon_king.texture = DK_KNEELING
+	demon_king.hframes = KNEEL_FRAMES
 	demon_king.offset = DK_KNEELING_OFFSET
 	demon_king.scale = Vector2(0.8, 0.8)
-	demon_king.global_position = Vector2(player.global_position.x - 56.0, player.global_position.y)
+	var flicker := demon_king.create_tween().set_loops().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	# Each frame for as long as the others, then round again.
+	flicker.tween_method(func(t: float) -> void: demon_king.frame = mini(int(t), KNEEL_FRAMES - 1), 0.0, float(KNEEL_FRAMES), KNEEL_FRAMES / KNEEL_FPS)
+	demon_king.global_position = Vector2(player.global_position.x - KNEEL_GAP, player.global_position.y)
+	# The two of them centred on screen (the camera follows the knight).
+	_camera().offset = Vector2(-KNEEL_GAP / 2.0, 0.0)
 	demon_king.show()
 	await _wait(0.5)
 	await _fade(white, 0.0, 0.9)
 	white.queue_free()
 	await _wait(0.4)
 	await hud.dialogue.interrupt(PackedStringArray(after))
+	var comic = null
 	if lifts_curse:
 		SaveGame.tick_checklist(SaveGame.CHECK_CURSE)
+		comic = ENDING_COMIC.new()
+		_overlay.add_child(comic)
+		await comic.play()
+		# Out of the comic, back to the two of them, for his reaction.
+		await _fade(comic, 0.0, 0.8)
+		comic.queue_free()
+		await _wait(0.4)
+		await hud.dialogue.interrupt(PackedStringArray(AFTER_COMIC))
 	await _the_end()
 	_finish_game()
 

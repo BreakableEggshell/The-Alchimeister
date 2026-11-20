@@ -17,13 +17,11 @@ const DIALOGUE_BOX := preload("res://scenes/ui/dialogue_box.tscn")
 const PUZZLE_LEVEL := preload("res://scripts/puzzle/puzzle_level.gd")
 const CHEST := preload("res://scripts/puzzle/chest.gd")
 const NAME_PROMPT := preload("res://scripts/puzzle/name_prompt.gd")
-const BACKGROUND := preload("res://assets/startmenu_bg.png")
+const BACKGROUND := preload("res://assets/ui/backgrounds/startmenu_bg.png")
 const BUTTON_ART := preload("res://assets/ui/btn.png")
 ## The menu's buttons are btn.png scaled up whole by this much (not stretched
 ## to some other shape), so its pixels stay square.
 const MENU_BUTTON_SCALE := 2.0
-## The TEST RUN toggle's size (it grows to fit its text).
-const TEST_RUN_SIZE := Vector2(84, 16)
 ## How each button state tints the art.
 const MENU_BUTTON_TINTS := {
 	"normal": Color(1, 1, 1),
@@ -62,8 +60,13 @@ const TEST_LINES: Array[String] = [
 @onready var _continue: Button = %ContinueButton
 @onready var _settings_button: Button = %SettingsButton
 @onready var _exit: Button = %ExitButton
-## TEST RUN: OFF / ON, bottom right (see SaveGame.test_run).
+## TEST RUN: OFF / ON, in the debug menu's SPEEDRUN group (see
+## SaveGame.test_run).
 var _test_run: Button
+## The debug menu's lists: its main one (the groups), and each group's.
+var _debug_main: VBoxContainer
+var _debug_lists: Array[VBoxContainer] = []
+var _debug_title: Label
 
 var _settings: SettingsPanel
 var _settings_modal: Control
@@ -138,7 +141,6 @@ func _ready() -> void:
 			art.modulate_color = MENU_BUTTON_TINTS[state]
 			button.add_theme_stylebox_override(state, art)
 		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_test_run = _build_test_run()
 	_settings_modal = _build_settings()
 	_debug = _build_debug()
 	_times = _build_times()
@@ -181,7 +183,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif _times.visible:
 		_close_times()
 	elif _debug.visible:
-		_close_debug()
+		_back_out_of_debug()
 	else:
 		return
 	get_viewport().set_input_as_handled()
@@ -335,8 +337,8 @@ func _on_main_menu() -> bool:
 
 
 func _open_debug() -> void:
-	_debug_note.text = ""
 	_debug.show()
+	_show_debug_list(_debug_main, "", null)
 	_debug_first.grab_focus()
 
 
@@ -592,29 +594,6 @@ func play_dialogue_test() -> void:
 
 # --- Layout
 
-## The TEST RUN toggle, small in the bottom-right corner, under EXIT for the
-## keys. Built before the popups, so they cover it.
-func _build_test_run() -> Button:
-	var toggle := Button.new()
-	toggle.theme_type_variation = &"WoodButton"
-	toggle.add_theme_font_size_override("font_size", 8)
-	toggle.focus_mode = Control.FOCUS_ALL
-	toggle.mouse_entered.connect(toggle.grab_focus)
-	toggle.pressed.connect(func() -> void:
-		SaveGame.set_test_run(not SaveGame.test_run)
-		_label_test_run())
-	add_child(toggle)
-	_test_run = toggle
-	_label_test_run()
-	toggle.size = TEST_RUN_SIZE.max(toggle.get_combined_minimum_size())
-	toggle.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_KEEP_SIZE, 8)
-	_exit.focus_neighbor_bottom = _exit.get_path_to(toggle)
-	toggle.focus_neighbor_top = toggle.get_path_to(_exit)
-	for side in ["focus_neighbor_left", "focus_neighbor_right", "focus_neighbor_bottom"]:
-		toggle.set(side, toggle.get_path_to(toggle))
-	return toggle
-
-
 func _label_test_run() -> void:
 	_test_run.text = "TEST RUN: %s" % ("ON" if SaveGame.test_run else "OFF")
 
@@ -641,55 +620,109 @@ func _build_settings() -> Control:
 	return modal
 
 
+## The debug menu: three groups (PROGRESS, SPEEDRUN, TEST TOOLS), each
+## opening its own list in the same panel, and BACK. Esc in a group goes back
+## to the groups.
 func _build_debug() -> Control:
 	var modal := _modal()
 	var panel := Panel.new()
+	# The pause menu's frame.
+	panel.add_theme_stylebox_override("panel", preload("res://scenes/ui/menu_bg_style.tres"))
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.offset_left = -DEBUG_SIZE.x / 2.0
 	panel.offset_right = DEBUG_SIZE.x / 2.0
 	panel.offset_top = -DEBUG_SIZE.y / 2.0
 	panel.offset_bottom = DEBUG_SIZE.y / 2.0
 	modal.add_child(panel)
-	var title := Label.new()
-	title.text = "DEBUG"
-	title.add_theme_color_override("font_color", GOLD)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(0, 6)
-	title.size = Vector2(DEBUG_SIZE.x, 10)
-	panel.add_child(title)
+	_debug_title = Label.new()
+	_debug_title.add_theme_color_override("font_color", GOLD)
+	_debug_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_debug_title.position = Vector2(0, 6)
+	_debug_title.size = Vector2(DEBUG_SIZE.x, 10)
+	panel.add_child(_debug_title)
+	_debug_main = _debug_list(panel)
+	# PROGRESS
+	var progress := _debug_list(panel)
+	var all_levels := _list_button("ALL LEVELS", progress)
+	all_levels.pressed.connect(func() -> void:
+		SaveGame.unlock_all_levels()
+		SaveGame.go_to(SaveGame.LEVEL_SELECT))
+	_reset_button = _list_button("RESET PROGRESS", progress)
+	_reset_button.pressed.connect(func() -> void:
+		_debug_note.text = ""
+		_confirm.show()
+		_confirm_no.grab_focus())
+	_list_button("UNLOCK ALL PROGRESS", progress).pressed.connect(_unlock_all)
+	# SPEEDRUN
+	var speedrun := _debug_list(panel)
+	_test_run = _list_button("", speedrun)
+	_test_run.pressed.connect(func() -> void:
+		SaveGame.set_test_run(not SaveGame.test_run)
+		_label_test_run())
+	_label_test_run()
+	_times_button = _list_button("SPEEDRUN TIMES", speedrun)
+	_times_button.pressed.connect(_open_times)
+	# TEST TOOLS
+	var tools := _debug_list(panel)
+	_list_button("SANDBOX", tools).pressed.connect(SaveGame.play_sandbox)
+	_dialogue_button = _list_button("DIALOGUE TEST", tools)
+	_dialogue_button.pressed.connect(play_dialogue_test)
+	_preview_button = _list_button("LEVEL PREVIEW", tools)
+	_preview_button.pressed.connect(_open_preview)
+	# The groups, and BACK in each list.
+	for group in [["PROGRESS", progress], ["SPEEDRUN", speedrun], ["TEST TOOLS", tools]]:
+		var list: VBoxContainer = group[1]
+		var open := _list_button(group[0], _debug_main)
+		open.pressed.connect(_show_debug_list.bind(list, group[0], open))
+		_list_button("BACK", list).pressed.connect(_show_debug_list.bind(_debug_main, "", open))
+	_debug_first = _debug_main.get_child(0)
+	_list_button("BACK", _debug_main).pressed.connect(_close_debug)
+	for list in _debug_lists:
+		UiFocus.link_column(list.get_children())
+	_debug_note = Label.new()
+	_debug_note.add_theme_color_override("font_color", GOLD)
+	_debug_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_debug_note.position = Vector2(0, DEBUG_SIZE.y - 18.0)
+	_debug_note.size = Vector2(DEBUG_SIZE.x, 10)
+	panel.add_child(_debug_note)
+	_show_debug_list(_debug_main, "", null)
+	return modal
+
+
+## One of the debug menu's lists, under its title.
+func _debug_list(panel: Control) -> VBoxContainer:
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 2)
 	list.position = Vector2(12, 18)
 	list.size = Vector2(DEBUG_SIZE.x - 24, 0)
 	panel.add_child(list)
-	_reset_button = _list_button("RESET PROGRESS", list)
-	_reset_button.pressed.connect(func() -> void:
-		_debug_note.text = ""
-		_confirm.show()
-		_confirm_no.grab_focus())
-	var all_levels := _list_button("ALL LEVELS", list)
-	all_levels.pressed.connect(func() -> void:
-		SaveGame.unlock_all_levels()
-		SaveGame.go_to(SaveGame.LEVEL_SELECT))
-	list.move_child(all_levels, 0)
-	_debug_first = all_levels
-	_list_button("UNLOCK ALL PROGRESS", list).pressed.connect(_unlock_all)
-	_times_button = _list_button("SPEEDRUN TIMES", list)
-	_times_button.pressed.connect(_open_times)
-	_preview_button = _list_button("LEVEL PREVIEW", list)
-	_preview_button.pressed.connect(_open_preview)
-	_dialogue_button = _list_button("DIALOGUE TEST", list)
-	_dialogue_button.pressed.connect(play_dialogue_test)
-	_list_button("SANDBOX", list).pressed.connect(SaveGame.play_sandbox)
-	_list_button("BACK", list).pressed.connect(_close_debug)
-	_debug_note = Label.new()
-	_debug_note.add_theme_color_override("font_color", GOLD)
-	_debug_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_debug_note.position = Vector2(0, 162)
-	_debug_note.size = Vector2(DEBUG_SIZE.x, 10)
-	panel.add_child(_debug_note)
-	UiFocus.link_column(list.get_children())
-	return modal
+	_debug_lists.append(list)
+	return list
+
+
+## Shows `list` alone (the groups, or one group's), titled "DEBUG" or
+## "DEBUG: `group`", and picks `focus` (or its first button).
+func _show_debug_list(list: VBoxContainer, group: String, focus: Button) -> void:
+	for other in _debug_lists:
+		other.visible = other == list
+	_debug_title.text = "DEBUG" if group == "" else "DEBUG: " + group
+	_debug_note.text = ""
+	var pick: Button = focus if focus and focus.is_visible_in_tree() else list.get_child(0)
+	if _debug and _debug.visible:
+		pick.grab_focus()
+
+
+## Esc in the debug menu: out of a group back to the groups, else closed.
+func _back_out_of_debug() -> void:
+	if _debug_main.visible:
+		_close_debug()
+		return
+	var title := _debug_title.text.trim_prefix("DEBUG: ")
+	var from: Button = null
+	for button in _debug_main.get_children():
+		if button.text == title:
+			from = button
+	_show_debug_list(_debug_main, "", from)
 
 
 func _build_times() -> Control:

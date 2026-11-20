@@ -112,6 +112,8 @@ const STAGE_SCENES := {
 	"X3": "res://scenes/levels/extra_3.tscn",
 }
 const FIRST_STAGE := "1-1"
+## Where the Death recipe is found (FALSE FLOORS, level 8).
+const DEATH_RECIPE_STAGE := "5"
 ## Debug: free play with every mechanic, outside the levels and their progress.
 const SANDBOX := "res://scenes/levels/sandbox.tscn"
 
@@ -215,6 +217,7 @@ func load_save() -> void:
 		discovered_potions.assign(potions)
 		found_recipes.assign(file.get_value("progress", "found_recipes", []))
 		checklist_done.assign(file.get_value("progress", "checklist_done", []))
+		_catch_up_recipes()
 		hint_locks.assign(file.get_value("progress", "hint_locks", []))
 		music_volume = file.get_value("settings", "music_volume", music_volume)
 		sound_volume = file.get_value("settings", "sound_volume", sound_volume)
@@ -270,6 +273,7 @@ func start_new_run() -> void:
 ## can't reach yet.
 func unlock_all_levels() -> void:
 	unlocked.assign(STAGE_SCENES.keys())
+	_catch_up_recipes()
 	run_active = false
 	save()
 
@@ -403,7 +407,22 @@ func set_map_shown(map: int, shown: bool) -> void:
 func unlock(stage: String) -> void:
 	if stage != "" and not unlocked.has(stage):
 		unlocked.append(stage)
+		_catch_up_recipes()
 		save()
+
+
+## The Death recipe is found in level 8's chest (DEATH_RECIPE_STAGE): anyone
+## with a later level open has it, however they got there (an old save, ALL
+## LEVELS, skipping).
+func _catch_up_recipes() -> void:
+	if found_recipes.has(String(PotionData.DEATH)):
+		return
+	var stages := map_stages(PLAYABLE_MAP)
+	var at := stages.find(DEATH_RECIPE_STAGE)
+	for stage in unlocked:
+		if stages.find(stage) > at:
+			found_recipes.append(String(PotionData.DEATH))
+			return
 
 
 func is_potion_discovered(kind: StringName) -> bool:

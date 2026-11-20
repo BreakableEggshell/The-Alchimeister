@@ -8,7 +8,6 @@
 
 [node name="Proto6" instance=ExtResource("base")]
 stage_id = "P6"
-intro_lines = PackedStringArray("SHELDON (squint): One slab of ice, and two climbs to make.", "SHELDON (glasses): Good thing ice that's been smoke once can be smoke <<again>>.")
 hint_lines = PackedStringArray("SHELDON: Raise the ice just enough to get up onto that ledge first.", "---", "SHELDON (glasses): From up there, <<fire:melt>> it again and let it rise past you. Then <<freeze:freeze>> it where you can reach the shelf.")
 
 [node name="Knight" parent="."]

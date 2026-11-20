@@ -16,7 +16,7 @@ const CLOSE_AFTER := 3.0
 const PAPER_SIZE := Vector2(200, 160)
 ## The paper: note.png as a 9-slice, the folded top-left corner (13 px) and
 ## the edges kept as drawn, only the flat paper stretched.
-const PAPER := preload("res://assets/note.png")
+const PAPER := preload("res://assets/ui/notebook/note.png")
 const PAPER_MARGINS := [13, 13, 2, 2]
 static var _style: StyleBoxTexture
 const INK := Color(0.35, 0.22, 0.14)

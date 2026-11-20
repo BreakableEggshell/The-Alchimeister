@@ -24,7 +24,8 @@ func _ready() -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if not _done and body.has_method("die"):
+	# A knight knocked into it as he dies doesn't count.
+	if not _done and body.has_method("die") and not body.get("_dead"):
 		_done = true
 		reached.emit()
 

@@ -34,6 +34,8 @@ const DEATH_FRAMES := 11
 ## rises; at the top of the hop the death plays where he is.
 const DEATH_KNOCK := Vector2(70, 120)
 var _death_cause: StringName
+## The stage is cleared (or its ending is playing): nothing kills him now.
+var finished := false
 ## Landing: how far he fell (from the top of his jump or wherever he left
 ## the ground, to where he lands) decides what it makes. Further than a jump
 ## of his own (jump_height) and a bit: the landing sound. Further than
@@ -136,7 +138,7 @@ func clear_potion_effects() -> void:
 ## blast), he first hops back and up away from it, flashing red, and the death
 ## animation plays at the top of the hop.
 func die(cause: StringName = GameOver.CAUGHT, from = null) -> void:
-	if _dead:
+	if _dead or finished:
 		return
 	_dead = true
 	Sfx.play(Sfx.KNIGHT_DEATH, self)

@@ -14,16 +14,19 @@ extends Control
 ## Typing the DebugCode (wwssadad) here, or tapping the title 5 times, opens a
 ## small debug menu that turns the later pages on and off.
 
-const NODE_TEXTURE := preload("res://assets/map1_levelnode.png")
-const MAP1 := preload("res://assets/map1.png")
+const NODE_TEXTURE := preload("res://assets/maps/map1_levelnode.png")
+## The stone for a level standing on the castle's ground (map2_*), not grass:
+## picked by the picture's colour under the stone (see _stone_for).
+const CASTLE_NODE_TEXTURE := preload("res://assets/maps/map2_levelnode.png")
+const MAP1 := preload("res://assets/maps/map1.png")
 ## The first map's pages: how many of its stages each holds, in order, and its
 ## picture. The last page takes whatever stages are left (up to the Demon
 ## Lord, at his throne). `extra`: stages from other maps shown there too,
 ## after its own (and not on their own map's page).
 const PLAYABLE_PAGES: Array[Dictionary] = [
 	{"stages": 3, "picture": MAP1},
-	{"stages": 5, "picture": preload("res://assets/map2_1.png")},
-	{"stages": -1, "picture": preload("res://assets/map2_2.png")},
+	{"stages": 5, "picture": preload("res://assets/maps/map2_1.png")},
+	{"stages": -1, "picture": preload("res://assets/maps/map2_2.png")},
 ]
 const GOLD := Color(0.95, 0.85, 0.55)
 ## A picked node blinks this many times, over this long, before the iris.
@@ -90,6 +93,8 @@ func _ready() -> void:
 	Music.play(Music.MAIN_MENU)
 	_build()
 	_debug = _build_debug()
+	# The pages are laid out for the screen's width: again when it changes.
+	get_viewport().size_changed.connect(_on_resized)
 	if SaveGame.slide_in_level_select:
 		SaveGame.slide_in_level_select = false
 		_slide_in()
@@ -363,6 +368,7 @@ func _build_page(map: int, stages: Array[String], picture: Texture2D) -> void:
 		page.add_child(node)
 		node.size = NODE_SIZE
 		node.position = (node_center(i, stages.size()) - NODE_SIZE / 2.0).round()
+		node.set_meta("stone", _stone_for(picture, node.position + Vector2(NODE_SIZE.x / 2.0, 12.0)))
 		nodes.append(node)
 		_nodes.append(node)
 		_node_of[stages[i]] = node
@@ -376,8 +382,18 @@ func _build_page(map: int, stages: Array[String], picture: Texture2D) -> void:
 
 ## The debug menu changed which maps show: everything built again, with the
 ## same level picked if it's still there.
+## The window changed size: everything laid out again for it (once things
+## settle, and not while a level is being picked or BACK is under way).
+func _on_resized() -> void:
+	if not _picked:
+		_rebuild.call_deferred()
+
+
 func _rebuild() -> void:
+	if not is_inside_tree() or _picked:
+		return
 	var picked := ""
+	var page := _map
 	for stage in _node_of:
 		if _node_of[stage].has_focus():
 			picked = stage
@@ -392,7 +408,10 @@ func _rebuild() -> void:
 	_build()
 	_debug.move_to_front()
 	var node: Button = _node_of.get(picked)
-	_show_map(node.get_meta("map") if node else 0, false, true)
+	# Back on the page that was showing (or the picked level's).
+	_show_map(node.get_meta("map") if node else page, false, true)
+	if node:
+		node.grab_focus()
 
 
 ## The debug menu: a toggle for each map after the first, and BACK.
@@ -561,10 +580,24 @@ func _level_node(stage: String, map: int) -> Button:
 	return node
 
 
+## The stone for a level at `at` (screen pixels) on `picture`: the grassy one
+## on grass, the castle one anywhere else.
+static func _stone_for(picture: Texture2D, at: Vector2) -> Texture2D:
+	var image := picture.get_image()
+	if image.is_compressed():
+		image.decompress()
+	var pixel := Vector2i((at * Vector2(image.get_size()) / Vector2(384, 216)).round()).clamp(Vector2i.ZERO, image.get_size() - Vector2i.ONE)
+	var color := image.get_pixelv(pixel)
+	for grass in MapBackground.GRASS_COLORS:
+		if color.is_equal_approx(grass):
+			return NODE_TEXTURE
+	return CASTLE_NODE_TEXTURE
+
+
 func _draw_node(node: Button, number: String) -> void:
 	var art := Vector2(roundf((NODE_SIZE.x - NODE_TEXTURE.get_width()) / 2.0), 1.0)
 	var locked := node.disabled
-	node.draw_texture(NODE_TEXTURE, art, LOCKED_TINT if locked else Color.WHITE)
+	node.draw_texture(node.get_meta("stone", NODE_TEXTURE), art, LOCKED_TINT if locked else Color.WHITE)
 	if locked:
 		PotionData.draw_lock_icon(node, art + NODE_TEXTURE.get_size() / 2.0, Color(1, 1, 1, 0.85))
 	var font := node.get_theme_font("font")

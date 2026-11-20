@@ -60,9 +60,9 @@ position = Vector2(728, 292)
 script = ExtResource("slab")
 
 [node name="Ledge" type="StaticBody2D" parent="Level"]
-position = Vector2(760, 252)
+position = Vector2(760, 240)
 script = ExtResource("solid")
-points = PackedVector2Array(0, 0, 400, 0, 400, 72, 0, 72)
+points = PackedVector2Array(0, 0, 400, 0, 400, 84, 0, 84)
 
 [node name="LowCeiling" type="StaticBody2D" parent="Level"]
 position = Vector2(1200, 0)

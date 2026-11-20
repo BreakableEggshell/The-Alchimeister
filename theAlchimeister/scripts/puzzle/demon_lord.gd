@@ -23,7 +23,13 @@ signal killed
 
 ## How far behind its front it's drawn (and catches potions).
 const DEPTH := 1400.0
-const SHEET := preload("res://assets/dk_potion_form.png")
+## The ??? potion's hit (see hit_flash): how long, how many white flashes, how
+## white (see white_flash.gdshader), and how far it shakes.
+const HIT_TIME := 1.0
+const HIT_FLASHES := 3
+const WHITE_FLASH := preload("res://scripts/puzzle/white_flash.gdshader")
+const HIT_SHAKE := 4.0
+const SHEET := preload("res://assets/sprites/characters/demon_king/dk_potion_form.png")
 const FRAMES := 6
 const FRAME_SIZE := Vector2(148, 300)
 const FPS := 6.0
@@ -59,6 +65,29 @@ func _ready() -> void:
 
 func start() -> void:
 	chasing = true
+
+
+## Struck by the ??? potion: flashes white a few times and shakes, over
+## HIT_TIME seconds (await it to wait that out).
+func hit_flash() -> void:
+	var home := position
+	var white := ShaderMaterial.new()
+	white.shader = WHITE_FLASH
+	white.set_shader_parameter(&"flash", 0.0)
+	material = white
+	var set_white := func(amount: float) -> void: white.set_shader_parameter(&"flash", amount)
+	var flash := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	for i in HIT_FLASHES:
+		flash.tween_method(set_white, 0.0, 1.0, HIT_TIME / HIT_FLASHES / 2.0)
+		flash.tween_method(set_white, 1.0, 0.0, HIT_TIME / HIT_FLASHES / 2.0)
+	flash.tween_callback(func() -> void: material = null)
+	var shake := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	var steps := int(HIT_TIME / 0.04)
+	for i in steps:
+		var strength := HIT_SHAKE * (1.0 - float(i) / steps)
+		shake.tween_property(self, "position", home + Vector2(randf_range(-strength, strength), randf_range(-strength, strength) * 0.5), 0.04)
+	shake.tween_property(self, "position", home, 0.04)
+	await shake.finished
 
 
 func stop() -> void:
@@ -107,7 +136,7 @@ func _physics_process(delta: float) -> void:
 	global_position.x = minf(global_position.x + pace * delta, stop_x)
 	# Its front reaches him: caught.
 	if knight.global_position.x - 6.0 < global_position.x:
-		knight.die(GameOver.CAUGHT, Vector2(global_position.x - 8.0, knight.global_position.y - 14.0))
+		knight.die(GameOver.DEMON, Vector2(global_position.x - 8.0, knight.global_position.y - 14.0))
 
 
 ## "[IMMUNE]" rising off its front.

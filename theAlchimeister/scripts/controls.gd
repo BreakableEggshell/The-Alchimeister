@@ -32,7 +32,8 @@ static var _touch_checked := false
 
 ## Controller buttons for each action: left stick or d-pad to move and to
 ## steer menus, A jump (and confirm), B back out, X interact, Y notebook, BACK
-## log, START pause (as Esc does), LB / RB the potion before / after (and the
+## log, START pause (as Esc does in play, but never "back" or "quit" in the
+## menus: the pause action), LB / RB the potion before / after (and the
 ## page before / after in menus). The right stick aims and RT throws (see
 ## PotionThrower).
 const PAD_BUTTONS := {
@@ -46,7 +47,8 @@ const PAD_BUTTONS := {
 	&"move_down": [JOY_BUTTON_DPAD_DOWN],
 	&"jump": [JOY_BUTTON_A],
 	&"ui_accept": [JOY_BUTTON_A],
-	&"ui_cancel": [JOY_BUTTON_B, JOY_BUTTON_START],
+	&"ui_cancel": [JOY_BUTTON_B],
+	&"pause": [JOY_BUTTON_START],
 	&"interact": [JOY_BUTTON_X],
 	&"toggle_book": [JOY_BUTTON_Y],
 	&"open_log": [JOY_BUTTON_BACK],
@@ -88,7 +90,8 @@ const PAD_NAMES := {
 ## Esc's name while a controller is in use.
 const PAD_CANCEL_NAME := "B"
 
-## A controller was used last (not a key, click or touch).
+## A controller was used last (not a key, click or touch), or one is plugged
+## in and nothing else has been used since.
 static var using_pad := false
 ## On a touchscreen (TouchControls.touch_on), until a key is pressed: there are
 ## no keys to name, so none are (key_name gives "").
@@ -106,6 +109,8 @@ static func apply(saved: Dictionary) -> void:
 	if not _touch_checked:
 		_touch_checked = true
 		using_touch = TouchControls.touch_on()
+		# A controller plugged in from the start: its buttons are shown.
+		using_pad = not Input.get_connected_joypads().is_empty()
 	for entry in REMAPPABLE:
 		var action: StringName = entry[1]
 		var keys: Variant = saved.get(String(action), [])

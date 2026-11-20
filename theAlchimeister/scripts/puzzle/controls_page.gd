@@ -6,8 +6,10 @@ extends Panel
 ## The player asked to go back to SETTINGS.
 signal back_requested
 
-const INK := Color(0.35, 0.22, 0.14)
-const WAITING_INK := Color(0.75, 0.25, 0.2)
+## Light text on the pause menu's frame (see SettingsPanel), gold title.
+const INK := Color(0.95, 0.9, 0.8)
+const WAITING_INK := Color(1.0, 0.55, 0.45)
+const TITLE_INK := Color(0.95, 0.85, 0.55)
 const TITLE := "CONTROLS"
 const WAITING_TITLE := "PRESS A KEY (ESC CANCELS)"
 const LEFT_ROWS := 7
@@ -33,6 +35,7 @@ func build(book_size: Vector2, style: StyleBox) -> void:
 	hide()
 	_title = _ink_label(TITLE, Vector2(0, 10), book_size.x)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title.add_theme_color_override("font_color", TITLE_INK)
 	for i in Controls.REMAPPABLE.size():
 		var entry: Array = Controls.REMAPPABLE[i]
 		var column := LEFT_COLUMN if i < LEFT_ROWS else RIGHT_COLUMN
@@ -115,7 +118,7 @@ func _stop_waiting() -> void:
 		return
 	_waiting = &""
 	_title.text = TITLE
-	_title.add_theme_color_override("font_color", INK)
+	_title.add_theme_color_override("font_color", TITLE_INK)
 	_refresh()
 
 

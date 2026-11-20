@@ -143,7 +143,7 @@ const PAGE_COLOR := Color8(255, 244, 205)
 ## The open book drawn behind the pages: assets/notebook.png, stretched to
 ## BOOK_SIZE as a nine-patch (one per page) so its corners, cover edges and the
 ## dips at the spine stay pixel for pixel, at the same scale as the text.
-const NOTEBOOK := preload("res://assets/notebook.png")
+const NOTEBOOK := preload("res://assets/ui/notebook/notebook.png")
 ## Each page's part of the art, and how much of each edge stays unstretched
 ## (all of every corner and cover edge: only the plain straight middle
 ## stretches):
@@ -277,7 +277,9 @@ func _exit_tree() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_book") or event.is_action_pressed("ui_cancel"):
+	# START on a controller ("pause") does as Esc does here.
+	var escape := event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause")
+	if event.is_action_pressed("toggle_book") or escape:
 		if _hint_prompt.visible:
 			_close_hint_prompt()
 		elif _locked_popup.visible:
@@ -288,7 +290,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_gear_menu()
 		elif _settings.visible:
 			_settings.back_out()
-		elif event.is_action_pressed("ui_cancel") and not is_open:
+		elif escape and not is_open:
 			_open_pause()
 		else:
 			toggle()
@@ -811,8 +813,8 @@ func _build_gear_menu() -> Control:
 	_gear_level.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	modal.add_child(_gear_level)
 	_gear_panel = Panel.new()
-	# Its own frame (pause_menu_bg.png, stretched by its middle).
-	_gear_panel.add_theme_stylebox_override("panel", preload("res://scenes/ui/pause_menu_style.tres"))
+	# The menu frame (menu_bg.png, stretched by its middle).
+	_gear_panel.add_theme_stylebox_override("panel", preload("res://scenes/ui/menu_bg_style.tres"))
 	modal.add_child(_gear_panel)
 	_gear_title = Label.new()
 	_gear_title.text = "PAUSE MENU"

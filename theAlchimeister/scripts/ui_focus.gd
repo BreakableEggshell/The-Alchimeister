@@ -30,6 +30,10 @@ var _mark: Node2D
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Plugging a controller in shows its buttons; unplugging the last one, the
+	# keys again.
+	Input.joy_connection_changed.connect(func(_device: int, connected: bool) -> void:
+		Controls.set_using_pad(connected or not Input.get_connected_joypads().is_empty()))
 	_layer = CanvasLayer.new()
 	_layer.layer = 99
 	add_child(_layer)

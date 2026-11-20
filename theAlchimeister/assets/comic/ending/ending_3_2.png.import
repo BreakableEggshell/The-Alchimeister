@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://3frnkjxef3rq"
-path="res://.godot/imported/pause_menu_bg.png-299858f9ed852f18fd25fa96c06b1378.ctex"
+uid="uid://bj7f22r8547a4"
+path="res://.godot/imported/ending_3_2.png-8dc7fd95ddb82f1df0f3a14fc96fb44e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/pause_menu_bg.png"
-dest_files=["res://.godot/imported/pause_menu_bg.png-299858f9ed852f18fd25fa96c06b1378.ctex"]
+source_file="res://assets/comic/ending/ending_3_2.png"
+dest_files=["res://.godot/imported/ending_3_2.png-8dc7fd95ddb82f1df0f3a14fc96fb44e.ctex"]
 
 [params]
 

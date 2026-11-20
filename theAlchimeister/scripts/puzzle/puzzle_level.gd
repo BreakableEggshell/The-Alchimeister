@@ -31,6 +31,11 @@ static var _logs := {}
 ## Screen pixels the camera may go past the stage's left edge with the
 ## on-screen buttons (see _setup_bounds): a little more than their width.
 const TOUCH_LEFT_PAD := 84.0
+## How fast the room behind moves with the camera (1: with the level, 0: not at
+## all). See _add_parallax.
+const BACKDROP_SCROLL := Vector2(0.5, 0.5)
+## How far the room behind reaches past the stage on each side.
+const BACKDROP_MARGIN := 400.0
 
 @export var stage_id := "1-1"
 ## Width and height of the playable area, in pixels.
@@ -330,6 +335,9 @@ func _on_player_died(cause: StringName) -> void:
 
 
 func _on_exit_reached() -> void:
+	# Nothing kills him on the end screen. (A dead knight can't walk into the
+	# door, see ExitDoor; THE ONLY WAY OUT clears on dying, on purpose.)
+	player.finished = true
 	_over = true
 	_stop_play()
 	player.set_physics_process(false)
@@ -368,6 +376,20 @@ func _stop_play() -> void:
 	hud.disable_book()
 
 
+## Parallax: the room behind (the backdrop) moves at BACKDROP_SCROLL of the
+## camera's pace, so it seems further off than the floors and walls. It
+## reaches BACKDROP_MARGIN past the stage all round, so it always fills the
+## screen.
+func _add_parallax() -> void:
+	var layer := Parallax2D.new()
+	layer.name = "BackdropParallax"
+	layer.scroll_scale = BACKDROP_SCROLL
+	var at := backdrop.get_index()
+	backdrop.get_parent().add_child(layer)
+	backdrop.get_parent().move_child(layer, at)
+	backdrop.reparent(layer, false)
+
+
 ## Camera limits, backdrop grid and invisible walls around the stage.
 func _setup_bounds() -> void:
 	var camera: Camera2D = player.get_node("Camera")
@@ -385,9 +407,14 @@ func _setup_bounds() -> void:
 	camera.limit_top = 0
 	camera.limit_right = int(stage_size.x)
 	camera.limit_bottom = int(stage_size.y)
-	backdrop.columns = ceili(stage_size.x / backdrop.cell_size)
-	backdrop.rows = ceili(stage_size.y / backdrop.cell_size)
+	# Past the stage on every side (BACKDROP_MARGIN), so however the camera
+	# zooms or the parallax shifts it, its edge never shows.
+	var margin: float = ceilf(BACKDROP_MARGIN / backdrop.cell_size) * backdrop.cell_size
+	backdrop.position = Vector2(-margin, -margin)
+	backdrop.columns = ceili((stage_size.x + margin * 2.0) / backdrop.cell_size)
+	backdrop.rows = ceili((stage_size.y + margin * 2.0) / backdrop.cell_size)
 	backdrop.queue_redraw()
+	_add_parallax()
 	var edges := StaticBody2D.new()
 	edges.name = "Edges"
 	for edge in [[Vector2.ZERO, Vector2.DOWN], [Vector2.ZERO, Vector2.RIGHT], [Vector2(stage_size.x, 0), Vector2.LEFT]]:

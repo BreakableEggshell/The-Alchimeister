@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dobj7y7xxu0eb"
-path="res://.godot/imported/dk_potion_form.png-d50999f1cb2e041acaf186d2c62cbf02.ctex"
+uid="uid://cvo7jq78isr32"
+path="res://.godot/imported/ending_2_1.png-acaf3741dd232e898f6576f0ed39fc5a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dk_potion_form.png"
-dest_files=["res://.godot/imported/dk_potion_form.png-d50999f1cb2e041acaf186d2c62cbf02.ctex"]
+source_file="res://assets/comic/ending/ending_2_1.png"
+dest_files=["res://.godot/imported/ending_2_1.png-acaf3741dd232e898f6576f0ed39fc5a.ctex"]
 
 [params]
 
