@@ -45,7 +45,7 @@ const LAND_DUST_DROP := 24.0
 const LAND_DUST_FULL_DROP := 160.0
 const LAND_DUST_COLOR := Color(0.78, 0.74, 0.7, 0.85)
 ## The highest he's been (smallest y) since he was last on the ground.
-var _fall_top := 0.0
+var _fall_top := INF
 const DEATH_FPS := 11.0
 var _talking := false
 const FLOAT_TEXT_TIME := 0.5

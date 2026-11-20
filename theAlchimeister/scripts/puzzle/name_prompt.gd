@@ -1,6 +1,8 @@
 extends Control
 ## The end of a full run: asks for the playtester's name. ask() waits until a
 ## name is given (it can't be dismissed or left blank) and returns it.
+## A controller can't type: with one in use, the name starts as PAD_NAME, and
+## A or START gives it (anything typed over it on a keyboard counts too).
 
 signal _answered(player_name: String)
 
@@ -10,6 +12,7 @@ const FIELD_SIZE := Vector2(150, 16)
 const GOLD := Color(0.95, 0.85, 0.55)
 const BACKGROUND := Color(0.1, 0.09, 0.14)
 const MAX_NAME_LENGTH := 16
+const PAD_NAME := "PLAYER"
 
 var _field: LineEdit
 var _ok: Button
@@ -31,6 +34,16 @@ func focus_first() -> bool:
 
 func _ready() -> void:
 	add_to_group(UiFocus.SCREENS)
+
+
+func _input(event: InputEvent) -> void:
+	if not _field or not (event is InputEventJoypadButton and event.pressed):
+		return
+	if event.button_index == JOY_BUTTON_A or event.button_index == JOY_BUTTON_START:
+		if _field.text.strip_edges() == "":
+			_field.text = PAD_NAME
+		get_viewport().set_input_as_handled()
+		_submit()
 
 
 func _focus_field() -> void:
@@ -104,6 +117,9 @@ func _build() -> void:
 	panel.add_child(_ok)
 	_ok.position = Vector2((PANEL_SIZE.x - 48.0) / 2.0, 44)
 	_ok.size = Vector2(48, 16)
+	if Controls.using_pad:
+		_field.text = PAD_NAME
+		_field.select_all()
 	_field.text_changed.connect(_update_ok)
 	_update_ok()
 

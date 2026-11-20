@@ -127,6 +127,8 @@ func _ready() -> void:
 
 func _on_stage_start(attempt: int) -> void:
 	super(attempt)
+	if part == 1:
+		SaveGame.tick_checklist(SaveGame.CHECK_MET)
 	match part:
 		1:
 			if attempt == 0:
@@ -298,7 +300,9 @@ func _on_struck() -> void:
 	if part != 3:
 		boss._no_effect()
 		return
-	_ending_scene(ENDING_START, ENDING_REST)
+	if not _ending:
+		SaveGame.tick_checklist(SaveGame.CHECK_SECRET)
+	_ending_scene(ENDING_START, ENDING_REST, true)
 
 
 ## A Death potion, in any part: the same ending, with his last words instead.
@@ -310,7 +314,7 @@ func _on_killed() -> void:
 ## white-out, and under it everything in the way goes (flat ground left) and
 ## he's back to his normal size, kneeling; `after` is said; then -END- and the
 ## end of the game.
-func _ending_scene(before: Array, after: Array) -> void:
+func _ending_scene(before: Array, after: Array, lifts_curse := false) -> void:
 	if _ending:
 		return
 	_ending = true
@@ -337,6 +341,8 @@ func _ending_scene(before: Array, after: Array) -> void:
 	white.queue_free()
 	await _wait(0.4)
 	await hud.dialogue.interrupt(PackedStringArray(after))
+	if lifts_curse:
+		SaveGame.tick_checklist(SaveGame.CHECK_CURSE)
 	await _the_end()
 	_finish_game()
 

@@ -42,9 +42,15 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	enabled = DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") \
-			or OS.get_cmdline_user_args().has("touch")
+	enabled = touch_on()
 	visible = false
+
+
+## Whether the on-screen buttons are used: on touchscreens, or with the
+## "touch" user argument on a desktop.
+static func touch_on() -> bool:
+	return DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") \
+			or OS.get_cmdline_user_args().has("touch")
 
 
 func _process(_delta: float) -> void:
@@ -176,14 +182,15 @@ func _draw() -> void:
 		var box: Rect2 = rects[button]
 		draw_rect(box, FILL_HELD if held.has(button) else FILL)
 		draw_rect(box.grow(-0.5), EDGE, false)
+		var icon := ICON
 		var c := box.get_center().round()
 		match button:
 			&"move_left":
-				draw_colored_polygon(PackedVector2Array([c + Vector2(-6, 0), c + Vector2(4, -7), c + Vector2(4, 7)]), ICON)
+				draw_colored_polygon(PackedVector2Array([c + Vector2(-6, 0), c + Vector2(4, -7), c + Vector2(4, 7)]), icon)
 			&"move_right":
-				draw_colored_polygon(PackedVector2Array([c + Vector2(6, 0), c + Vector2(-4, -7), c + Vector2(-4, 7)]), ICON)
+				draw_colored_polygon(PackedVector2Array([c + Vector2(6, 0), c + Vector2(-4, -7), c + Vector2(-4, 7)]), icon)
 			&"jump":
-				draw_colored_polygon(PackedVector2Array([c + Vector2(0, -4), c + Vector2(-7, 3), c + Vector2(7, 3)]), ICON)
+				draw_colored_polygon(PackedVector2Array([c + Vector2(0, -4), c + Vector2(-7, 3), c + Vector2(7, 3)]), icon)
 			PAUSE:
 				draw_rect(Rect2(c + Vector2(-4, -5), Vector2(3, 10)), ICON)
 				draw_rect(Rect2(c + Vector2(1, -5), Vector2(3, 10)), ICON)

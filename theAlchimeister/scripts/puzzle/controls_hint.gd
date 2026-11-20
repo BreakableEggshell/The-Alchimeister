@@ -4,7 +4,9 @@ extends Node2D
 ## DRAG" sign (ThrowHint). `shows` picks which:
 ## - MOVE: the move-left and move-right keycaps under "MOVE".
 ## - JUMP: the jump keycap and "JUMP".
-## The keycaps show the player's bindings. Origin is its centre. Drawn behind
+## The keycaps show the player's bindings, or with the on-screen buttons
+## (TouchControls.touch_on), little copies of those buttons. Origin is its
+## centre. Drawn behind
 ## the knight and monsters, so they pass in front of it.
 
 enum Shows { MOVE, JUMP }
@@ -25,6 +27,9 @@ const KEY := 12.0
 ## How the keys read in the editor, where bindings aren't loaded.
 const EDITOR_KEYS := {&"move_left": "A", &"move_right": "D", &"jump": "SPACE"}
 
+## The actions of the keycaps still to draw, in order (see _draw_key).
+var _actions: Array[StringName] = []
+
 
 func _ready() -> void:
 	if not Engine.is_editor_hint():
@@ -41,6 +46,7 @@ func _draw() -> void:
 func _draw_move() -> void:
 	var left := _key_label(&"move_left")
 	var right := _key_label(&"move_right")
+	_actions = [&"move_left", &"move_right"]
 	var left_width := _key_width(left)
 	var right_width := _key_width(right)
 	var width := maxf(left_width + GAP + right_width, _text_width("MOVE")) + MARGIN * 2.0
@@ -54,6 +60,7 @@ func _draw_move() -> void:
 
 func _draw_jump() -> void:
 	var key := _key_label(&"jump")
+	_actions = [&"jump"]
 	var key_width := _key_width(key)
 	var label_width := _text_width("JUMP")
 	var panel := _draw_panel(Vector2(key_width + GAP + label_width + MARGIN * 2.0, JUMP_HEIGHT))
@@ -71,7 +78,12 @@ func _draw_panel(size: Vector2) -> Rect2:
 
 
 func _key_label(action: StringName) -> String:
-	return EDITOR_KEYS[action] if Engine.is_editor_hint() else Controls.key_name(action)
+	if Engine.is_editor_hint():
+		return EDITOR_KEYS[action]
+	# On a phone, or moving with a controller: the arrow, drawn in its keycap.
+	if TouchControls.touch_on() or Controls.using_pad and action != &"jump":
+		return ""
+	return Controls.key_name(action)
 
 
 func _text_width(text: String) -> float:
@@ -86,4 +98,15 @@ func _key_width(label: String) -> float:
 func _draw_key(cap: Rect2, label: String) -> void:
 	draw_rect(cap, Color(0.22, 0.2, 0.3))
 	draw_rect(cap.grow(-0.5), Color(TEXT_COLOR, 0.8), false)
+	var action: StringName = _actions.pop_front() if not _actions.is_empty() else &""
+	if label == "" and action != &"":
+		# The on-screen button's arrow, small.
+		var c := cap.get_center().round()
+		var arrow: PackedVector2Array
+		match action:
+			&"move_left": arrow = [c + Vector2(-3, 0), c + Vector2(2, -4), c + Vector2(2, 4)]
+			&"move_right": arrow = [c + Vector2(3, 0), c + Vector2(-2, -4), c + Vector2(-2, 4)]
+			_: arrow = [c + Vector2(0, -3), c + Vector2(-4, 2), c + Vector2(4, 2)]
+		draw_colored_polygon(arrow, TEXT_COLOR)
+		return
 	draw_string(FONT, cap.position + Vector2(0, 9), label, HORIZONTAL_ALIGNMENT_CENTER, cap.size.x, 8, TEXT_COLOR)

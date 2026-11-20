@@ -85,6 +85,10 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.pressed:
 		_stop_waiting()
+	# A controller's buttons aren't remapped here: any of them stops waiting.
+	elif event is InputEventJoypadButton and event.pressed:
+		_stop_waiting()
+		get_viewport().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		var key := int(event.physical_keycode)
 		if key == 0:

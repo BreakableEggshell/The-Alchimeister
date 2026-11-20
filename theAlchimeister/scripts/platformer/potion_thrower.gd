@@ -2,6 +2,8 @@ extends Node2D
 ## Slingshot-style potion throwing. Press anywhere on screen, drag to pull back,
 ## release to throw the potion the opposite way. Releasing over the cancel
 ## zone cancels the throw. Touch works through mouse emulation.
+## On a controller: lean the right stick the way to throw (further for
+## harder) to aim, and pull RT to throw; letting the stick go cancels.
 ## With an inventory, throws its selected potion and only while any are left;
 ## without one, throws unlimited plain potions.
 
@@ -34,6 +36,12 @@ signal throw_cancelled(on_cancel_zone: bool)
 ## and how much of the bounced path it then shows.
 const BOUNCE_LOOKAHEAD := 1.5
 const AFTER_BOUNCE_TIME := 0.5
+## How far the right stick must lean to start aiming.
+const STICK_AIM_START := 0.3
+
+## Aiming with a controller's right stick (see the top), and its launch.
+var _stick_aiming := false
+var _stick_launch := Vector2.ZERO
 
 var _aiming := false
 ## Where the press started, in viewport (screen) space, so a scrolling camera
@@ -75,6 +83,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func cancel() -> void:
 	var was_aiming := _aiming
 	_aiming = false
+	_stick_aiming = false
 	_preview.clear()
 	cancel_zone.hide()
 	queue_redraw()
@@ -83,6 +92,7 @@ func cancel() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	_update_stick_aim()
 	_preview.clear()
 	if not _aiming:
 		return
@@ -130,6 +140,13 @@ func _physics_process(_delta: float) -> void:
 func _draw() -> void:
 	if not _aiming:
 		return
+	if _stick_aiming:
+		# No band to pull: just the dots.
+		var stick_color := PotionData.color_of(inventory.selected) if inventory else dot_color
+		for i in range(1, _preview.size(), 3):
+			var fade := 1.0 - 0.7 * float(i) / _preview.size()
+			draw_circle(to_local(_preview[i]), 1.5, Color(stick_color, dot_color.a * fade))
+		return
 	var to_world := get_canvas_transform().affine_inverse()
 	var anchor := to_local(to_world * _anchor_screen)
 	draw_circle(anchor, 2.0, band_color)
@@ -143,11 +160,45 @@ func _draw() -> void:
 ## Vector from the pointer back to the press point, capped at max_pull.
 ## This is the direction the potion flies.
 func _pull() -> Vector2:
+	if _stick_aiming:
+		return _stick_launch * (max_pull / max_launch_speed)
 	return (_anchor_screen - _pointer_screen).limit_length(max_pull)
 
 
 func _launch_velocity() -> Vector2:
+	if _stick_aiming:
+		return _stick_launch
 	return _pull() * (max_launch_speed / max_pull)
+
+
+## The right stick: leaning it aims (the way and how hard), RT throws, and
+## letting it go without throwing cancels. Only while throwing is allowed
+## (unhandled input on) and no mouse or touch aim is going.
+func _update_stick_aim() -> void:
+	if not InputMap.has_action(&"aim_left"):
+		return
+	var stick := Input.get_vector(&"aim_left", &"aim_right", &"aim_up", &"aim_down")
+	var allowed := is_processing_unhandled_input() and not get_tree().paused
+	if not _stick_aiming:
+		if not allowed or _aiming or stick.length() < STICK_AIM_START:
+			return
+		if thrower.has_method("is_frozen") and thrower.is_frozen():
+			return
+		_stick_aiming = true
+		_aiming = true
+		_max_pull = 0.0
+		aiming_changed.emit(true)
+	if not allowed or stick.length() < STICK_AIM_START * 0.5:
+		_stick_aiming = false
+		cancel()
+		return
+	_stick_launch = stick.limit_length(1.0) * max_launch_speed
+	if Input.is_action_just_pressed(&"throw"):
+		if inventory and inventory.count(inventory.selected) <= 0:
+			inventory.take_selected()  # Reports "none left" (or none picked).
+			return
+		_release()
+		_stick_aiming = false
 
 
 func _hand_position() -> Vector2:
@@ -155,6 +206,8 @@ func _hand_position() -> Vector2:
 
 
 func _over_cancel_zone() -> bool:
+	if _stick_aiming:
+		return false
 	return cancel_zone.get_global_rect().has_point(_pointer_screen)
 
 

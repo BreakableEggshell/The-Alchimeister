@@ -22,6 +22,8 @@ const BUTTON_ART := preload("res://assets/ui/btn.png")
 ## The menu's buttons are btn.png scaled up whole by this much (not stretched
 ## to some other shape), so its pixels stay square.
 const MENU_BUTTON_SCALE := 2.0
+## The TEST RUN toggle's size (it grows to fit its text).
+const TEST_RUN_SIZE := Vector2(84, 16)
 ## How each button state tints the art.
 const MENU_BUTTON_TINTS := {
 	"normal": Color(1, 1, 1),
@@ -60,6 +62,8 @@ const TEST_LINES: Array[String] = [
 @onready var _continue: Button = %ContinueButton
 @onready var _settings_button: Button = %SettingsButton
 @onready var _exit: Button = %ExitButton
+## TEST RUN: OFF / ON, bottom right (see SaveGame.test_run).
+var _test_run: Button
 
 var _settings: SettingsPanel
 var _settings_modal: Control
@@ -134,6 +138,7 @@ func _ready() -> void:
 			art.modulate_color = MENU_BUTTON_TINTS[state]
 			button.add_theme_stylebox_override(state, art)
 		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_test_run = _build_test_run()
 	_settings_modal = _build_settings()
 	_debug = _build_debug()
 	_times = _build_times()
@@ -215,6 +220,7 @@ func _start_new_run() -> void:
 	SaveGame.start_new_run()
 	# Forget this session's retries too, so first-attempt lines play again.
 	PUZZLE_LEVEL._restarts.clear()
+	PUZZLE_LEVEL._logs.clear()
 	PUZZLE_LEVEL._hint_part.clear()
 	PUZZLE_LEVEL._hints_heard.clear()
 	PUZZLE_LEVEL._hint_taken_at.clear()
@@ -585,6 +591,33 @@ func play_dialogue_test() -> void:
 
 
 # --- Layout
+
+## The TEST RUN toggle, small in the bottom-right corner, under EXIT for the
+## keys. Built before the popups, so they cover it.
+func _build_test_run() -> Button:
+	var toggle := Button.new()
+	toggle.theme_type_variation = &"WoodButton"
+	toggle.add_theme_font_size_override("font_size", 8)
+	toggle.focus_mode = Control.FOCUS_ALL
+	toggle.mouse_entered.connect(toggle.grab_focus)
+	toggle.pressed.connect(func() -> void:
+		SaveGame.set_test_run(not SaveGame.test_run)
+		_label_test_run())
+	add_child(toggle)
+	_test_run = toggle
+	_label_test_run()
+	toggle.size = TEST_RUN_SIZE.max(toggle.get_combined_minimum_size())
+	toggle.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_KEEP_SIZE, 8)
+	_exit.focus_neighbor_bottom = _exit.get_path_to(toggle)
+	toggle.focus_neighbor_top = toggle.get_path_to(_exit)
+	for side in ["focus_neighbor_left", "focus_neighbor_right", "focus_neighbor_bottom"]:
+		toggle.set(side, toggle.get_path_to(toggle))
+	return toggle
+
+
+func _label_test_run() -> void:
+	_test_run.text = "TEST RUN: %s" % ("ON" if SaveGame.test_run else "OFF")
+
 
 func _modal() -> Control:
 	var modal := Control.new()

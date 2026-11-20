@@ -35,6 +35,10 @@ const SPARKLE_TIME := 1.4
 @export_enum("none", "ember", "gust_feather", "frost_shard", "ghost_wisp") var third_contents := "none"
 ## How many of `third_contents` it gives.
 @export var third_amount := 1
+## An optional fourth ingredient it also gives.
+@export_enum("none", "ember", "gust_feather", "frost_shard", "ghost_wisp") var fourth_contents := "none"
+## How many of `fourth_contents` it gives.
+@export var fourth_amount := 1
 ## "SPEAKER: text" lines played after opening. Empty for none.
 @export var open_lines: PackedStringArray
 ## What those lines teach, so skipping them warns the player.
@@ -99,7 +103,7 @@ func open() -> void:
 	_opened = true
 	_prompt.hide()
 	queue_redraw()
-	var gifts := [[contents, amount], [extra_contents, extra_amount], [third_contents, third_amount]]
+	var gifts := [[contents, amount], [extra_contents, extra_amount], [third_contents, third_amount], [fourth_contents, fourth_amount]]
 	# An amount of 0 gives nothing (a chest holding only a note).
 	gifts = gifts.filter(func(gift: Array) -> bool: return gift[0] != "none" and gift[1] > 0)
 	for i in gifts.size():
@@ -152,7 +156,7 @@ func _make_prompt() -> Button:
 ## Shrinks the prompt to its text and centres it PROMPT_RISE above the floor. Runs once
 ## it's in the tree, when its small font is actually in effect.
 func _prompt_text() -> String:
-	return "[%s]Open" % Controls.key_name(&"interact")
+	return "%sOpen" % Controls.bracket(&"interact")
 
 
 func _label_prompt() -> void:

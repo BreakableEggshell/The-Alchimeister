@@ -25,6 +25,12 @@ static var _hint_part := {}
 ## them, which is free and isn't asked about.
 static var _hints_heard := {}
 static var _hint_taken_at := {}
+## Per stage: the log (DialogueBox.history) as it was at the last retry, so
+## what was said (the opening lines, which retries skip) is still there.
+static var _logs := {}
+## Screen pixels the camera may go past the stage's left edge with the
+## on-screen buttons (see _setup_bounds): a little more than their width.
+const TOUCH_LEFT_PAD := 84.0
 
 @export var stage_id := "1-1"
 ## Width and height of the playable area, in pixels.
@@ -82,6 +88,9 @@ func _ready() -> void:
 	get_tree().paused = false
 	Music.play(_music())
 	SaveGame.set_last_stage(stage_id)
+	# A retry: the log as it was.
+	if restart_count() > 0 and _logs.has(stage_id):
+		hud.dialogue.history.assign(_logs[stage_id])
 	_setup_bounds()
 	player.died.connect(_on_player_died)
 	var exit := get_tree().get_first_node_in_group("stage_exit")
@@ -200,6 +209,7 @@ func restart() -> void:
 	if Iris.is_closed:
 		return
 	_restarts[stage_id] = restart_count() + 1
+	_logs[stage_id] = hud.dialogue.history.duplicate(true)
 	get_tree().paused = true
 	await Iris.close(_iris_focus())
 	if not is_inside_tree():
@@ -284,6 +294,7 @@ static func is_nudge_attempt(attempt: int) -> bool:
 ## locked here are free again.
 func _forget_stage() -> void:
 	_restarts.erase(stage_id)
+	_logs.erase(stage_id)
 	_hint_part.erase(stage_id)
 	_hints_heard.erase(stage_id)
 	_hint_taken_at.erase(stage_id)
@@ -361,6 +372,16 @@ func _stop_play() -> void:
 func _setup_bounds() -> void:
 	var camera: Camera2D = player.get_node("Camera")
 	camera.limit_left = 0
+	# With the on-screen buttons (bottom left), the camera can go a little past
+	# the stage's left edge, onto a thick wall, so a knight starting by that
+	# edge stands clear of the buttons rather than behind them.
+	if TouchControls.touch_on():
+		var pad := ceilf(TOUCH_LEFT_PAD / camera.zoom.x)
+		camera.limit_left = -int(pad)
+		var wall := Solid.new()
+		wall.name = "TouchPadWall"
+		wall.points = PackedVector2Array([Vector2(-pad, 0), Vector2(0, 0), Vector2(0, stage_size.y), Vector2(-pad, stage_size.y)])
+		add_child(wall)
 	camera.limit_top = 0
 	camera.limit_right = int(stage_size.x)
 	camera.limit_bottom = int(stage_size.y)

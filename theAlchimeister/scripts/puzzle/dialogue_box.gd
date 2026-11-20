@@ -648,7 +648,7 @@ func _icon_button(draw_icon: Callable, tip: String, from_right: float, key: Stri
 	button.offset_bottom = 24.0
 	button.draw.connect(draw_icon.bind(button))
 	button.draw.connect(func() -> void:
-		var shown := Controls.key_name(action) if action != &"" else key
+		var shown := Controls.key_name(action) if action != &"" else (Controls.cancel_name() if key == "ESC" else key)
 		button.draw_string(button.get_theme_font("font"), Vector2(0, button.size.y + 9), shown, HORIZONTAL_ALIGNMENT_CENTER, button.size.x, 8, KEY_COLOR))
 	SaveGame.controls_changed.connect(button.queue_redraw)
 	add_child(button)

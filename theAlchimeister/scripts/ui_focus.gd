@@ -96,6 +96,16 @@ static func link_row(controls: Array) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Which names to show around the game: the controller's, or the keys'.
+	if event is InputEventJoypadButton or event is InputEventJoypadMotion and absf(event.axis_value) > 0.5:
+		Controls.set_using_pad(true)
+	elif event is InputEventKey or event is InputEventMouseButton or event is InputEventScreenTouch:
+		Controls.set_using_pad(false)
+		# On a touchscreen: a key means there's a keyboard after all.
+		if event is InputEventKey:
+			Controls.set_using_touch(false)
+		elif event is InputEventScreenTouch:
+			Controls.set_using_touch(true)
 	# The selection mark is for navigating with the keys (or a pad): it shows
 	# once the player moves the selection in a menu (arrows, WASD, Tab, d-pad)
 	# and stays on from screen to screen, scene changes included, until a

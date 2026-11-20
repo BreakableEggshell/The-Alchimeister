@@ -5,7 +5,7 @@ extends Area2D
 ## knight. Touching it is death. It closes in at `speed`, faster
 ## (`catch_up_speed`) while the knight is more than `catch_up_distance` ahead,
 ## so it always looms at the left of the screen, and stops at `stop_x`.
-## Potions break on it, and nothing touches it (a "[NO EFFECT]" puff) except
+## Potions break on it, and nothing touches it (a "[IMMUNE]" puff) except
 ## the ??? potion (`struck`) and a Death potion (`killed`).
 ## Drawn from its sheet (dk_potion_form.png: a looping animation), stretched
 ## to `height`, with its flat colour filling in behind.
@@ -78,7 +78,9 @@ func grow_at(anchor: Vector2, time: float) -> void:
 
 
 func apply_potion(kind: StringName, _origin: Vector2, _power := 1.0) -> void:
-	if not visible:
+	# The growth potion (the cutscene's) is what made him: its splash lands as
+	# he grows, and says nothing.
+	if not visible or kind == PotionData.GROWTH:
 		return
 	match kind:
 		PotionData.SECRET:
@@ -108,10 +110,10 @@ func _physics_process(delta: float) -> void:
 		knight.die(GameOver.CAUGHT, Vector2(global_position.x - 8.0, knight.global_position.y - 14.0))
 
 
-## "[NO EFFECT]" rising off its front.
+## "[IMMUNE]" rising off its front.
 func _no_effect() -> void:
 	var label := Label.new()
-	label.text = "[NO EFFECT]"
+	label.text = "[IMMUNE]"
 	label.add_theme_font_override("font", FONT)
 	label.add_theme_font_size_override("font_size", 8)
 	label.add_theme_color_override("font_color", Color(0.85, 0.8, 0.95))

@@ -180,6 +180,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not _potions_enabled:
 		return
+	# LB / RB on a controller: the potion before / after.
+	if not book.is_open and not dialogue.is_playing and (event.is_action_pressed("potion_prev") or event.is_action_pressed("potion_next")):
+		_cycle_potion(-1 if event.is_action_pressed("potion_prev") else 1)
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventMouseButton and event.pressed and not book.is_open and not dialogue.is_playing:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_cycle_potion(-1)
@@ -337,6 +342,10 @@ func _draw_slot(slot: Button, kind: StringName) -> void:
 
 ## The keyboard key for a button, centred just below it.
 func _restart_text() -> String:
+	# A controller or a touchscreen has no restart button: the pause menu has
+	# RESTART.
+	if Controls.key_name(&"restart") == "":
+		return "STUCK? RESTART FROM THE PAUSE MENU!"
 	return "STUCK? PRESS %s TO RESTART!" % Controls.key_name(&"restart")
 
 
