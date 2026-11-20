@@ -115,7 +115,7 @@ func _make_prompt() -> Button:
 
 
 func _label_prompt() -> void:
-	_prompt.text = "[%s]Enter" % Controls.key_name(&"interact")
+	_prompt.text = "%sEnter" % Controls.bracket(&"interact")
 	_prompt.size = Vector2.ZERO
 	_prompt.position = Vector2(-roundf(_prompt.size.x / 2.0), -42.0 - _prompt.size.y)
 

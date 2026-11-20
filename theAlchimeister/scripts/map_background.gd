@@ -12,8 +12,8 @@ extends Control
 ## With `sky_only`, the clouds likewise show only on the sky's colour
 ## (SKY_COLORS), so they drift behind the darkness on the later maps.
 
-const BACKGROUND := preload("res://assets/map1.png")
-const CLOUDS := preload("res://assets/map1_clouds.png")
+const BACKGROUND := preload("res://assets/maps/map1.png")
+const CLOUDS := preload("res://assets/maps/map1_clouds.png")
 ## Each cloud in the cloud sheet, where it floats (its height, and where it
 ## starts across), and how fast it drifts in pixels per second. Smaller ones
 ## are further away, so they drift slower.

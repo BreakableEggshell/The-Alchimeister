@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bxow4k3033j0k"
-path="res://.godot/imported/dk.png-a7bd12c0c31890176455ab60e78ece28.ctex"
+uid="uid://bu62tve173hok"
+path="res://.godot/imported/dk_sitting.png-ae4331c68808088b47a316c4757cea66.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dk.png"
-dest_files=["res://.godot/imported/dk.png-a7bd12c0c31890176455ab60e78ece28.ctex"]
+source_file="res://assets/sprites/characters/demon_king/dk_sitting.png"
+dest_files=["res://.godot/imported/dk_sitting.png-ae4331c68808088b47a316c4757cea66.ctex"]
 
 [params]
 

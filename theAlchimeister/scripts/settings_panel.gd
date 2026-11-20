@@ -6,10 +6,13 @@ extends Panel
 ## The player asked to leave (BACK).
 signal back_requested
 
-const PAGE_COLOR := Color(0.94, 0.88, 0.74)
-const COVER_COLOR := Color(0.42, 0.2, 0.14)
-const INK := Color(0.35, 0.22, 0.14)
-const ACTIVE_INK := Color(0.75, 0.25, 0.2)
+## On the menu frame, solid (menu_bg_no_trans.png, so the notebook doesn't
+## show through), in its colours: light text, gold for the title and whatever
+## is picked.
+const STYLE := preload("res://scenes/ui/menu_bg_no_trans_style.tres")
+const INK := Color(0.95, 0.9, 0.8)
+const ACTIVE_INK := Color(0.95, 0.85, 0.55)
+const TITLE_INK := Color(0.95, 0.85, 0.55)
 const BUTTONS_Y := 148.0
 
 var first_setting: Control
@@ -18,15 +21,13 @@ var controls_button: Button
 
 
 func build(panel_size: Vector2) -> void:
-	var style := StyleBoxFlat.new()
-	style.bg_color = PAGE_COLOR
-	style.border_color = COVER_COLOR
-	style.set_border_width_all(5)
+	var style: StyleBox = STYLE
 	add_theme_stylebox_override("panel", style)
 	size = panel_size
 	hide()
 	var title := _ink_label("SETTINGS", Vector2(0, 14), panel_size.x)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", TITLE_INK)
 	var rows := [["MUSIC", SaveGame.music_volume, SaveGame.set_music_volume], ["SOUND", SaveGame.sound_volume, SaveGame.set_sound_volume]]
 	for i in rows.size():
 		var y := 46.0 + i * 30.0

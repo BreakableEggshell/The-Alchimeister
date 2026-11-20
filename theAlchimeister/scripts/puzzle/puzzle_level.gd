@@ -25,6 +25,17 @@ static var _hint_part := {}
 ## them, which is free and isn't asked about.
 static var _hints_heard := {}
 static var _hint_taken_at := {}
+## Per stage: the log (DialogueBox.history) as it was at the last retry, so
+## what was said (the opening lines, which retries skip) is still there.
+static var _logs := {}
+## Screen pixels the camera may go past the stage's left edge with the
+## on-screen buttons (see _setup_bounds): a little more than their width.
+const TOUCH_LEFT_PAD := 84.0
+## How fast the room behind moves with the camera (1: with the level, 0: not at
+## all). See _add_parallax.
+const BACKDROP_SCROLL := Vector2(0.5, 0.5)
+## How far the room behind reaches past the stage on each side.
+const BACKDROP_MARGIN := 400.0
 
 @export var stage_id := "1-1"
 ## Width and height of the playable area, in pixels.
@@ -82,6 +93,9 @@ func _ready() -> void:
 	get_tree().paused = false
 	Music.play(_music())
 	SaveGame.set_last_stage(stage_id)
+	# A retry: the log as it was.
+	if restart_count() > 0 and _logs.has(stage_id):
+		hud.dialogue.history.assign(_logs[stage_id])
 	_setup_bounds()
 	player.died.connect(_on_player_died)
 	var exit := get_tree().get_first_node_in_group("stage_exit")
@@ -200,6 +214,7 @@ func restart() -> void:
 	if Iris.is_closed:
 		return
 	_restarts[stage_id] = restart_count() + 1
+	_logs[stage_id] = hud.dialogue.history.duplicate(true)
 	get_tree().paused = true
 	await Iris.close(_iris_focus())
 	if not is_inside_tree():
@@ -284,6 +299,7 @@ static func is_nudge_attempt(attempt: int) -> bool:
 ## locked here are free again.
 func _forget_stage() -> void:
 	_restarts.erase(stage_id)
+	_logs.erase(stage_id)
 	_hint_part.erase(stage_id)
 	_hints_heard.erase(stage_id)
 	_hint_taken_at.erase(stage_id)
@@ -319,6 +335,9 @@ func _on_player_died(cause: StringName) -> void:
 
 
 func _on_exit_reached() -> void:
+	# Nothing kills him on the end screen. (A dead knight can't walk into the
+	# door, see ExitDoor; THE ONLY WAY OUT clears on dying, on purpose.)
+	player.finished = true
 	_over = true
 	_stop_play()
 	player.set_physics_process(false)
@@ -357,16 +376,45 @@ func _stop_play() -> void:
 	hud.disable_book()
 
 
+## Parallax: the room behind (the backdrop) moves at BACKDROP_SCROLL of the
+## camera's pace, so it seems further off than the floors and walls. It
+## reaches BACKDROP_MARGIN past the stage all round, so it always fills the
+## screen.
+func _add_parallax() -> void:
+	var layer := Parallax2D.new()
+	layer.name = "BackdropParallax"
+	layer.scroll_scale = BACKDROP_SCROLL
+	var at := backdrop.get_index()
+	backdrop.get_parent().add_child(layer)
+	backdrop.get_parent().move_child(layer, at)
+	backdrop.reparent(layer, false)
+
+
 ## Camera limits, backdrop grid and invisible walls around the stage.
 func _setup_bounds() -> void:
 	var camera: Camera2D = player.get_node("Camera")
 	camera.limit_left = 0
+	# With the on-screen buttons (bottom left), the camera can go a little past
+	# the stage's left edge, onto a thick wall, so a knight starting by that
+	# edge stands clear of the buttons rather than behind them.
+	if TouchControls.touch_on():
+		var pad := ceilf(TOUCH_LEFT_PAD / camera.zoom.x)
+		camera.limit_left = -int(pad)
+		var wall := Solid.new()
+		wall.name = "TouchPadWall"
+		wall.points = PackedVector2Array([Vector2(-pad, 0), Vector2(0, 0), Vector2(0, stage_size.y), Vector2(-pad, stage_size.y)])
+		add_child(wall)
 	camera.limit_top = 0
 	camera.limit_right = int(stage_size.x)
 	camera.limit_bottom = int(stage_size.y)
-	backdrop.columns = ceili(stage_size.x / backdrop.cell_size)
-	backdrop.rows = ceili(stage_size.y / backdrop.cell_size)
+	# Past the stage on every side (BACKDROP_MARGIN), so however the camera
+	# zooms or the parallax shifts it, its edge never shows.
+	var margin: float = ceilf(BACKDROP_MARGIN / backdrop.cell_size) * backdrop.cell_size
+	backdrop.position = Vector2(-margin, -margin)
+	backdrop.columns = ceili((stage_size.x + margin * 2.0) / backdrop.cell_size)
+	backdrop.rows = ceili((stage_size.y + margin * 2.0) / backdrop.cell_size)
 	backdrop.queue_redraw()
+	_add_parallax()
 	var edges := StaticBody2D.new()
 	edges.name = "Edges"
 	for edge in [[Vector2.ZERO, Vector2.DOWN], [Vector2.ZERO, Vector2.RIGHT], [Vector2(stage_size.x, 0), Vector2.LEFT]]:

@@ -74,6 +74,8 @@ const STORAGE_AT := Vector2(16, 100)
 const BUTTONS_GAP := 2.0
 const PAGE_ARROW_SIZE := Vector2(18, 20)
 const CHECKLIST := ["Meet the Demon Lord", "Use ??? potion on the Demon Lord", "Remove the curse"]
+## Each checklist line's SaveGame item: ticked once it's done.
+const CHECKLIST_ITEMS := [SaveGame.CHECK_MET, SaveGame.CHECK_SECRET, SaveGame.CHECK_CURSE]
 const CHECKLIST_TOP := 26.0
 const CHECKLIST_SPACING := 30.0
 const CHECKBOX := 7.0
@@ -141,7 +143,7 @@ const PAGE_COLOR := Color8(255, 244, 205)
 ## The open book drawn behind the pages: assets/notebook.png, stretched to
 ## BOOK_SIZE as a nine-patch (one per page) so its corners, cover edges and the
 ## dips at the spine stay pixel for pixel, at the same scale as the text.
-const NOTEBOOK := preload("res://assets/notebook.png")
+const NOTEBOOK := preload("res://assets/ui/notebook/notebook.png")
 ## Each page's part of the art, and how much of each edge stays unstretched
 ## (all of every corner and cover edge: only the plain straight middle
 ## stretches):
@@ -275,7 +277,9 @@ func _exit_tree() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_book") or event.is_action_pressed("ui_cancel"):
+	# START on a controller ("pause") does as Esc does here.
+	var escape := event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause")
+	if event.is_action_pressed("toggle_book") or escape:
 		if _hint_prompt.visible:
 			_close_hint_prompt()
 		elif _locked_popup.visible:
@@ -286,7 +290,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_gear_menu()
 		elif _settings.visible:
 			_settings.back_out()
-		elif event.is_action_pressed("ui_cancel") and not is_open:
+		elif escape and not is_open:
 			_open_pause()
 		else:
 			toggle()
@@ -809,8 +813,8 @@ func _build_gear_menu() -> Control:
 	_gear_level.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	modal.add_child(_gear_level)
 	_gear_panel = Panel.new()
-	# Its own frame (pause_menu_bg.png, stretched by its middle).
-	_gear_panel.add_theme_stylebox_override("panel", preload("res://scenes/ui/pause_menu_style.tres"))
+	# The menu frame (menu_bg.png, stretched by its middle).
+	_gear_panel.add_theme_stylebox_override("panel", preload("res://scenes/ui/menu_bg_style.tres"))
 	modal.add_child(_gear_panel)
 	_gear_title = Label.new()
 	_gear_title.text = "PAUSE MENU"
@@ -1189,7 +1193,11 @@ func _build_checklist() -> Control:
 	page.draw.connect(func() -> void:
 		for i in CHECKLIST.size():
 			var box := Rect2(12, CHECKLIST_TOP + i * CHECKLIST_SPACING + 2, CHECKBOX, CHECKBOX)
-			page.draw_rect(box.grow(-0.5), INK, false, 1.0))
+			page.draw_rect(box.grow(-0.5), INK, false, 1.0)
+			if SaveGame.is_checklist_done(CHECKLIST_ITEMS[i]):
+				# A tick, reaching a little out of the box.
+				var tick := PackedVector2Array([box.position + Vector2(1, 3.5), box.position + Vector2(3, 6), box.position + Vector2(8, -1)])
+				page.draw_polyline(tick, INK, 1.5))
 	return page
 
 
@@ -1208,6 +1216,7 @@ func _set_page(page: int) -> void:
 	for node in _crafting_nodes:
 		node.visible = _page == PAGE_BREWING
 	_checklist.visible = _page == PAGE_CHECKLIST
+	_checklist.queue_redraw()
 	_next_page.visible = _page < LAST_PAGE
 	_previous_page.visible = _page > 0
 	# Keep keyboard focus on the page: the arrow that turned it if it's still
@@ -1452,15 +1461,20 @@ func _draw_potion_counts(font: Font) -> void:
 		var icon_at := Vector2(x + 8, y)
 		# None held: the icon greyed out.
 		PotionData.draw_potion(_book, kind, icon_at, Color.WHITE if amount > 0 else Color(0.45, 0.42, 0.4, 0.6))
-		_book.draw_string(font, Vector2(x + 17, y + 4), "x%d" % amount, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(INK, faded))
+		# Crowded (five or six potions held): just the number, so it never runs
+		# under the next icon.
+		var label := "x%d" % amount
+		if 17.0 + font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x > step - 1.0:
+			label = str(amount)
+		_book.draw_string(font, Vector2(x + 17, y + 4), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(INK, faded))
 		x += step
 
 
 # --- Recipe list
 
 ## Every recipe row in order: {ingredients, potion, known, locked}. Recipes
-## still to be found are left out. The ??? recipe comes last: locked until it's
-## been found (one of every ingredient), then a recipe like the rest.
+## still to be found are left out, the ??? one included: once it's been found
+## (one of every ingredient), it comes last, a recipe like the rest.
 func _recipe_entries() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for potion in PotionData.KINDS:
@@ -1468,8 +1482,8 @@ func _recipe_entries() -> Array[Dictionary]:
 			continue
 		var ingredients := _death_preview if potion == PotionData.DEATH else _recipe_ingredients(potion)
 		entries.append({"ingredients": ingredients, "potion": potion, "known": SaveGame.is_potion_known(potion), "locked": false})
-	var found := _recipe_found(PotionData.SECRET)
-	entries.append({"ingredients": PotionData.INGREDIENTS, "potion": PotionData.SECRET, "known": found and SaveGame.is_potion_known(PotionData.SECRET), "locked": not found})
+	if _recipe_found(PotionData.SECRET):
+		entries.append({"ingredients": PotionData.INGREDIENTS, "potion": PotionData.SECRET, "known": SaveGame.is_potion_known(PotionData.SECRET), "locked": false})
 	return entries
 
 

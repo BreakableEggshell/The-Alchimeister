@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/levels/stage_base.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/puzzle/level_5.gd" id="level"]
 [ext_resource type="Script" path="res://scripts/platformer/solid.gd" id="solid"]
 [ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
 [ext_resource type="Script" path="res://scripts/puzzle/wooden_platform.gd" id="wood"]
@@ -10,7 +11,9 @@
 [ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
 [ext_resource type="PackedScene" path="res://scenes/actors/slime.tscn" id="slime"]
 
-[node name="Level5" instance=ExtResource("base")]
+[node name="Level5" instance=ExtResource("base") node_paths=PackedStringArray("chest")]
+script = ExtResource("level")
+chest = NodePath("Level/Chest")
 stage_id = "5"
 stage_size = Vector2(860, 216)
 hint_lines = PackedStringArray("SHELDON (squint): Funny how much faith everything here puts in those wooden boards.", "SHELDON: That rock looks awfully heavy for such a thin shelf. And what's that right below it?", "SHELDON (squint): I do wonder if there's a way we can put that rock there.", "---", "SHELDON: You know how ghosts can go through walls and floors?", "SHELDON (squint): Just thought that was interesting.", "SHELDON: If only we could phase through like them.")
@@ -26,8 +29,10 @@ points = PackedVector2Array(0, 0, 212, 0, 212, 24, 0, 24)
 [node name="Chest" type="Area2D" parent="Level"]
 position = Vector2(50, 192)
 script = ExtResource("chest")
-contents = "ghost_wisp"
-amount = 4
+extra_contents = "gust_feather"
+third_contents = "frost_shard"
+fourth_contents = "ghost_wisp"
+fourth_amount = 3
 
 [node name="TunnelRoof" type="StaticBody2D" parent="Level"]
 position = Vector2(150, 0)

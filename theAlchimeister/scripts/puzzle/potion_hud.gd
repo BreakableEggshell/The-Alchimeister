@@ -180,6 +180,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not _potions_enabled:
 		return
+	# LB / RB on a controller: the potion before / after.
+	if not book.is_open and not dialogue.is_playing and (event.is_action_pressed("potion_prev") or event.is_action_pressed("potion_next")):
+		_cycle_potion(-1 if event.is_action_pressed("potion_prev") else 1)
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventMouseButton and event.pressed and not book.is_open and not dialogue.is_playing:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_cycle_potion(-1)
@@ -188,9 +193,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cycle_potion(1)
 			get_viewport().set_input_as_handled()
 		return
-	for i in PotionData.KINDS.size():
-		var kind := PotionData.KINDS[i]
-		if inventory.is_shown(kind) and event.is_action_pressed("potion_%d" % (i + 1)):
+	# Keys go by place on the bar: the Nth potion showing is key N (so ???
+	# is 5 until there's a Death potion before it).
+	var shown := PotionData.KINDS.filter(inventory.is_shown)
+	for i in shown.size():
+		var kind: StringName = shown[i]
+		if event.is_action_pressed("potion_%d" % (i + 1)):
 			inventory.select(kind)
 			get_viewport().set_input_as_handled()
 
@@ -332,11 +340,15 @@ func _draw_slot(slot: Button, kind: StringName) -> void:
 	var count := inventory.count(kind)
 	var color := Color.WHITE if count > 0 else Color(1, 1, 1, 0.5)
 	slot.draw_string(font, Vector2(16, 14), str(count), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, color)
-	_draw_key(slot, Controls.key_name("potion_%d" % (PotionData.KINDS.find(kind) + 1)))
+	_draw_key(slot, Controls.key_name("potion_%d" % (PotionData.KINDS.filter(inventory.is_shown).find(kind) + 1)))
 
 
 ## The keyboard key for a button, centred just below it.
 func _restart_text() -> String:
+	# A controller or a touchscreen has no restart button: the pause menu has
+	# RESTART.
+	if Controls.key_name(&"restart") == "":
+		return "STUCK? RESTART FROM THE PAUSE MENU!"
 	return "STUCK? PRESS %s TO RESTART!" % Controls.key_name(&"restart")
 
 

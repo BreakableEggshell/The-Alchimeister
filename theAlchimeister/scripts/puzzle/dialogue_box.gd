@@ -225,21 +225,21 @@ func hide_log() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _log.visible:
 		# Esc, L or B put it away (B mustn't open the notebook under it).
-		if event.is_action_pressed("ui_cancel") or _is_log_key(event) or event.is_action_pressed("toggle_book"):
+		if _is_escape(event) or _is_log_key(event) or event.is_action_pressed("toggle_book"):
 			hide_log()
 			get_viewport().set_input_as_handled()
 		return
 	if not is_playing:
 		return
 	if _confirm.visible:
-		if event.is_action_pressed("ui_cancel"):
+		if _is_escape(event):
 			_confirm.hide()
 			get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_accept") or event.is_action_pressed("interact"):
 		advance()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_cancel"):
+	elif _is_escape(event):
 		_show_confirm()
 		get_viewport().set_input_as_handled()
 	elif _is_log_key(event):
@@ -259,6 +259,11 @@ func focus_first() -> bool:
 	else:
 		return false
 	return true
+
+
+## Esc, or START on a controller ("pause").
+func _is_escape(event: InputEvent) -> bool:
+	return event.is_action_pressed("ui_cancel") or (InputMap.has_action(&"pause") and event.is_action_pressed("pause"))
 
 
 func _is_log_key(event: InputEvent) -> bool:
@@ -638,6 +643,9 @@ func _modal(panel_size: Vector2) -> Control:
 ## Under the icon: `key`, or the key bound to `action` if there is one.
 func _icon_button(draw_icon: Callable, tip: String, from_right: float, key: String, action := &"") -> Button:
 	var button := Button.new()
+	# Wooden, as in the menus, whatever theme it's under (a level's HUD has its
+	# own).
+	button.theme_type_variation = &"WoodButton"
 	button.focus_mode = Control.FOCUS_NONE
 	button.tooltip_text = tip
 	button.anchor_left = 1.0
@@ -648,7 +656,7 @@ func _icon_button(draw_icon: Callable, tip: String, from_right: float, key: Stri
 	button.offset_bottom = 24.0
 	button.draw.connect(draw_icon.bind(button))
 	button.draw.connect(func() -> void:
-		var shown := Controls.key_name(action) if action != &"" else key
+		var shown := Controls.key_name(action) if action != &"" else (Controls.cancel_name() if key == "ESC" else key)
 		button.draw_string(button.get_theme_font("font"), Vector2(0, button.size.y + 9), shown, HORIZONTAL_ALIGNMENT_CENTER, button.size.x, 8, KEY_COLOR))
 	SaveGame.controls_changed.connect(button.queue_redraw)
 	add_child(button)

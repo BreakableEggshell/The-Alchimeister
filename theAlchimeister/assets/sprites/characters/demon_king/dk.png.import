@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://8lvdy62v3tm"
-path="res://.godot/imported/notebook.png-3efa3da6e037f910803074dd197237bb.ctex"
+uid="uid://bxow4k3033j0k"
+path="res://.godot/imported/dk.png-cd8ffd07449ed2f3c4caa265db1c3286.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/notebook.png"
-dest_files=["res://.godot/imported/notebook.png-3efa3da6e037f910803074dd197237bb.ctex"]
+source_file="res://assets/sprites/characters/demon_king/dk.png"
+dest_files=["res://.godot/imported/dk.png-cd8ffd07449ed2f3c4caa265db1c3286.ctex"]
 
 [params]
 

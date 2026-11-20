@@ -11,6 +11,9 @@ extends CharacterBody2D
 ## its items. Wall slimes ignore knockback.
 ## Translucent: the player can pass through it.
 ## Death: dies at once and drops its items, wall slimes too.
+## The ??? potion (a charm): charmed for good (until cleansing water), hearts
+## bobbing over its head. It goes on as before, but it's harmless and the
+## knight passes right through it.
 ## A slime drops its items only once, on whichever happens first.
 ## A flying slime (`flying`, see flyer.tscn) patrols back and forth in the air
 ## at the height it starts at, turning at walls (or `patrol_range` pixels
@@ -41,6 +44,11 @@ const SPARKLE_COUNT := 4
 const SPARKLE_RATE := 0.9
 const SPARKLE_COLOR := Color(1.0, 0.95, 0.6)
 const TRANSLUCENT_ALPHA := 0.35
+## Charmed (the ??? potion): hearts over its head, how many, and how often
+## each floats up.
+const HEART_COUNT := 3
+const HEART_RATE := 0.8
+const HEART_COLOR := Color(1.0, 0.45, 0.65)
 ## Seconds before a translucency ends that it starts blinking.
 const WARN_TIME := 3.0
 ## Seconds before any effect ends that the blinking speeds up.
@@ -92,6 +100,8 @@ var _burn_left := 0.0
 var _freeze_left := 0.0
 var _translucent_left := 0.0
 var _stun_left := 0.0
+## Charmed by the ??? potion (see the top).
+var _charmed := false
 var _dead := false
 var _dropped := false
 var _anim_clock := 0.0
@@ -148,6 +158,8 @@ func apply_potion(kind: StringName, origin: Vector2, power := 1.0) -> void:
 			_drop_items()
 		PotionData.TRANSLUCENT:
 			_translucent_left = PotionData.TRANSLUCENT_TIME
+		PotionData.SECRET:
+			_charmed = true
 		PotionData.DEATH:
 			_die()
 
@@ -162,6 +174,7 @@ func clear_potion_effects() -> void:
 	_freeze_left = 0.0
 	_translucent_left = 0.0
 	_stun_left = 0.0
+	_charmed = false
 
 
 func is_frozen() -> bool:
@@ -174,6 +187,11 @@ func is_burning() -> bool:
 
 func is_stunned() -> bool:
 	return _stun_left > 0.0
+
+
+## Charmed for good, so not counted in has_effect (nothing to wait out).
+func is_charmed() -> bool:
+	return _charmed
 
 
 ## Whether any potion effect is still running on it.
@@ -271,7 +289,7 @@ func _hit(from: Vector2, to: Vector2) -> Object:
 
 
 func _hurt_overlapping_player() -> void:
-	if is_frozen() or is_stunned() or is_translucent():
+	if is_frozen() or is_stunned() or is_translucent() or is_charmed():
 		return
 	for body in _hurtbox.get_overlapping_bodies():
 		if body.has_method("die") and not body.is_translucent():
@@ -362,6 +380,22 @@ func _draw() -> void:
 			var angle := _anim_clock * 5.0 + TAU * i / 3.0
 			var star := Vector2(cos(angle) * 7.0, -18.0 + sin(angle) * 2.5)
 			draw_rect(Rect2(star - Vector2(1, 1), Vector2(2, 2)), Color(1, 0.9, 0.3))
+	if is_charmed():
+		_draw_hearts()
+
+
+## Charmed: little hearts floating up over its head, one after another, fading.
+func _draw_hearts() -> void:
+	# Over the fly bush's leaves too.
+	var top := -26.0 if frozen_texture else -18.0
+	for i in HEART_COUNT:
+		var rise := fmod(_anim_clock * HEART_RATE + float(i) / HEART_COUNT, 1.0)
+		var at := Vector2((i - (HEART_COUNT - 1) / 2.0) * 6.0 + sin(_anim_clock * 3.0 + i) * 1.5, top - rise * 8.0)
+		var color := Color(HEART_COLOR, 1.0 - rise * rise)
+		# Two bumps over a point.
+		draw_circle(at + Vector2(-1.2, -0.6), 1.4, color)
+		draw_circle(at + Vector2(1.2, -0.6), 1.4, color)
+		draw_colored_polygon(PackedVector2Array([at + Vector2(-2.5, -0.3), at + Vector2(2.5, -0.3), at + Vector2(0, 2.6)]), color)
 
 
 ## Bat wings either side, flapping (behind the sprite, which draws on top).

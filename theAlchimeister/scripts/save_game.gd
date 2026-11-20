@@ -112,6 +112,8 @@ const STAGE_SCENES := {
 	"X3": "res://scenes/levels/extra_3.tscn",
 }
 const FIRST_STAGE := "1-1"
+## Where the Death recipe is found (FALSE FLOORS, level 8).
+const DEATH_RECIPE_STAGE := "5"
 ## Debug: free play with every mechanic, outside the levels and their progress.
 const SANDBOX := "res://scenes/levels/sandbox.tscn"
 
@@ -122,12 +124,20 @@ var last_stage := ""
 var discovered_potions: Array[String] = []
 ## Potions in PotionData.RECIPE_TO_FIND whose recipe has been found.
 var found_recipes: Array[String] = []
+## The notebook's checklist (see CHECK_*): which items are done.
+var checklist_done: Array[String] = []
+const CHECK_MET := "met_demon_lord"
+const CHECK_SECRET := "used_secret"
+const CHECK_CURSE := "curse_removed"
 ## Stages where HINT is locked. Each hint taken locks the next stage that isn't
 ## already (lock_hints_after); clearing or skipping a stage frees it.
 var hint_locks: Array[String] = []
 var music_volume := 0.8
 var sound_volume := 0.8
 var fullscreen := false
+## TEST RUN (the start menu's toggle): only then does START begin a timed run
+## (the secret timer), with the playtester's name asked for at the end.
+var test_run := false
 ## Action name -> physical keycodes, for the actions in Controls.REMAPPABLE
 ## (see Controls). Empty until the player remaps something.
 var key_bindings := {}
@@ -206,10 +216,13 @@ func load_save() -> void:
 		var potions: Array = file.get_value("progress", "discovered_potions", [])
 		discovered_potions.assign(potions)
 		found_recipes.assign(file.get_value("progress", "found_recipes", []))
+		checklist_done.assign(file.get_value("progress", "checklist_done", []))
+		_catch_up_recipes()
 		hint_locks.assign(file.get_value("progress", "hint_locks", []))
 		music_volume = file.get_value("settings", "music_volume", music_volume)
 		sound_volume = file.get_value("settings", "sound_volume", sound_volume)
 		fullscreen = file.get_value("settings", "fullscreen", fullscreen)
+		test_run = file.get_value("settings", "test_run", test_run)
 		key_bindings = file.get_value("controls", "bindings", key_bindings)
 		run_active = file.get_value("progress", "run_active", run_active)
 		run_seconds = file.get_value("progress", "run_seconds", run_seconds)
@@ -226,6 +239,7 @@ func save() -> void:
 	file.set_value("progress", "last_stage", last_stage)
 	file.set_value("progress", "discovered_potions", discovered_potions)
 	file.set_value("progress", "found_recipes", found_recipes)
+	file.set_value("progress", "checklist_done", checklist_done)
 	file.set_value("progress", "hint_locks", hint_locks)
 	file.set_value("progress", "run_active", run_active)
 	file.set_value("progress", "run_seconds", run_seconds)
@@ -235,6 +249,7 @@ func save() -> void:
 	file.set_value("settings", "music_volume", music_volume)
 	file.set_value("settings", "sound_volume", sound_volume)
 	file.set_value("settings", "fullscreen", fullscreen)
+	file.set_value("settings", "test_run", test_run)
 	file.set_value("controls", "bindings", key_bindings)
 	file.save(save_path)
 
@@ -245,8 +260,10 @@ func start_new_run() -> void:
 	last_stage = ""
 	discovered_potions.clear()
 	found_recipes.clear()
+	checklist_done.clear()
 	hint_locks.clear()
-	run_active = true
+	# Timed only as a test run.
+	run_active = test_run
 	run_seconds = 0.0
 	run_splits = {}
 	save()
@@ -256,6 +273,7 @@ func start_new_run() -> void:
 ## can't reach yet.
 func unlock_all_levels() -> void:
 	unlocked.assign(STAGE_SCENES.keys())
+	_catch_up_recipes()
 	run_active = false
 	save()
 
@@ -389,7 +407,22 @@ func set_map_shown(map: int, shown: bool) -> void:
 func unlock(stage: String) -> void:
 	if stage != "" and not unlocked.has(stage):
 		unlocked.append(stage)
+		_catch_up_recipes()
 		save()
+
+
+## The Death recipe is found in level 8's chest (DEATH_RECIPE_STAGE): anyone
+## with a later level open has it, however they got there (an old save, ALL
+## LEVELS, skipping).
+func _catch_up_recipes() -> void:
+	if found_recipes.has(String(PotionData.DEATH)):
+		return
+	var stages := map_stages(PLAYABLE_MAP)
+	var at := stages.find(DEATH_RECIPE_STAGE)
+	for stage in unlocked:
+		if stages.find(stage) > at:
+			found_recipes.append(String(PotionData.DEATH))
+			return
 
 
 func is_potion_discovered(kind: StringName) -> bool:
@@ -414,6 +447,17 @@ func discover_potion(kind: StringName) -> bool:
 ## was brewed before (older saves).
 func is_recipe_found(kind: StringName) -> bool:
 	return not PotionData.RECIPE_TO_FIND.has(kind) or found_recipes.has(String(kind)) or is_potion_discovered(kind)
+
+
+## Ticks a checklist item (CHECK_*), for good.
+func tick_checklist(item: String) -> void:
+	if not checklist_done.has(item):
+		checklist_done.append(item)
+		save()
+
+
+func is_checklist_done(item: String) -> bool:
+	return checklist_done.has(item)
 
 
 ## Returns true if this was the first time.
@@ -634,6 +678,15 @@ func set_sound_volume(value: float) -> void:
 	save()
 
 
+## Turns TEST RUN on or off. Off also ends a timed run under way: no time,
+## and no name asked for at the end.
+func set_test_run(on: bool) -> void:
+	test_run = on
+	if not on:
+		run_active = false
+	save()
+
+
 func set_fullscreen(value: bool) -> void:
 	fullscreen = value
 	apply_settings()
@@ -675,10 +728,12 @@ func _set_defaults() -> void:
 	last_stage = ""
 	discovered_potions.clear()
 	found_recipes.clear()
+	checklist_done.clear()
 	hint_locks.clear()
 	music_volume = 0.8
 	sound_volume = 0.8
 	fullscreen = false
+	test_run = false
 	key_bindings = {}
 	run_active = false
 	run_seconds = 0.0

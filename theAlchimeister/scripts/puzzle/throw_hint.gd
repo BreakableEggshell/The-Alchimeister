@@ -71,8 +71,10 @@ func _draw() -> void:
 	var panel := Rect2(-SIZE / 2.0, SIZE)
 	draw_rect(panel, PANEL_COLOR)
 	draw_rect(panel.grow(-0.5), Color(TEXT_COLOR, 0.5), false)
-	draw_string(FONT, Vector2(panel.position.x, panel.position.y + 11), "TAP AND DRAG", HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 8, TEXT_COLOR)
-	draw_string(FONT, Vector2(panel.position.x, panel.end.y - 4), "LET GO TO THROW", HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 8, Color(TEXT_COLOR, 0.7))
+	# With a controller: the right stick aims, RT throws.
+	var pad := Controls.using_pad
+	draw_string(FONT, Vector2(panel.position.x, panel.position.y + 11), "AIM: RIGHT STICK" if pad else "TAP AND DRAG", HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 8, TEXT_COLOR)
+	draw_string(FONT, Vector2(panel.position.x, panel.end.y - 4), "RT TO THROW" if pad else "LET GO TO THROW", HORIZONTAL_ALIGNMENT_CENTER, SIZE.x, 8, Color(TEXT_COLOR, 0.7))
 
 	# 0-0.25 press, 0.25-1.15 drag back, 1.15-1.5 hold, then throw.
 	var t := _clock

@@ -5,11 +5,13 @@
 [ext_resource type="Script" path="res://scripts/puzzle/chest.gd" id="chest"]
 [ext_resource type="Script" path="res://scripts/puzzle/element_platform.gd" id="slab"]
 [ext_resource type="Script" path="res://scripts/puzzle/exit_door.gd" id="exit"]
+[ext_resource type="Script" path="res://scripts/puzzle/level_10.gd" id="level"]
 
-[node name="Proto5" instance=ExtResource("base")]
+[node name="Proto5" instance=ExtResource("base") node_paths=PackedStringArray("slab")]
+script = ExtResource("level")
+slab = NodePath("Level/Slab")
 stage_id = "P5"
-intro_lines = PackedStringArray("SHELDON (squint): That slab of ice is no use to anyone down in that pit.", "SHELDON (glasses): Heat turns ice to <<smoke>>, and smoke goes <<up>>. Cold turns it back.")
-hint_lines = PackedStringArray("SHELDON: <<fire:Fire>> on the ice. Then watch the smoke drift up out of the pit.", "---", "SHELDON (glasses): <<freeze:Ice>> on the smoke when it's level with the ledges. It freezes right where it is.")
+hint_lines = PackedStringArray("SHELDON (squint): That slab of ice is no use to anyone down in that pit.", "SHELDON (glasses): Heat turns ice to <<smoke>>, and smoke goes <<up>>. Cold turns it back.", "---", "SHELDON: <<fire:Fire>> on the ice. Then watch the smoke drift up out of the pit.", "---", "SHELDON (glasses): <<freeze:Ice>> on the smoke when it's level with the ledges. It freezes right where it is.")
 
 [node name="Knight" parent="."]
 position = Vector2(24, 120)

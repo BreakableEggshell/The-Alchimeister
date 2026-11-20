@@ -5,7 +5,7 @@ extends Area2D
 ## knight. Touching it is death. It closes in at `speed`, faster
 ## (`catch_up_speed`) while the knight is more than `catch_up_distance` ahead,
 ## so it always looms at the left of the screen, and stops at `stop_x`.
-## Potions break on it, and nothing touches it (a "[NO EFFECT]" puff) except
+## Potions break on it, and nothing touches it (a "[IMMUNE]" puff) except
 ## the ??? potion (`struck`) and a Death potion (`killed`).
 ## Drawn from its sheet (dk_potion_form.png: a looping animation), stretched
 ## to `height`, with its flat colour filling in behind.
@@ -23,7 +23,13 @@ signal killed
 
 ## How far behind its front it's drawn (and catches potions).
 const DEPTH := 1400.0
-const SHEET := preload("res://assets/dk_potion_form.png")
+## The ??? potion's hit (see hit_flash): how long, how many white flashes, how
+## white (see white_flash.gdshader), and how far it shakes.
+const HIT_TIME := 1.0
+const HIT_FLASHES := 3
+const WHITE_FLASH := preload("res://scripts/puzzle/white_flash.gdshader")
+const HIT_SHAKE := 4.0
+const SHEET := preload("res://assets/sprites/characters/demon_king/dk_potion_form.png")
 const FRAMES := 6
 const FRAME_SIZE := Vector2(148, 300)
 const FPS := 6.0
@@ -61,6 +67,29 @@ func start() -> void:
 	chasing = true
 
 
+## Struck by the ??? potion: flashes white a few times and shakes, over
+## HIT_TIME seconds (await it to wait that out).
+func hit_flash() -> void:
+	var home := position
+	var white := ShaderMaterial.new()
+	white.shader = WHITE_FLASH
+	white.set_shader_parameter(&"flash", 0.0)
+	material = white
+	var set_white := func(amount: float) -> void: white.set_shader_parameter(&"flash", amount)
+	var flash := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	for i in HIT_FLASHES:
+		flash.tween_method(set_white, 0.0, 1.0, HIT_TIME / HIT_FLASHES / 2.0)
+		flash.tween_method(set_white, 1.0, 0.0, HIT_TIME / HIT_FLASHES / 2.0)
+	flash.tween_callback(func() -> void: material = null)
+	var shake := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	var steps := int(HIT_TIME / 0.04)
+	for i in steps:
+		var strength := HIT_SHAKE * (1.0 - float(i) / steps)
+		shake.tween_property(self, "position", home + Vector2(randf_range(-strength, strength), randf_range(-strength, strength) * 0.5), 0.04)
+	shake.tween_property(self, "position", home, 0.04)
+	await shake.finished
+
+
 func stop() -> void:
 	chasing = false
 
@@ -78,7 +107,9 @@ func grow_at(anchor: Vector2, time: float) -> void:
 
 
 func apply_potion(kind: StringName, _origin: Vector2, _power := 1.0) -> void:
-	if not visible:
+	# The growth potion (the cutscene's) is what made him: its splash lands as
+	# he grows, and says nothing.
+	if not visible or kind == PotionData.GROWTH:
 		return
 	match kind:
 		PotionData.SECRET:
@@ -105,13 +136,13 @@ func _physics_process(delta: float) -> void:
 	global_position.x = minf(global_position.x + pace * delta, stop_x)
 	# Its front reaches him: caught.
 	if knight.global_position.x - 6.0 < global_position.x:
-		knight.die(GameOver.CAUGHT, Vector2(global_position.x - 8.0, knight.global_position.y - 14.0))
+		knight.die(GameOver.DEMON, Vector2(global_position.x - 8.0, knight.global_position.y - 14.0))
 
 
-## "[NO EFFECT]" rising off its front.
+## "[IMMUNE]" rising off its front.
 func _no_effect() -> void:
 	var label := Label.new()
-	label.text = "[NO EFFECT]"
+	label.text = "[IMMUNE]"
 	label.add_theme_font_override("font", FONT)
 	label.add_theme_font_size_override("font_size", 8)
 	label.add_theme_color_override("font_color", Color(0.85, 0.8, 0.95))

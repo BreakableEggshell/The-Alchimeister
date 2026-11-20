@@ -7,6 +7,8 @@ const BURNED := &"burned"
 const DEATH_POTION := &"death_potion"
 const CRUSHED := &"crushed"
 const BLOWN_UP := &"blown_up"
+## Caught by the Demon King's dark wall.
+const DEMON := &"demon"
 
 ## Shown over the knight's head, with a skull, for deaths that need explaining.
 const TEXT := {
@@ -23,4 +25,5 @@ const FADE_COLORS := {
 	DEATH_POTION: [Color(0.78, 0.34, 0.5), Color(0.42, 0.07, 0.2)],
 	BLOWN_UP: [Color(1.0, 0.93, 0.62), Color(0.96, 0.56, 0.2)],
 	CRUSHED: [Color.WHITE, Color(0.68, 0.66, 0.72)],
+	DEMON: [Color(1.0, 0.42, 0.42), Color(0.62, 0.06, 0.12)],
 }

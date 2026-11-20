@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dg10a0jmnjfs0"
-path="res://.godot/imported/map1_levelnode.png-23ef7106f6cc90e0e7b25094262edb53.ctex"
+uid="uid://wjbvirblt83t"
+path="res://.godot/imported/dk_kneel.png-083e231cd6a7ffa5e127406a8d77e540.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/map1_levelnode.png"
-dest_files=["res://.godot/imported/map1_levelnode.png-23ef7106f6cc90e0e7b25094262edb53.ctex"]
+source_file="res://assets/sprites/characters/demon_king/dk_kneel.png"
+dest_files=["res://.godot/imported/dk_kneel.png-083e231cd6a7ffa5e127406a8d77e540.ctex"]
 
 [params]
 
