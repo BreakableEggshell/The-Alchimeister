@@ -18,6 +18,19 @@ const KNIGHT_DEATH := preload("res://assets/audio/sfx/knight_death_sfx.wav")
 ## The first 3.5 seconds of "Small Audience Chatter Talking", faded out at the end.
 const AUDIENCE_CHATTER := preload("res://assets/audio/sfx/audience_chatter.wav")
 
+## Each sound's volume (dB), evening them out: set from each one's loudest
+## moment so they hit about alike (~-16 dBFS). The jump, heard all the time,
+## sits a bit under the rest. Sounds not listed play as they are.
+const GAIN_DB := {
+	KNIGHT_JUMP: -9.5,
+	KNIGHT_LAND: 5.0,
+	KNIGHT_DEATH: -5.0,
+	JELLY_BOUNCE: 4.0,
+	KNOCKBACK: -3.0,
+	PICKUP: 14.0,
+	POTION_BREW: -2.0,
+}
+
 
 ## Plays `stream` once. With `at`, it sounds from that spot in the world
 ## (quieter and panned when far from the camera); otherwise it's plain.
@@ -30,6 +43,7 @@ static func play(stream: AudioStream, from: Node, at = null) -> Node:
 	if at is Vector2:
 		var positioned := AudioStreamPlayer2D.new()
 		positioned.stream = stream
+		positioned.volume_db = GAIN_DB.get(stream, 0.0)
 		positioned.bus = &"SFX"
 		positioned.global_position = at
 		positioned.finished.connect(positioned.queue_free)
@@ -37,6 +51,7 @@ static func play(stream: AudioStream, from: Node, at = null) -> Node:
 	else:
 		var flat := AudioStreamPlayer.new()
 		flat.stream = stream
+		flat.volume_db = GAIN_DB.get(stream, 0.0)
 		flat.bus = &"SFX"
 		flat.finished.connect(flat.queue_free)
 		player = flat
