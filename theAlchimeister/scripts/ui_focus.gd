@@ -18,6 +18,10 @@ const PULSE_IN := 2.0
 const PULSE_OUT := 3.0
 
 var _pulse_out := false
+## A menu just popped up over play (hide_mark): a key still held from moving
+## the knight (its auto-repeat) doesn't move the selection until it's
+## pressed again.
+var _ignore_held := false
 ## Where the mark is drawn: its own layer, over the game and menus, under the
 ## iris (layer 100).
 var _layer: CanvasLayer
@@ -97,6 +101,11 @@ func _input(event: InputEvent) -> void:
 	# and stays on from screen to screen, scene changes included, until a
 	# click, a tap, the mouse moving, or playing (moving the knight with no
 	# menu up; see _unhandled_input). Other keys (B, Enter) leave it as it is.
+	if _ignore_held and _is_nav(event, true):
+		if event.is_echo():
+			get_viewport().set_input_as_handled()
+			return
+		_ignore_held = false
 	if _is_nav(event) and get_viewport().gui_get_focus_owner():
 		# The first press only reveals where the selection is (START on the
 		# start menu, say); the next ones move it.
@@ -131,6 +140,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## pointer stays as it was.
 func hide_mark() -> void:
 	SelectionBox.shown = false
+	_ignore_held = true
 	_mark.queue_redraw()
 
 
@@ -149,8 +159,9 @@ func _clear() -> void:
 		get_viewport().gui_release_focus()
 
 
-func _is_nav(event: InputEvent) -> bool:
+## A press moving the selection (with `held`, a held key's repeats count too).
+func _is_nav(event: InputEvent, held := false) -> bool:
 	for action in ["ui_up", "ui_down", "ui_left", "ui_right", "ui_focus_next", "ui_focus_prev"]:
-		if event.is_action_pressed(action):
+		if event.is_action_pressed(action, held):
 			return true
 	return false

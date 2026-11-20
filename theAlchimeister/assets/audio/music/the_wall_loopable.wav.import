@@ -3,12 +3,12 @@
 importer="wav"
 type="AudioStreamWAV"
 uid="uid://cxw2ywk7gi4oc"
-path="res://.godot/imported/the_wall_loopable.wav-cadc08ae0eea03e9fafc65b56e546a27.sample"
+path="res://.godot/imported/the_wall_loopable.wav-82bfc57ea5891d482291cfefd00d55a6.sample"
 
 [deps]
 
 source_file="res://assets/audio/music/the_wall_loopable.wav"
-dest_files=["res://.godot/imported/the_wall_loopable.wav-cadc08ae0eea03e9fafc65b56e546a27.sample"]
+dest_files=["res://.godot/imported/the_wall_loopable.wav-82bfc57ea5891d482291cfefd00d55a6.sample"]
 
 [params]
 
